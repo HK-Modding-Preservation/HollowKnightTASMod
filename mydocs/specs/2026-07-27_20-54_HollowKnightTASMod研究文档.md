@@ -3,7 +3,7 @@
 ## 0. Open Questions
 
 - [x] 初始文档可以使用“Windows 常见 1.5.x + HK Modding API”作为研究范围；精确游戏构建留给 Phase 0 探针。
-- [ ] GitHub CLI 认证是否可用（仅只读检查后决定远端步骤）。
+- [x] GitHub CLI 认证可用：`windplusflower`，具备 `repo` scope；同名仓库在该账号下不存在，已安全创建 private 远端。
 
 ## 1. Requirements (Context)
 
@@ -97,17 +97,26 @@
 
 - [x] Step 0: 读取 SDD-RIPER 与 Hollow Knight Modding 规范，读取三项原始调研产物，访问核验关键一手来源。
 - [x] Step 1: 生成 README、来源索引和验证实验清单；完成 README 章节、14 URL 保留、占位符与 URL 连通性核查。
-- [ ] Step 2: 初始化并提交本地 Git 仓库。
-- [ ] Step 3: 认证可用时创建/复用 private GitHub 远端并推送。
-- [ ] Step 4: 执行端到端验证并填写 Review。
+- [x] Step 2: 初始化当前目录自己的 Git 仓库，主分支为 `main`；提交 `8221727 docs: add Hollow Knight TAS feasibility research`。
+- [x] Step 3: 仅读取 `gh auth status`，确认 `windplusflower`；读取同名仓库视图确认不存在后，以 `--private` 创建 `windplusflower/HollowKnightTASMod`，设定 `origin` 并推送 `main`。
+- [x] Step 4: 端到端验证初始提交：本地 `HEAD` 与 `refs/heads/main` 均为 `8221727e3b52ce44a9dba11647d186fc8add50b9`；仓库视图显示 `visibility=PRIVATE`、默认分支 `main`。
 
 ## 6. Review Verdict
 
-- 待 Execute 完成后填写。
+| Axis | Key Checks | Verdict | Evidence |
+|---|---|---|---|
+| Spec Quality & Requirement Completion | README 覆盖结论、边界、能力矩阵、运行时约束、架构、核心子题、Celeste 对照、MVP、风险实验与来源；14 个原始 URL 被完整保留。 | PASS | README 211 行；URL 保留检查 `14/14`；来源 HTTP 连通性 `14 × 200`。 |
+| Spec-Code Fidelity | 实际文件与 Plan 的 `README.md`、两个 `docs/` 文档、`memory/HISTORY.md`、`mydocs/**` 相符；无 Mod 代码或越界游戏/系统变更。 | PASS | 初始 commit `8221727` 含 7 个预期 Markdown 文件；独立 Git 工作树与远端 `main` 一致。 |
+| Code Intrinsic Quality | 无代码；文档链接、占位符与 Git/远端均已核验。研究结论的剩余风险已被显式降级为 Phase 0 实验，而非伪装为事实。 | PASS | `git diff --cached --check`、占位符扫描、来源 URL HTTP 检查、`gh repo view`、`git ls-remote` 通过。 |
+
+- Overall Verdict: PASS
+- Blocking Issues: None。
+- Regression risk: Low（仅新增研究文档和 Git 元数据）；未来 Mod 实现的技术风险为 High，但已在 Phase 0/1 实验计划中隔离。
+- Follow-ups: 在任何 Mod 代码立项前先执行 `docs/验证实验清单.md` 的 P0-1 至 P0-5。
 
 ## 7. Plan-Execution Diff
 
-- 当前无偏差。
+- 无偏差。用户授权跳过再次索要 Plan Approved，已在 §4.4 记录；此举符合当前任务的明确执行授权。
 
 ## 8. Archive Record
 
