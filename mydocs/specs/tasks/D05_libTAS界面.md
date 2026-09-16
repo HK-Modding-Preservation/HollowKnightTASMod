@@ -27,9 +27,9 @@
 
 | 范围 | 证据与结论 |
 | --- | --- |
-| 安装身份 | 签名 Companion manifest 为 `13e9eabfd20f2e9a4ca858acbf653fdad30a49565ce6e08cb65c713178adaed6`；Runtime/Core 冻结哈希未变。 |
+| 安装身份 | 签名 Companion manifest 为 `6b3011e8994ad44ad283decc144ffefdac06fb7e78205d76149cf4063e77eeac`；Runtime/Core 冻结哈希未变。 |
 | 现场：快捷槽与恢复 | `Shift+F1` 保存第 326 帧；`F1` 操作 `cold-restore-47949c6f9e18483aa09d7b268b42fd66` 的 `Launching` 与 `Completed` 均在界面可见，并恢复到第 326 帧。 |
 | 现场：输入与分支 | 文本区按 `V` 不推进，表格按 `V` 从 326 推进到 327；第 0 帧 `Attack` 修改已提交并由 `getMovie` 确认；`ApplyAndSeek` 从 327 回到第 10 帧，操作 `cold-restore-64643a5c055740c7b4801322be75b67d` 完成；逐帧键改为 `N` 后由第 10 帧推进到第 11 帧，随后恢复默认 `V`。 |
-| 离线：WPF 集成 | 23 项定向测试全部通过：11 项 InputGrid、5 项 Hotkeys、6 项 QuickSlots、1 项 WPF 集成。已验证三个常用页、全部 Tag 菜单导航、收起面板、Step/TogglePause/MP4 菜单命令、`880×560` 最小内容区及 100/125/150% 离屏渲染。轴弹窗验证合法非零值写入原选区、越界值拒绝且草稿不变、撤销恢复。 |
+| 离线：WPF 集成 | 23 项定向测试全部通过：11 项 InputGrid、5 项 Hotkeys、6 项 QuickSlots、1 项 WPF 集成。已验证三个常用页和操作手册、全部 Tag 菜单导航、收起面板、Step/TogglePause/MP4 菜单命令、`880×560` 最小内容区及 100/125/150% 离屏渲染。轴弹窗验证合法非零值写入原选区、越界值拒绝且草稿不变、撤销恢复。 |
 | 未覆盖范围 | 以上离线结果不等同于物理键盘向 owned 弹窗输入成功，也不等同于跨显示器 DPI 切换测试。 |
-| 最后修复与交付 | 刷新、修改和撤销均保持多帧选区；WPF 回归通过，安装版连续编辑两帧 Attack、Jump 及 Ctrl+Z 撤销实测通过。签名更新包 489 项及哈希校验通过，路径和身份见 CURRENT.md。 |
+| 最后修复与交付 | 刷新、修改和撤销均保持多帧选区；WPF 回归通过，安装版连续编辑两帧 Attack、Jump 及 Ctrl+Z 撤销实测通过。深色标题栏及控件主题、Help → Quick Start 和完整普通用户手册已安装验证。签名更新包 490 项及哈希校验通过，路径和身份见 CURRENT.md。 |

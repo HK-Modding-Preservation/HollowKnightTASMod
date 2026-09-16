@@ -1,16 +1,16 @@
 # 已交付：libTAS 风格 Studio
 
-入口：`mydocs/specs/tasks/D05_libTAS界面.md`；用户说明：`docs/LIBTAS-MIGRATION.md`。菜单、常驻播放/单步控制、输入表格、快捷槽/改键、模拟轴编辑和常用/高级界面分层已实现、安装并打包。后续处理用户新需求或具体缺陷，不重启旧测试矩阵。
+入口：`mydocs/specs/tasks/D05_libTAS界面.md`；普通用户手册：`docs/USER-MANUAL.md`；迁移说明：`docs/LIBTAS-MIGRATION.md`。菜单、常驻播放/单步控制、输入表格、快捷槽/改键、模拟轴编辑和常用/高级界面分层已实现、安装并打包。后续处理用户新需求或具体缺陷，不重启旧测试矩阵。
 
-安装 Companion manifest：`13e9eabfd20f2e9a4ca858acbf653fdad30a49565ce6e08cb65c713178adaed6`。Runtime：`ec1ca3a3f95fc00ec7fc6c393911e086a5a5eeefb6e1ce8684954e595499c32a`；Core：`8d9ebdc958971aa16f3b5b9da769c3963d752b9e968f2eb94f727dca86b4f276`，均未因 UI 改动替换。不要默认构建/安装 Runtime。
+安装 Companion manifest：`6b3011e8994ad44ad283decc144ffefdac06fb7e78205d76149cf4063e77eeac`。Runtime：`ec1ca3a3f95fc00ec7fc6c393911e086a5a5eeefb6e1ce8684954e595499c32a`；Core：`8d9ebdc958971aa16f3b5b9da769c3963d752b9e968f2eb94f727dca86b4f276`，均未因 UI 改动替换。不要默认构建/安装 Runtime。
 
 现场证据：Shift+F1 保存 326；F1 恢复操作 `cold-restore-47949c6f9e18483aa09d7b268b42fd66` 显示 Launching → Completed。文本区 V 不推进、表格 V 326 → 327。表格第 0 帧 Attack 修改经 getMovie 确认，分支 `0a2fb0318b663aa5ee636c704e478459577f1107fb46e6633aaafda449699018` 共 327 帧；UI 分支回退操作 `cold-restore-64643a5c055740c7b4801322be75b67d` Completed 到 10。改键 N 10 → 11 后恢复默认 V，配置 `[7,65]`。
 
 23 项定向检查通过（11 表格、5 快捷键、6 快捷槽、1 扩展 WPF 集成）。最后补上刷新后保持多帧选区的修复，单独重跑 WPF 集成通过；安装版使用十帧离线草稿，连续点击 Attack、Jump 并用 Ctrl+Z 撤销，确认两帧一起修改且选区保留。未保存该测试草稿。
 
-WPF 检查覆盖全部菜单导航/收起、控制命令绑定、三个常用页的最小内容区、100%/125%/150% 离屏渲染，以及轴弹窗的非零提交、越界拒绝、固定选区和撤销。未测试跨显示器 DPI 切换；桌面工具对模态框输入的聚焦限制不是通过证据，也不是已确认的产品缺陷。
+WPF 检查覆盖全部菜单导航/收起、控制命令绑定、三个常用页和操作手册的最小内容区、100%/125%/150% 离屏渲染，以及轴弹窗的非零提交、越界拒绝、固定选区和撤销。窗口标题栏、菜单、按钮、下拉框、表头、选中行、复选框和滚动条已统一为深色主题；安装版 Help → Quick Start 打开手册实测通过。未测试跨显示器 DPI 切换；桌面工具对模态框输入的聚焦限制不是通过证据，也不是已确认的产品缺陷。
 
-最终更新包：`artifacts/releases/HollowKnightTAS-Studio-libTAS.zip`，489 项，165862238 字节，SHA-256 `d2f9977b0055ed407697c770a900526d1874c3f532392457b33bbb32111f555d`。包含签名 Companion、冻结 Runtime/Core 和迁移说明；未重复打包视频。源安装验签、包内逐项哈希检查通过，安装目录 `HollowKnightTAS.zip` 和 `SHA256.txt` 已同步。新包替换本轮旧候选包，旧 MP4 最终包保留。
+最终更新包：`artifacts/releases/HollowKnightTAS-Studio-libTAS.zip`，490 项，165870447 字节，SHA-256 `0fd1e92fa308d9fc44f8191c77c3349e4cab80d1087035d547290b62eb8901bc`。包含签名 Companion、冻结 Runtime/Core、操作手册和迁移说明；未重复打包视频。源安装验签、包内逐项哈希检查通过，安装目录 `HollowKnightTAS.zip` 和 `SHA256.txt` 已同步。新包替换本轮旧候选包，旧 MP4 最终包保留。
 
 游戏已正常退出；最后运行位置是编辑测试分支第 11 帧，不是正式战斗示范。F1 的 326 帧存档未替换，旧草稿备份 `artifacts/d04-live/studio-before-d05.hktas` 保留。打包复查用 `scripts/Package-StudioUpdate.ps1 -VerifyOnly`，不重建游戏程序集。
 

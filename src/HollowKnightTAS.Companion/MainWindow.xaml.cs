@@ -5,6 +5,8 @@ using System.Windows.Input;
 using System;
 using System.Linq;
 using System.Windows.Media;
+using System.Windows.Interop;
+using System.Runtime.InteropServices;
 using HollowKnightTAS.Companion.Services;
 using HollowKnightTAS.Core.Input;
 using HollowKnightTAS.Companion.ViewModels;
@@ -18,12 +20,26 @@ namespace HollowKnightTAS.Companion
         public MainWindow()
         {
             InitializeComponent();
+            SourceInitialized += (_, _) => EnableDarkTitleBar();
             DataContextChanged += OnStudioDataContextChanged;
             Closed += (_, _) =>
             {
                 if (DataContext is MainViewModel vm) vm.InputGridRefreshed -= RestoreGridSelection;
             };
         }
+
+        private void EnableDarkTitleBar()
+        {
+            var enabled = 1;
+            var handle = new WindowInteropHelper(this).Handle;
+            // Windows 10 1809 used attribute 19; current Windows uses 20.
+            if (DwmSetWindowAttribute(handle, 20, ref enabled, sizeof(int)) != 0)
+                DwmSetWindowAttribute(handle, 19, ref enabled, sizeof(int));
+        }
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(IntPtr window, int attribute,
+            ref int value, int valueSize);
 
         private void OnStudioDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
@@ -65,7 +81,7 @@ namespace HollowKnightTAS.Companion
         private void OnHideTools(object sender, RoutedEventArgs e)
         {
             MainTabs.SelectedItem = InputGridTab;
-            foreach (var tab in new[] { ControlTab, AuthoringTab, EventLogTab, DiffTab, CapabilitiesTab, ShortcutSettingsTab })
+            foreach (var tab in new[] { ControlTab, AuthoringTab, EventLogTab, DiffTab, CapabilitiesTab, ShortcutSettingsTab, HelpTab })
                 tab.Visibility = Visibility.Collapsed;
         }
 

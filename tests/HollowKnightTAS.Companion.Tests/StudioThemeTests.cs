@@ -74,6 +74,10 @@ namespace HollowKnightTAS.Companion.Tests
                     Assert.IsFalse(System.Windows.Input.InputMethod.GetIsInputMethodEnabled(inputGrid),
                         "The input grid handles shortcuts, not IME text composition.");
                     Assert.IsTrue(inputGrid.ActualHeight > 0, "InputGrid must retain usable height at minimum size.");
+                    Assert.IsTrue(inputGrid.Columns.OfType<DataGridCheckBoxColumn>().All(column => column.ElementStyle != null),
+                        "Input columns must use the dark checkbox style instead of the white system control.");
+                    var mainMenu = Find<Menu>(root).Single();
+                    Assert.AreEqual(Color.FromRgb(24, 32, 43), ((SolidColorBrush)mainMenu.Background).Color);
 
                     var toolbar = LogicalTreeHelper.GetChildren(root).OfType<WrapPanel>().Single();
                     foreach (var button in toolbar.Children.OfType<Button>())
@@ -109,7 +113,7 @@ namespace HollowKnightTAS.Companion.Tests
                             $"studio-theme-{(int)(scale * 100)}.png"));
                         scaledEncoder.Save(output);
                     }
-                    foreach (var name in new[] { "MovieTextTab", "SavesTab" })
+                    foreach (var name in new[] { "MovieTextTab", "SavesTab", "HelpTab" })
                     {
                         var commonTab = (TabItem)window.FindName(name);
                         tabs.SelectedItem = commonTab;
@@ -126,9 +130,15 @@ namespace HollowKnightTAS.Companion.Tests
                         if (name == "SavesTab")
                             Assert.IsTrue(Find<ListBox>(commonTab).Single().ActualHeight >= 40,
                                 "The save catalog must remain usable at minimum size.");
-                        else
+                        else if (name == "MovieTextTab")
                             Assert.IsTrue(Find<TextBox>(commonTab).Single(box => box.AcceptsReturn).ActualHeight >= 50,
                                 "The movie editor must remain usable at minimum size.");
+                        else
+                        {
+                            Assert.IsTrue(Find<ScrollViewer>(commonTab).Single().ActualHeight >= 50,
+                                "The in-app manual must remain scrollable at minimum size.");
+                            Assert.IsTrue(Find<TextBlock>(commonTab).Any(block => block.Text == "快速开始"));
+                        }
                         var scaled = new RenderTargetBitmap(1320, 840, 144, 144, PixelFormats.Pbgra32);
                         scaled.Render(root);
                         var preview = new PngBitmapEncoder();

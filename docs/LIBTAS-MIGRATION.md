@@ -2,6 +2,8 @@
 
 Studio 保留 libTAS 使用者熟悉的入口，但底层仍遵守 Hollow Knight TAS 的固定时钟、兼容校验和输入重放规则。
 
+第一次使用请先阅读[完整操作手册](USER-MANUAL.md)，或在 Studio 中打开 `Help → Quick Start 操作手册`。
+
 ## 安装更新
 
 正常退出游戏和 Studio，将更新包解压覆盖到游戏的 `hollow_knight_Data/Managed/Mods/HollowKnightTAS` 目录，然后启动游戏，Mod 会自动拉起 Studio。更新包包含配套程序和本说明；用户存档、TAS 快捷槽引用和已有序列保存在原位置。
