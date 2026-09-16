@@ -1,8 +1,10 @@
 # 当前任务：序列导出 MP4
 
-实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。游戏画面和真实音频已经流式导出为 MP4；60 帧短探针通过。Studio/SDK/MCP 导出入口和序列自动结束已实现、编译通过，尚未安装实测；完整假骑士导出仍待完成。
+实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。新版已安装，180 帧序列自动结束和暂停续录已通过实机 CLI 检查。Studio/SDK/MCP 入口已实现，Studio 按钮尚未人工路径实测；完整假骑士导出仍待完成。
 
-下一步：关闭已核实的旧游戏与 Studio，构建安装当前版本，从合法起点验证短序列自动导出及暂停续录，再完成假骑士整段导出。新入口要求先恢复序列起点，上传文本不等于回档。已通过 3 项接口定向检查及 4 项编码器测试；没有重跑旧矩阵。Unity 音频按 1024 样本 DSP 块渲染；zerolatency 后实机 60 帧无停滞。
+下一步：使用当前环境的录制根，复用旧假骑士输入创建新分支并恢复合法起点，导出整段战斗。不要改写旧示范身份。新入口要求先恢复序列起点，上传文本不等于回档。首次导出出现回执超时，但随后查询确认 Completed；第二次正常返回。完整导出前留意开始回执，超时只查询同一操作，不重复提交。
+
+当前实测：PID 2064，runId `interactive-1a84db9cb67147e2b0bb593affb8b7f0`，tick 448 / Paused / Idle，场景 GG_Workshop；需实时复查。执行 manifest `ca2351361eca60de168e5380e2ca934c89113352172ba163cc0258c48823a6e5`。`artifacts/d04-live/sequence-pause-180.mp4`：180 帧 / 50 fps / 音视频各 3.6 秒，暂停时两次查询均为 6 帧；空中攻击抽帧已检查，无 TAS 叠加层。旧段落的 PID 17000 已退出。
 
 startVideoExport / finishVideoExport / cancelVideoExport（control.playback）已可经通用接口调用，状态在 getState 的 videoExport.* 字段。开始要求 Paused，结束和取消校验 operationId。实际时钟为 50 fps。`artifacts/d04-live/probe-dsp-60.mp4` 为 800×450、H.264 + AAC 双声道，音画各 1.2 秒、189630 字节；暂停未增加帧数，取消未留下文件。当前游戏 PID 17000、tick 259 暂停；进程是否仍在需读实时状态。构建后 Core/Runtime 身份已改变，旧假骑士示范不得改哈希冒充兼容。
 

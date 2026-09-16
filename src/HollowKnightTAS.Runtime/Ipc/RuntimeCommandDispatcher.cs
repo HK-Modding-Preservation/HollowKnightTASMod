@@ -653,7 +653,9 @@ namespace HollowKnightTAS.Runtime.Ipc
             switch (command.MessageType)
             {
                 case IpcMessageTypes.StartVideoExport:
-                    RequireFields(command.Fields, "ffmpegPath", "outputPath", "maximumFrames", "requestId");
+                    RequireFields(command.Fields, command.Fields.ContainsKey("replayLoadedMovie")
+                        ? new[] { "ffmpegPath", "outputPath", "maximumFrames", "requestId", "replayLoadedMovie" }
+                        : new[] { "ffmpegPath", "outputPath", "maximumFrames", "requestId" });
                     if (videoCapture?.IsActive == true) throw new InvalidOperationException("A video export is already active.");
                     if (controls.ControlMode != SimulationControlMode.Paused)
                         throw new InvalidOperationException("Pause at the sequence start before starting video export.");
