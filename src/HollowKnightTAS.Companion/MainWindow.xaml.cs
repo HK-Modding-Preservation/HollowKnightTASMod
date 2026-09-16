@@ -13,9 +13,41 @@ namespace HollowKnightTAS.Companion
 {
     public partial class MainWindow : Window
     {
+        private bool restoringGridSelection;
+
         public MainWindow()
         {
             InitializeComponent();
+            DataContextChanged += OnStudioDataContextChanged;
+            Closed += (_, _) =>
+            {
+                if (DataContext is MainViewModel vm) vm.InputGridRefreshed -= RestoreGridSelection;
+            };
+        }
+
+        private void OnStudioDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (e.OldValue is MainViewModel oldVm) oldVm.InputGridRefreshed -= RestoreGridSelection;
+            if (e.NewValue is MainViewModel vm)
+            {
+                vm.InputGridRefreshed += RestoreGridSelection;
+                RestoreGridSelection(vm, EventArgs.Empty);
+            }
+        }
+
+        private void RestoreGridSelection(object? sender, EventArgs e)
+        {
+            if (DataContext is not MainViewModel vm
+                || !long.TryParse(vm.GridStart, out var start) || start < 0
+                || !long.TryParse(vm.GridCount, out var count) || count < 1) return;
+            restoringGridSelection = true;
+            try
+            {
+                InputGrid.SelectedItems.Clear();
+                foreach (var row in vm.InputRows.Where(row => row.Tick >= start && row.Tick - start < count))
+                    InputGrid.SelectedItems.Add(row);
+            }
+            finally { restoringGridSelection = false; }
         }
 
         private void OnNavigate(object sender, RoutedEventArgs e)
@@ -39,7 +71,7 @@ namespace HollowKnightTAS.Companion
 
         private void OnInputGridSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (DataContext is not MainViewModel vm || InputGrid.SelectedItems.Count == 0) return;
+            if (restoringGridSelection || DataContext is not MainViewModel vm || InputGrid.SelectedItems.Count == 0) return;
             var rows = InputGrid.SelectedItems.Cast<InputGridRow>().OrderBy(r => r.Tick).ToArray();
             // Selection gaps are not silently converted into edits of unselected rows.
             vm.GridStart = rows[0].Tick.ToString(System.Globalization.CultureInfo.InvariantCulture);

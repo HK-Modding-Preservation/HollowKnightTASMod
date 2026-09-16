@@ -26,6 +26,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\..\src\HollowKnightTAS.Companion\App.xaml"
+          Link="fixtures\studio-theme.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\fixtures\movie\golden\actions-v1.canonical.hktas"
           Link="fixtures\actions-v1.canonical.hktas"
           CopyToOutputDirectory="PreserveNewest" />

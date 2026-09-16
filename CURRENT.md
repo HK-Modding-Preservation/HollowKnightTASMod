@@ -1,18 +1,20 @@
-# 当前任务：libTAS 风格 Studio
+# 已交付：libTAS 风格 Studio
 
-入口：`mydocs/specs/tasks/D05_libTAS界面.md`。菜单、输入表格、快捷槽/改键、模拟轴编辑和常用/高级界面分层已实现。保留游戏语义和现有分支服务，只读取本 Spec 与相关 Companion 代码。
+入口：`mydocs/specs/tasks/D05_libTAS界面.md`；用户说明：`docs/LIBTAS-MIGRATION.md`。菜单、常驻播放/单步控制、输入表格、快捷槽/改键、模拟轴编辑和常用/高级界面分层已实现、安装并打包。后续处理用户新需求或具体缺陷，不重启旧测试矩阵。
 
-最新 Companion 已签名安装，manifest 为 `63eda8467bc01aab0eec617f9eb972efdfe10cdd5ceb2f5dc8cd9002c3cb989b`，Runtime/Core 保持下方冻结哈希。恢复进度、IME 映射和表格点击焦点修正已安装。F1 操作 `cold-restore-47949c6f9e18483aa09d7b268b42fd66` 在 UI 显示 Launching → Completed，恢复到 326。文本框中 V 保留给中文输入法；点击表格后 V 实际推进到 327 并暂停。最新进程 PID 2912，操作前仍需实时查询。旧草稿备份 `artifacts/d04-live/studio-before-d05.hktas`。
+安装 Companion manifest：`13e9eabfd20f2e9a4ca858acbf653fdad30a49565ce6e08cb65c713178adaed6`。Runtime：`ec1ca3a3f95fc00ec7fc6c393911e086a5a5eeefb6e1ce8684954e595499c32a`；Core：`8d9ebdc958971aa16f3b5b9da769c3963d752b9e968f2eb94f727dca86b4f276`，均未因 UI 改动替换。不要默认构建/安装 Runtime。
 
-表格第 0 帧 Attack 切换已提交，Runtime getMovie 返回分支 `0a2fb0318b663aa5ee636c704e478459577f1107fb46e6633aaafda449699018`，首行为 `frames 1 hold=attack`，总长 327。随后 UI“应用并重放到 Frame”从 327 回到 10，操作 `cold-restore-64643a5c055740c7b4801322be75b67d` Completed，游戏 Paused。逐帧键临时改为 N 并保存，实测 10 → 11 后恢复默认 V，配置为 `[7,65]`。最新游戏 PID 12380 / tick 11 / Paused，操作前查询实时状态。此为临时编辑测试，不是正式战斗示范；F1 的 326 帧存档未替换。
+现场证据：Shift+F1 保存 326；F1 恢复操作 `cold-restore-47949c6f9e18483aa09d7b268b42fd66` 显示 Launching → Completed。文本区 V 不推进、表格 V 326 → 327。表格第 0 帧 Attack 修改经 getMovie 确认，分支 `0a2fb0318b663aa5ee636c704e478459577f1107fb46e6633aaafda449699018` 共 327 帧；UI 分支回退操作 `cold-restore-64643a5c055740c7b4801322be75b67d` Completed 到 10。改键 N 10 → 11 后恢复默认 V，配置 `[7,65]`。
 
-下一步解决轴弹窗非零输入的可验证路径、真实缩放检查和最终交付检查。中文说明见 `docs/LIBTAS-MIGRATION.md`。轴弹窗坐标点击有效，type_text 会重新激活主窗口；set_value 报 CacheRequest 错误，文本框右键粘贴尝试也未生效，勿反复走相同工具路径或据此宣布 Mod 有输入 bug。本轮无生产代码改动。
+23 项定向检查通过（11 表格、5 快捷键、6 快捷槽、1 扩展 WPF 集成）。最后补上刷新后保持多帧选区的修复，单独重跑 WPF 集成通过；安装版使用十帧离线草稿，连续点击 Attack、Jump 并用 Ctrl+Z 撤销，确认两帧一起修改且选区保留。未保存该测试草稿。
 
-Studio 更新包：`artifacts/releases/HollowKnightTAS-Studio-d04f271.zip`，489 项，165861321 字节，SHA-256 `8d7ae9068d5a3274bb1e8e0c3271734e8bfcff1cf171dd0e97eed896e39b7231`。包含当前签名 Companion、冻结 Runtime/Core 和迁移说明，不包含旧视频的重复副本；源安装验签及包内逐项哈希检查通过。用 `scripts/Package-StudioUpdate.ps1` 打包或 `-VerifyOnly` 复查，禁止默认 Runtime 构建。主目录旧 `HollowKnightTAS.zip` 尚未替换，最终验收仍未完成。
+WPF 检查覆盖全部菜单导航/收起、控制命令绑定、三个常用页的最小内容区、100%/125%/150% 离屏渲染，以及轴弹窗的非零提交、越界拒绝、固定选区和撤销。未测试跨显示器 DPI 切换；桌面工具对模态框输入的聚焦限制不是通过证据，也不是已确认的产品缺陷。
 
-本轮 5 项快捷键及 1 项 WPF 布局测试通过；880×560 内容区预留了最小窗口边框空间，三项常用页与工具栏可用。实际拖拽未改变尺寸，不称为真实缩放通过。computer-use 可能返回旧 UIA 树，应重新 get_window + activate + 截图确认；set_value 报 CacheRequest 错误时不要反复调用。向模态框发送文字的工具焦点问题仍待解决，不冒充轴输入已验证。
+最终更新包：`artifacts/releases/HollowKnightTAS-Studio-libTAS.zip`，489 项，165862238 字节，SHA-256 `d2f9977b0055ed407697c770a900526d1874c3f532392457b33bbb32111f555d`。包含签名 Companion、冻结 Runtime/Core 和迁移说明；未重复打包视频。源安装验签、包内逐项哈希检查通过，安装目录 `HollowKnightTAS.zip` 和 `SHA256.txt` 已同步。新包替换本轮旧候选包，旧 MP4 最终包保留。
 
-安装版 Runtime/Core 继续使用下方 MP4 冻结身份；不要默认重建/覆盖游戏 DLL。文档整理等小任务使用 Luna。下面是已完成 MP4 的交付快照，不是新待办。
+游戏已正常退出；最后运行位置是编辑测试分支第 11 帧，不是正式战斗示范。F1 的 326 帧存档未替换，旧草稿备份 `artifacts/d04-live/studio-before-d05.hktas` 保留。打包复查用 `scripts/Package-StudioUpdate.ps1 -VerifyOnly`，不重建游戏程序集。
+
+文档整理等小任务使用 Luna。下面是已完成 MP4 的交付快照，不是新待办。
 
 ## 已交付：序列导出 MP4
 

@@ -21,6 +21,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private long gridPageStart;
         private TasAction gridAction = TasAction.Attack;
         private bool gridApplying;
+        public event EventHandler? InputGridRefreshed;
         public ObservableCollection<InputGridRow> InputRows { get; } = new ObservableCollection<InputGridRow>();
         public IReadOnlyList<TasAction> GridActions { get; } = Enum.GetValues<TasAction>()
             .Where(a => a != TasAction.None && a != TasAction.AllGameplay).ToArray();
@@ -104,6 +105,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             foreach (var row in InputGridEditor.Page(movie, gridPageStart, currentMovieTick)) InputRows.Add(row);
             GridStatus = $"帧 {gridPageStart}–{Math.Max(gridPageStart, gridPageStart + InputRows.Count - 1)} / 共 {total} 帧。" +
                 (message ?? "点击按键切换；Shift 选择范围。编辑仅改变草稿，应用后再重放。");
+            InputGridRefreshed?.Invoke(this, EventArgs.Empty);
         }
 
         private void EditGrid(MovieDocument candidate)
