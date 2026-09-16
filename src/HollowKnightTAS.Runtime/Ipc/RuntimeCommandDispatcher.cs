@@ -92,6 +92,7 @@ namespace HollowKnightTAS.Runtime.Ipc
         private bool gameExitRequested;
         private bool pausedWindowExitPending;
         private bool disposed;
+        private Media.RuntimeVideoCapture? videoCapture;
 
         public RuntimeCommandDispatcher(
             RuntimeCommandQueue commands,
@@ -185,6 +186,7 @@ namespace HollowKnightTAS.Runtime.Ipc
             }
 
             disposed = true;
+            videoCapture?.Dispose();
             lifecycleExport = null;
             stagedLifecyclePlan = null;
             stagedLifecyclePlanHash = string.Empty;
@@ -620,6 +622,8 @@ namespace HollowKnightTAS.Runtime.Ipc
 
         private string Handle(ValidatedRuntimeCommand command, bool allowBaselineCapture, bool atCompletedFrameBoundary)
         {
+            if (videoCapture?.IsActive == true && !IsAllowedDuringVideoExport(command.MessageType))
+                throw new RuntimeCommandRejectionException("Busy", "Finish or cancel video export before changing the replay or restoring state.");
             if (sourceLifecycleReload != null && command.MessageType != IpcMessageTypes.RequestSnapshot
                 && !(command.MessageType == IpcMessageTypes.QuitGame && CanExitFailedSourceLifecycle)
                 && command.MessageType != IpcMessageTypes.Ping
@@ -643,6 +647,24 @@ namespace HollowKnightTAS.Runtime.Ipc
 
             switch (command.MessageType)
             {
+                case IpcMessageTypes.StartVideoExport:
+                    RequireFields(command.Fields, "ffmpegPath", "outputPath", "maximumFrames", "requestId");
+                    if (videoCapture?.IsActive == true) throw new InvalidOperationException("A video export is already active.");
+                    if (controls.ControlMode != SimulationControlMode.Paused)
+                        throw new InvalidOperationException("Pause at the sequence start before starting video export.");
+                    videoCapture?.Dispose();
+                    videoCapture = new Media.RuntimeVideoCapture(command.Fields["ffmpegPath"], command.Fields["outputPath"],
+                        int.Parse(command.Fields["maximumFrames"], CultureInfo.InvariantCulture),
+                        message => emit("video-export", new Dictionary<string, string> { ["detail"] = message }));
+                    return videoCapture.OperationId;
+                case IpcMessageTypes.FinishVideoExport:
+                case IpcMessageTypes.CancelVideoExport:
+                    RequireFields(command.Fields, "operationId", "requestId");
+                    if (videoCapture == null || videoCapture.OperationId != command.Fields["operationId"])
+                        throw new InvalidOperationException("Video export operationId does not match.");
+                    if (command.MessageType == IpcMessageTypes.CancelVideoExport) videoCapture.Cancel();
+                    else videoCapture.Finish();
+                    return videoCapture.OperationId;
                 case IpcMessageTypes.CommitStateMutation:
                     return CommitStateMutation(command.Fields);
                 case IpcMessageTypes.UploadMovieBegin:
@@ -3655,9 +3677,36 @@ namespace HollowKnightTAS.Runtime.Ipc
             Publish(IpcMessageTypes.RuntimeStatus, fields);
         }
 
+        private static bool IsAllowedDuringVideoExport(string messageType)
+        {
+            switch (messageType)
+            {
+                case IpcMessageTypes.FinishVideoExport:
+                case IpcMessageTypes.CancelVideoExport:
+                case IpcMessageTypes.Pause:
+                case IpcMessageTypes.Resume:
+                case IpcMessageTypes.Step:
+                case IpcMessageTypes.RunInputBatch:
+                case IpcMessageTypes.RunUntil:
+                case IpcMessageTypes.StartReplay:
+                case IpcMessageTypes.StopReplay:
+                case IpcMessageTypes.RequestSnapshot:
+                case IpcMessageTypes.RequestMovie:
+                case IpcMessageTypes.RequestCapabilityCatalog:
+                case IpcMessageTypes.RequestStartupProfileAttestation:
+                case IpcMessageTypes.ListReplaySaves:
+                case IpcMessageTypes.Subscribe:
+                case IpcMessageTypes.Unsubscribe:
+                case IpcMessageTypes.Ping:
+                    return true;
+                default: return false;
+            }
+        }
+
         private void AppendPlaybackState(
             IDictionary<string, string> fields)
         {
+            videoCapture?.AppendStatus(fields);
             fields["recordingOriginStatus"] = journal.RecordingOriginStatus;
             fields["nativeReloadPhase"] = sourceLifecycleReload == null ? lastNativeReloadPhase
                 : sourceLifecycleReload.Failure.Length != 0 ? "FailedAwaitingPause"

@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using HollowKnightTAS.Core.Media;
+using HollowKnightTAS.Runtime.Ipc;
 
 namespace HollowKnightTAS.Runtime.Media
 {
@@ -18,8 +19,8 @@ namespace HollowKnightTAS.Runtime.Media
         private readonly BlockingCollection<byte[]> video = new BlockingCollection<byte[]>(2);
         private readonly BlockingCollection<byte[]> audio = new BlockingCollection<byte[]>(2);
         private readonly CancellationTokenSource stopped = new CancellationTokenSource();
-        private readonly NamedPipeServerStream videoPipe;
-        private readonly NamedPipeServerStream audioPipe;
+        private readonly NativeNamedPipeServer videoPipe;
+        private readonly NativeNamedPipeServer audioPipe;
         private readonly Process process;
         private readonly Task videoWriter;
         private readonly Task audioWriter;
@@ -47,8 +48,10 @@ namespace HollowKnightTAS.Runtime.Media
             temporaryOutput = Path.Combine(temporaryDirectory, "partial.mp4");
             var videoName = "hktas-video-" + id;
             var audioName = "hktas-audio-" + id;
-            videoPipe = new NamedPipeServerStream(videoName, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-            audioPipe = new NamedPipeServerStream(audioName, PipeDirection.Out, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+            // Unity's bundled Mono does not implement the managed named-pipe server.
+            // Use the same local-user-only native transport as the runtime command channel.
+            videoPipe = new NativeNamedPipeServer(videoName, PipeDirection.Out);
+            audioPipe = new NativeNamedPipeServer(audioName, PipeDirection.Out);
             process = new Process();
             try
             {
@@ -65,7 +68,7 @@ namespace HollowKnightTAS.Runtime.Media
                         + " -framerate " + fps + " -i \\\\.\\pipe\\" + videoName
                         + " -thread_queue_size 4 -nofind_stream_info -f f32le -ar " + format.SampleRate
                         + " -ac " + format.Channels + " -i \\\\.\\pipe\\" + audioName
-                        + " -map 0:v:0 -map 1:a:0 -vf vflip -c:v libx264 -preset veryfast -crf 18"
+                        + " -map 0:v:0 -map 1:a:0 -vf vflip -c:v libx264 -preset veryfast -tune zerolatency -crf 18"
                         + " -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart -f mp4 " + Quote(temporaryOutput),
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -179,15 +182,15 @@ namespace HollowKnightTAS.Runtime.Media
             }
         }
 
-        private Task Pump(NamedPipeServerStream pipe, BlockingCollection<byte[]> queue)
+        private Task Pump(NativeNamedPipeServer pipe, BlockingCollection<byte[]> queue)
         {
             return Task.Run(async () =>
             {
                 try
                 {
-                    await pipe.WaitForConnectionAsync(stopped.Token).ConfigureAwait(false);
+                    pipe.WaitForConnection();
                     foreach (var bytes in queue.GetConsumingEnumerable(stopped.Token))
-                        await pipe.WriteAsync(bytes, 0, bytes.Length, stopped.Token).ConfigureAwait(false);
+                        await pipe.WriteStream.WriteAsync(bytes, 0, bytes.Length, stopped.Token).ConfigureAwait(false);
                 }
                 catch
                 {

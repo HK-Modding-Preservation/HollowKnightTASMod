@@ -6,6 +6,9 @@ namespace HollowKnightTAS.Core.Automation
     public static class AutomationCommandIds
     {
         public const string GetStatus = "getStatus";
+        public const string StartVideoExport = "startVideoExport";
+        public const string FinishVideoExport = "finishVideoExport";
+        public const string CancelVideoExport = "cancelVideoExport";
         public const string GetStartupProfile = "getStartupProfile";
         public const string GetCapabilities = "getCapabilities";
         public const string GetState = "getState";
@@ -64,6 +67,9 @@ namespace HollowKnightTAS.Core.Automation
                 new[]
                 {
                     GetStatus,
+                    StartVideoExport,
+                    FinishVideoExport,
+                    CancelVideoExport,
                     GetStartupProfile,
                     GetCapabilities,
                     GetState,

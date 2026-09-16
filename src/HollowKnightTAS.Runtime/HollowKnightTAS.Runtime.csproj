@@ -50,6 +50,10 @@
       <HintPath>$(HKManagedDir)\UnityEngine.ScreenCaptureModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.AudioModule">
+      <HintPath>$(HKManagedDir)\UnityEngine.AudioModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="MMHOOK_Assembly-CSharp">
       <HintPath>$(HKManagedDir)\MMHOOK_Assembly-CSharp.dll</HintPath>
       <Private>false</Private>

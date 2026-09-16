@@ -845,6 +845,16 @@ namespace HollowKnightTAS.Companion.Automation
                         IpcMessageTypes.Resume,
                         cancellationToken);
                 case AutomationCommandIds.StartReplay:
+                case AutomationCommandIds.StartVideoExport:
+                case AutomationCommandIds.FinishVideoExport:
+                case AutomationCommandIds.CancelVideoExport:
+                    if (command.CommandId != AutomationCommandIds.StartReplay)
+                    {
+                        var videoFields = new Dictionary<string, string>(command.Arguments, StringComparer.Ordinal)
+                        { ["requestId"] = command.RequestId };
+                        return await ForwardAsync(session, command, command.CommandId, videoFields,
+                            IpcMessageTypes.CommandAccepted, cancellationToken);
+                    }
                     return await SimpleRuntimeAsync(
                         session,
                         command,
@@ -3075,6 +3085,13 @@ namespace HollowKnightTAS.Companion.Automation
             string[] optional = Array.Empty<string>();
             switch (command.CommandId)
             {
+                case AutomationCommandIds.StartVideoExport:
+                    required = new[] { "ffmpegPath", "outputPath", "maximumFrames" };
+                    break;
+                case AutomationCommandIds.FinishVideoExport:
+                case AutomationCommandIds.CancelVideoExport:
+                    required = new[] { "operationId" };
+                    break;
                 case AutomationCommandIds.GetStatus:
                 case AutomationCommandIds.GetCapabilities:
                 case AutomationCommandIds.GetStartupProfile:

@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <Compile Include="..\..\src\HollowKnightTAS.Runtime\Media\FfmpegVideoEncoder.cs" Link="Media\FfmpegVideoEncoder.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Ipc\NativeNamedPipeServer.cs" Link="Ipc\NativeNamedPipeServer.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Ipc\WindowsCurrentUserSid.cs" Link="Ipc\WindowsCurrentUserSid.cs" />
     <Compile Include="..\..\src\HollowKnightTAS.Runtime\Ipc\PausedWindowExitShortcut.cs"
              Link="Ipc\PausedWindowExitShortcut.cs" />
     <Compile Include="..\..\src\HollowKnightTAS.Runtime\Rng\IsolatedRandomStream.cs" Link="Rng\IsolatedRandomStream.cs" />

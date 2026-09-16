@@ -17,7 +17,7 @@ namespace HollowKnightTAS.Core.Tests.Media
             WithEncoderTools((ffmpeg, ffprobe, directory) =>
             {
                 var output = Path.Combine(directory, "test video.mp4");
-                var format = new VideoExportFormat(64, 64);
+                var format = new VideoExportFormat(1280, 720);
                 var timeline = new VideoExportTimeline(format);
                 using (var encoder = new FfmpegVideoEncoder(ffmpeg, output, format))
                 {

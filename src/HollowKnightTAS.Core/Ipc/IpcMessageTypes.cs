@@ -16,6 +16,9 @@ namespace HollowKnightTAS.Core.Ipc
         public const string UploadMovieChunk = "uploadMovieChunk";
         public const string UploadMovieEnd = "uploadMovieEnd";
         public const string StartReplay = "startReplay";
+        public const string StartVideoExport = "startVideoExport";
+        public const string FinishVideoExport = "finishVideoExport";
+        public const string CancelVideoExport = "cancelVideoExport";
         public const string StopReplay = "stopReplay";
         public const string Pause = "pause";
         public const string Step = "step";
@@ -103,6 +106,9 @@ namespace HollowKnightTAS.Core.Ipc
                     UploadMovieChunk,
                     UploadMovieEnd,
                     StartReplay,
+                    StartVideoExport,
+                    FinishVideoExport,
+                    CancelVideoExport,
                     StopReplay,
                     Pause,
                     Step,

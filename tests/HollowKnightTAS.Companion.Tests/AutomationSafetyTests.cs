@@ -16,6 +16,26 @@ namespace HollowKnightTAS.Companion.Tests
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
         [TestMethod]
+        public void VideoExportCommandsRequireApprovedPlaybackLease()
+        {
+            foreach (var mode in new[] { AutomationMode.ReadOnly, AutomationMode.ApprovedControl })
+            {
+                var catalog = new AutomationCapabilityCatalog(mode, false);
+                foreach (var command in new[] { AutomationCommandIds.StartVideoExport,
+                    AutomationCommandIds.FinishVideoExport, AutomationCommandIds.CancelVideoExport })
+                {
+                    Assert.IsTrue(AutomationCommandIds.IsKnown(command));
+                    Assert.IsTrue(IpcMessageTypes.IsRuntimeCommand(command));
+                    Assert.IsTrue(catalog.TryGet(command, out var capability));
+                    Assert.IsFalse(capability.ReadOnly);
+                    Assert.IsTrue(capability.RequiresLease);
+                    Assert.AreEqual(AutomationScope.ControlPlayback, capability.Scope);
+                    Assert.AreEqual(mode == AutomationMode.ReadOnly ? "disabled" : "available", capability.Availability);
+                }
+            }
+        }
+
+        [TestMethod]
         public void CompetingClientsHaveExactlyOneLeaseOwner()
         {
             var now = DateTimeOffset.Parse(
