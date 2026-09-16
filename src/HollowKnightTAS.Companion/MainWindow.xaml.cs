@@ -53,6 +53,9 @@ namespace HollowKnightTAS.Companion
             while (element != null && element is not DataGridCell)
                 element = VisualTreeHelper.GetParent(element);
             if (element is not DataGridCell cell || cell.DataContext is not InputGridRow row) return;
+            // This preview handler consumes button cells before DataGrid can move focus.
+            // Keep subsequent transport/editor shortcuts on the grid, not the last text box.
+            cell.Focus();
             if (cell.Column.SortMemberPath == "Axes" && e.ClickCount == 2)
             {
                 InputGrid.SelectedItem = row;
@@ -66,6 +69,8 @@ namespace HollowKnightTAS.Companion
             if (!InputGrid.SelectedItems.Contains(row)) InputGrid.SelectedItem = row;
             vm.GridAction = action;
             if (vm.ToggleGridCommand.CanExecute(null)) vm.ToggleGridCommand.Execute(null);
+            // RefreshInputGrid replaces the rows and removes the focused cell.
+            InputGrid.Focus();
             e.Handled = true;
         }
 

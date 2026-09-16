@@ -137,6 +137,7 @@
             <Button Content="Axes 模拟轴…" Click="OnEditGridAxes" />
           </WrapPanel>
           <DataGrid x:Name="InputGrid" Grid.Row="2" ItemsSource="{Binding InputRows}"
+                    InputMethod.IsInputMethodEnabled="False"
                     AutomationProperties.AutomationId="HktasStudio.InputGrid" AutoGenerateColumns="False"
                     IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
                     SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column"
