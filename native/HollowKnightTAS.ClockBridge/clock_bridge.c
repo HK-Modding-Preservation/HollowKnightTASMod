@@ -55,6 +55,20 @@ static volatile LONG g_startup_virtual_qpc_call_count;
 static volatile LONG g_startup_handoff_adopt_count;
 static volatile LONG g_startup_fault_code;
 
+static void advance_boot_frame_clock(void)
+{
+    AcquireSRWLockExclusive(&g_clock_lock);
+    /* The managed payload adopts this same anchor later. Once adopted,
+     * only its existing completed-frame clock path may advance it. */
+    if (g_startup_handoff_adopt_count == 0 && g_deterministic_clock_enabled
+        && g_deterministic_clock_step_ticks > 0
+        && g_deterministic_clock_anchor.QuadPart <= LLONG_MAX - g_deterministic_clock_step_ticks)
+        g_deterministic_clock_anchor.QuadPart += g_deterministic_clock_step_ticks;
+    ReleaseSRWLockExclusive(&g_clock_lock);
+}
+
+#include "startup_frame_hook.h"
+
 static BOOL WINAPI virtual_query_performance_counter(
     LARGE_INTEGER *value)
 {
@@ -69,7 +83,7 @@ static BOOL WINAPI virtual_query_performance_counter(
 
     /* The first Unity main-thread clock read is before the managed runtime
      * control channel exists. Never arm this handshake for cold restores. */
-    if (GetCurrentThreadId() == g_virtual_clock_main_thread_id)
+    if (!g_boot_frame_hook_enabled && GetCurrentThreadId() == g_virtual_clock_main_thread_id)
         enter_boot_gate();
     result = g_query_performance_counter(&real_value);
     if (!result)
@@ -990,6 +1004,15 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
         {
             InterlockedExchange(&g_status, -12);
             return FALSE;
+        }
+        if (!install_boot_frame_hook())
+        {
+            InterlockedExchange(&g_status, -13);
+            /* The QPC IAT hook was installed above. Do not unload its target
+             * DLL on a frame-profile mismatch. Suppress the legacy QPC gate
+             * so the controller receives no false frame acknowledgement. */
+            g_boot_frame_hook_enabled = TRUE;
+            return TRUE;
         }
         HANDLE worker = CreateThread(
             NULL,

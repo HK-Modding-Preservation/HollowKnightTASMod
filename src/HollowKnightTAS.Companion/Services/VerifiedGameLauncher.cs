@@ -543,6 +543,7 @@ namespace HollowKnightTAS.Companion.Services
             // Only this explicit interactive launch may arm a fresh gate.
             start.Environment.Remove("HKTAS_BOOT_GATE_TOKEN");
             start.Environment.Remove("HKTAS_BOOT_GATE_OWNER");
+            start.Environment.Remove("HKTAS_BOOT_FRAME_GATE");
             bootGate?.ConfigureInjector(start);
 
             var job = new NativeHostJob();
