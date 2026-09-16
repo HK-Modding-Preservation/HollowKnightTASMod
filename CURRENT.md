@@ -1,4 +1,10 @@
-# 已交付：序列导出 MP4
+# 当前任务：libTAS 风格 Studio
+
+入口：`mydocs/specs/tasks/D05_libTAS界面.md`。按主窗口/快捷键、输入表格、存档槽、集成安装四阶段推进并逐阶段提交。阶段 1 基础已编译、3 项快捷键测试通过，尚未安装和实机验证；下一步实现阶段 2 按帧按键表格。保留游戏语义和现有服务，禁止仅改标签冒充功能。只读取本 Spec 与相关 Companion 代码。
+
+安装版 Runtime/Core 继续使用下方 MP4 冻结身份；不要默认重建/覆盖游戏 DLL。文档整理等小任务使用 Luna。下面是已完成 MP4 的交付快照，不是新待办。
+
+## 已交付：序列导出 MP4
 
 实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。新版已安装，完整假骑士视频、180 帧暂停续录和 Studio 按钮 300 帧自动导出均已实测。使用说明见 `docs/MP4-DELIVERY.md`，验收范围见 `docs/MP4-VERIFICATION.md`。
 

@@ -55,6 +55,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private readonly HashSet<string> nativeObservedSessions =
             new HashSet<string>(StringComparer.Ordinal);
         private readonly object nativeObserveSync = new object();
+        private readonly List<AsyncRelayCommand> runtimeCommands = new List<AsyncRelayCommand>();
         private SessionViewItem? selectedSession;
         private string movieText = string.Empty;
         private string validationOutput =
@@ -154,6 +155,13 @@ namespace HollowKnightTAS.Companion.ViewModels
                     () => ExecuteHumanAsync(
                         AutomationCommandIds.Pause,
                         AutomationScope.ControlPlayback));
+            TogglePauseCommand = Command(async () =>
+            {
+                if (currentControlMode != "Paused" && currentControlMode != "Running" && currentControlMode != "Stepping")
+                    throw new InvalidOperationException("等待最新运行状态后再切换播放/暂停。");
+                await ExecuteHumanAsync(currentControlMode == "Paused"
+                    ? AutomationCommandIds.Resume : AutomationCommandIds.Pause, AutomationScope.ControlPlayback);
+            });
             StepCommand =
                 Command(
                     () => ExecuteHumanAsync(
@@ -321,6 +329,12 @@ namespace HollowKnightTAS.Companion.ViewModels
                 }
 
                 selectedSession = value;
+                currentMovieTick = -1;
+                currentControlMode = string.Empty;
+                currentSceneEpoch = -1;
+                OnPropertyChanged(nameof(FrameCounterText));
+                OnPropertyChanged(nameof(PlaybackStateText));
+                OnPropertyChanged(nameof(PlayPauseLabel));
                 OnPropertyChanged();
                 UpdateConnectionStatus();
             }
@@ -373,6 +387,10 @@ namespace HollowKnightTAS.Companion.ViewModels
             get => runtimeSummary;
             private set => Set(ref runtimeSummary, value);
         }
+
+        public string FrameCounterText => currentMovieTick < 0 ? "Frame: —" : "Frame: " + currentMovieTick.ToString(CultureInfo.InvariantCulture);
+        public string PlaybackStateText => string.IsNullOrEmpty(currentControlMode) ? "No runtime" : currentControlMode;
+        public string PlayPauseLabel => currentControlMode == "Paused" ? "Play 继续" : "Pause 暂停";
 
         public string LatestState
         {
@@ -546,6 +564,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         public ICommand StartVideoExportCommand { get; }
         public ICommand CancelVideoExportCommand { get; }
         public ICommand PauseCommand { get; }
+        public ICommand TogglePauseCommand { get; }
         public ICommand StepCommand { get; }
         public ICommand ResumeCommand { get; }
         public ICommand QuitGameCommand { get; }
@@ -712,6 +731,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     }
                 },
                 () => !requireConnected || SelectedSession?.Client.IsConnected == true);
+            runtimeCommands.Add(command);
             return command;
         }
 
@@ -1855,6 +1875,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     out var movieTick))
             {
                 currentMovieTick = movieTick;
+                OnPropertyChanged(nameof(FrameCounterText));
             }
 
             if (fields.TryGetValue("sceneEpoch", out var epochText)
@@ -1872,6 +1893,8 @@ namespace HollowKnightTAS.Companion.ViewModels
                     out var controlMode))
             {
                 currentControlMode = controlMode;
+                OnPropertyChanged(nameof(PlaybackStateText));
+                OnPropertyChanged(nameof(PlayPauseLabel));
             }
 
             if (string.Equals(
@@ -2125,6 +2148,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private void UpdateConnectionStatus()
         {
             var client = SelectedSession?.Client;
+            foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
             ConnectionBadge = client?.IsConnected == true
                 ? "CONNECTED · IPC v"
                   + client.NegotiatedProtocol.ToString(

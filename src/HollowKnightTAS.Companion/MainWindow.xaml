@@ -7,18 +7,61 @@
         Width="1180"
         Height="760"
         MinWidth="900"
-        MinHeight="600">
-  <DockPanel Margin="12">
-    <Button DockPanel.Dock="Top" Content="启动 TAS 游戏"
-            HorizontalAlignment="Left" Margin="0,0,0,8"
-            AutomationProperties.AutomationId="HktasStudio.LaunchGameButton"
-            ToolTip="已有游戏时请先正常保存退出，再从这里启动。"
-            Command="{Binding LaunchGameCommand}" />
+        MinHeight="600" PreviewKeyDown="OnStudioKeyDown">
+  <DockPanel Margin="8">
+    <Menu DockPanel.Dock="Top" Margin="0,0,0,6" Background="#ECECEC" Foreground="#202020">
+      <MenuItem Header="_File 文件">
+        <MenuItem Header="Start 启动游戏…" Command="{Binding LaunchGameCommand}" />
+        <Separator />
+        <MenuItem Header="Exit 关闭 Studio" Click="OnCloseStudio" />
+      </MenuItem>
+      <MenuItem Header="_Settings 设置">
+        <MenuItem Header="Runtime 运行控制…" Tag="ControlTab" Click="OnNavigate" />
+        <MenuItem Header="Autosave 自动存档…" Tag="SavesTab" Click="OnNavigate" />
+      </MenuItem>
+      <MenuItem Header="_Movie 序列">
+        <MenuItem Header="Open Movie 打开…" InputGestureText="Ctrl+O" Command="{Binding OpenMovieCommand}" />
+        <MenuItem Header="Save Movie 保存…" InputGestureText="Ctrl+S" Command="{Binding SaveMovieCommand}" />
+        <Separator />
+        <MenuItem Header="Input Editor 输入编辑器" Tag="AuthoringTab" Click="OnNavigate" />
+        <MenuItem Header="Movie Text 文本脚本" Tag="MovieTextTab" Click="OnNavigate" />
+        <MenuItem Header="Savestates 存档管理" Tag="SavesTab" Click="OnNavigate" />
+        <Separator />
+        <MenuItem Header="Encode to MP4 导出视频…" Command="{Binding StartVideoExportCommand}" />
+        <MenuItem Header="Cancel Encoding 取消视频导出" Command="{Binding CancelVideoExportCommand}" />
+      </MenuItem>
+      <MenuItem Header="_Tools 工具">
+        <MenuItem Header="State Inspector 状态检查" Tag="ControlTab" Click="OnNavigate" />
+        <MenuItem Header="Event Log 事件日志" Tag="EventLogTab" Click="OnNavigate" />
+        <MenuItem Header="Canonical Diff 文本差异" Tag="DiffTab" Click="OnNavigate" />
+        <MenuItem Header="External Control 外部控制" Tag="CapabilitiesTab" Click="OnNavigate" />
+      </MenuItem>
+      <MenuItem Header="_Input 输入">
+        <MenuItem Header="Play / Pause 播放与暂停" InputGestureText="Pause" Command="{Binding TogglePauseCommand}" />
+        <MenuItem Header="Frame Advance 前进一帧" InputGestureText="V" Command="{Binding StepCommand}" />
+        <MenuItem Header="Input Editor 输入编辑器" Tag="AuthoringTab" Click="OnNavigate" />
+      </MenuItem>
+    </Menu>
+    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+      <Button Content="Start 启动" AutomationProperties.AutomationId="HktasStudio.LaunchGameButton"
+              ToolTip="已有游戏时请先正常保存退出，再从这里启动。" Command="{Binding LaunchGameCommand}" />
+      <Button Content="{Binding PlayPauseLabel}" Command="{Binding TogglePauseCommand}"
+              AutomationProperties.AutomationId="HktasStudio.PlayPauseButton" ToolTip="Pause：播放/暂停" />
+      <Button Content="Frame Advance 逐帧" Command="{Binding StepCommand}"
+              AutomationProperties.AutomationId="HktasStudio.FrameAdvanceButton" ToolTip="V：前进一个输入帧；输入文本时不触发。" />
+      <Button Content="Stop 停止序列" Command="{Binding StopReplayCommand}" />
+      <TextBlock Text="{Binding FrameCounterText}" Margin="14,0,8,0" VerticalAlignment="Center"
+                 FontFamily="Consolas" AutomationProperties.AutomationId="HktasStudio.FrameCounter" />
+      <TextBlock Text="{Binding PlaybackStateText}" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}" />
+    </WrapPanel>
+    <Border DockPanel.Dock="Bottom" Padding="6" Margin="0,6,0,0" Background="{StaticResource PanelBrush}">
+      <TextBlock Text="{Binding Status}" TextWrapping="Wrap" MaxHeight="54"
+                 AutomationProperties.AutomationId="HktasStudio.StatusText" />
+    </Border>
     <Border DockPanel.Dock="Top"
             Background="{StaticResource PanelBrush}"
-            CornerRadius="6"
-            Padding="12"
-            Margin="0,0,0,10">
+            Padding="6"
+            Margin="0,0,0,6">
       <Grid>
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto" />
@@ -37,8 +80,8 @@
                   DisplayMemberPath="DisplayName"
                   Margin="0,0,12,0" />
         <TextBlock Grid.Column="2"
-                   AutomationProperties.AutomationId="HktasStudio.StatusText"
-                   Text="{Binding Status}"
+                   Text="{Binding RuntimeSummary}"
+                   ToolTip="{Binding RuntimeSummary}"
                    VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis" />
         <TextBlock Grid.Column="3"
@@ -58,8 +101,8 @@
       </Grid>
     </Border>
 
-    <TabControl AutomationProperties.AutomationId="HktasStudio.MainTabs">
-      <TabItem Header="Movie Editor"
+    <TabControl x:Name="MainTabs" AutomationProperties.AutomationId="HktasStudio.MainTabs">
+      <TabItem x:Name="MovieTextTab" Header="Movie Text"
                AutomationProperties.AutomationId="HktasStudio.MovieEditorTab">
         <Grid Margin="8">
           <Grid.RowDefinitions>
@@ -116,7 +159,7 @@
         </Grid>
       </TabItem>
 
-      <TabItem Header="Control &amp; State"
+      <TabItem x:Name="ControlTab" Header="Runtime / State"
                AutomationProperties.AutomationId="HktasStudio.ControlStateTab">
         <Grid Margin="8">
           <Grid.RowDefinitions>
@@ -165,7 +208,7 @@
         </Grid>
       </TabItem>
 
-      <TabItem Header="Frame Authoring" AutomationProperties.AutomationId="HktasStudio.FrameAuthoringTab">
+      <TabItem x:Name="AuthoringTab" Header="Input Editor" AutomationProperties.AutomationId="HktasStudio.FrameAuthoringTab">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="10">
             <TextBlock Text="Live frame input"
@@ -311,7 +354,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Timeline">
+      <TabItem x:Name="EventLogTab" Header="Event Log">
         <Grid Margin="8">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -339,7 +382,7 @@
         </Grid>
       </TabItem>
 
-      <TabItem Header="Canonical Diff">
+      <TabItem x:Name="DiffTab" Header="Canonical Diff">
         <TextBox Margin="8"
                  Text="{Binding CanonicalDiff, Mode=OneWay}"
                  IsReadOnly="True"
@@ -349,7 +392,7 @@
                  VerticalScrollBarVisibility="Auto" />
       </TabItem>
 
-      <TabItem Header="Replay Saves">
+      <TabItem x:Name="SavesTab" Header="Savestates">
         <Grid Margin="8">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -390,7 +433,7 @@
         </Grid>
       </TabItem>
 
-      <TabItem Header="Capabilities">
+      <TabItem x:Name="CapabilitiesTab" Header="External Control">
         <Grid Margin="8">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
