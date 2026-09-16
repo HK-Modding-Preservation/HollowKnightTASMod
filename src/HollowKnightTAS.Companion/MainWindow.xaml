@@ -65,6 +65,7 @@
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="120" />
           </Grid.RowDefinitions>
           <WrapPanel Margin="0,0,0,6">
@@ -82,7 +83,19 @@
                     AutomationProperties.AutomationId="HktasStudio.MovieStartReplayButton"
                     Command="{Binding StartReplayCommand}" />
             <Button Content="Stop" Command="{Binding StopReplayCommand}" />
+            <Button Content="导出 MP4"
+                    AutomationProperties.AutomationId="HktasStudio.VideoExportButton"
+                    Command="{Binding StartVideoExportCommand}"
+                    ToolTip="请先将游戏恢复到序列要求的合法起点并暂停；导出会先上传当前 MovieText，再从该起点重放。导出期间游戏扬声器会静音；FFmpeg 和输出文件由此处选择，已有文件不会覆盖。" />
+            <Button Content="取消 MP4 导出"
+                    AutomationProperties.AutomationId="HktasStudio.VideoExportCancelButton"
+                    Command="{Binding CancelVideoExportCommand}" />
           </WrapPanel>
+          <TextBlock Grid.Row="2"
+                     Text="{Binding VideoExportStatus}"
+                     Margin="4,8,4,0"
+                     Foreground="#A8B7C8"
+                     TextWrapping="Wrap" />
           <TextBox Grid.Row="1"
                    AutomationProperties.AutomationId="HktasStudio.MovieText"
                    Text="{Binding MovieText, UpdateSourceTrigger=PropertyChanged}"
@@ -93,7 +106,7 @@
                    HorizontalScrollBarVisibility="Auto"
                    VerticalScrollBarVisibility="Auto"
                    SpellCheck.IsEnabled="False" />
-          <TextBox Grid.Row="2"
+          <TextBox Grid.Row="3"
                    AutomationProperties.AutomationId="HktasStudio.MovieValidationOutput"
                    Text="{Binding ValidationOutput, Mode=OneWay}"
                    Margin="0,8,0,0"

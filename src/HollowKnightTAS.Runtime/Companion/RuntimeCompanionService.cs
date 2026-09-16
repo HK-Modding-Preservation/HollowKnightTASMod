@@ -412,6 +412,7 @@ namespace HollowKnightTAS.Runtime.Companion
 
         private void OnGUI()
         {
+            if (Media.RuntimeVideoCapture.HideTasOverlays) return;
             if (!showOverlay || launcher == null)
             {
                 return;

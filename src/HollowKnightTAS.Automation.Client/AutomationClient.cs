@@ -594,6 +594,77 @@ namespace HollowKnightTAS.Automation.Client
                 cancellationToken);
         }
 
+        public Task<AutomationResultEnvelope> StartVideoExportAsync(
+            string ffmpegPath,
+            string outputPath,
+            int maximumFrames,
+            string leaseId,
+            string expectedRuntimeMode,
+            long expectedMovieTick,
+            bool replayLoadedMovie = false,
+            CancellationToken cancellationToken = default)
+        {
+            if (maximumFrames <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(maximumFrames),
+                    "Maximum frames must be positive.");
+            }
+
+            return ExecuteAsync(
+                CreateCommand(
+                    AutomationCommandIds.StartVideoExport,
+                    AutomationScope.ControlPlayback,
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["ffmpegPath"] = ffmpegPath,
+                        ["outputPath"] = outputPath,
+                        ["maximumFrames"] = maximumFrames.ToString(
+                            CultureInfo.InvariantCulture),
+                        ["replayLoadedMovie"] = replayLoadedMovie
+                            ? "true"
+                            : "false"
+                    },
+                    leaseId,
+                    expectedRuntimeMode,
+                    expectedMovieTick),
+                cancellationToken);
+        }
+
+        public Task<AutomationResultEnvelope> FinishVideoExportAsync(
+            string operationId,
+            string leaseId,
+            CancellationToken cancellationToken = default)
+        {
+            return ExecuteAsync(
+                CreateCommand(
+                    AutomationCommandIds.FinishVideoExport,
+                    AutomationScope.ControlPlayback,
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["operationId"] = operationId
+                    },
+                    leaseId),
+                cancellationToken);
+        }
+
+        public Task<AutomationResultEnvelope> CancelVideoExportAsync(
+            string operationId,
+            string leaseId,
+            CancellationToken cancellationToken = default)
+        {
+            return ExecuteAsync(
+                CreateCommand(
+                    AutomationCommandIds.CancelVideoExport,
+                    AutomationScope.ControlPlayback,
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["operationId"] = operationId
+                    },
+                    leaseId),
+                cancellationToken);
+        }
+
         public Task<AutomationResultEnvelope> CreateReplaySaveAsync(
             string label,
             string leaseId,

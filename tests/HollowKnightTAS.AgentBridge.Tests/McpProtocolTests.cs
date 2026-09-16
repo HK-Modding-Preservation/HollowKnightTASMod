@@ -12,6 +12,25 @@ namespace HollowKnightTAS.AgentBridge.Tests
     public sealed class McpProtocolTests
     {
         [TestMethod]
+        public void VideoExportSchemasRequireOperationIdentityAndTypedReplayOption()
+        {
+            foreach (var name in new[] { "hktas_finish_video_export", "hktas_cancel_video_export" })
+            {
+                Assert.IsTrue(McpCatalog.TryGetTool(name, out var tool));
+                using var request = JsonDocument.Parse("{\"operationId\":\"video-test\"}");
+                Assert.IsTrue(McpStdioServer.ValidateArguments(tool, request.RootElement, out var error), error);
+                using var missing = JsonDocument.Parse("{}");
+                Assert.IsFalse(McpStdioServer.ValidateArguments(tool, missing.RootElement, out _));
+                Assert.IsTrue(tool.RequiresApprovedControl);
+            }
+            Assert.IsTrue(McpCatalog.TryGetTool("hktas_start_video_export", out var start));
+            using var valid = JsonDocument.Parse("{\"ffmpegPath\":\"ffmpeg.exe\",\"outputPath\":\"movie.mp4\",\"maximumFrames\":1000,\"replayLoadedMovie\":true,\"expectedRuntimeMode\":\"Paused\"}");
+            Assert.IsTrue(McpStdioServer.ValidateArguments(start, valid.RootElement, out var validation), validation);
+            using var invalid = JsonDocument.Parse(valid.RootElement.GetRawText().Replace("true", "\"true\""));
+            Assert.IsFalse(McpStdioServer.ValidateArguments(start, invalid.RootElement, out _));
+        }
+
+        [TestMethod]
         public void ColdRestoreCancellationRequiresOperationIdentityNotLiveRuntimeMode()
         {
             Assert.IsTrue(McpCatalog.TryGetTool("hktas_cancel_replay_save_restore", out var tool));

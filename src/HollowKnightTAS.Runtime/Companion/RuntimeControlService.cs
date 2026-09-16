@@ -238,6 +238,20 @@ namespace HollowKnightTAS.Runtime.Companion
             return StartReplayNow();
         }
 
+        public int LoadedMovieFrameCount
+        {
+            get
+            {
+                if (movie == null) throw new InvalidOperationException("Upload a validated movie first.");
+                long count = 0;
+                foreach (var command in movie.Commands)
+                    if (command is FrameRunCommand run) count = checked(count + run.FrameCount);
+                if (count < 1 || count > MovieProtocolV1.DefaultMaxExpandedTicks)
+                    throw new InvalidOperationException("Movie length is outside the supported replay range.");
+                return checked((int)count);
+            }
+        }
+
         private PlaybackStartResult StartReplayNow()
         {
             ThrowIfDisposed();
@@ -373,6 +387,12 @@ namespace HollowKnightTAS.Runtime.Companion
                 : RequirePause().Pause();
             PublishModes("pauseForSourceLifecycle");
             return result;
+        }
+
+        internal void InterruptVideoStep()
+        {
+            if (ControlMode == SimulationControlMode.Stepping)
+                RequirePause().InterruptStepAfterCurrentFrame("video-export-pause");
         }
 
         public ControlResult Step(int count)

@@ -29,6 +29,8 @@ namespace HollowKnightTAS.Runtime.Media
         private readonly StringBuilder diagnostics = new StringBuilder();
         private bool disposed;
         private bool completed;
+        private readonly object publicationGate = new object();
+        public bool IsCompleted { get { lock (publicationGate) return completed; } }
 
         public FfmpegVideoEncoder(string ffmpegPath, string outputPath, VideoExportFormat format)
         {
@@ -142,8 +144,12 @@ namespace HollowKnightTAS.Runtime.Media
                 process.WaitForExit(); // Drain asynchronous stderr after the bounded process wait.
                 if (process.ExitCode != 0 || !File.Exists(temporaryOutput) || new FileInfo(temporaryOutput).Length == 0)
                     throw new IOException("FFmpeg failed: " + ReadDiagnostics());
-                File.Move(temporaryOutput, OutputPath); // No overwrite, including files created during export.
-                completed = true;
+                lock (publicationGate)
+                {
+                    stopped.Token.ThrowIfCancellationRequested();
+                    File.Move(temporaryOutput, OutputPath); // No overwrite, including files created during export.
+                    completed = true;
+                }
                 Directory.Delete(temporaryDirectory);
             }
             catch
@@ -155,11 +161,14 @@ namespace HollowKnightTAS.Runtime.Media
 
         public void Cancel()
         {
-            if (disposed || completed) return;
-            stopped.Cancel();
-            TryKill();
-            videoPipe.Dispose();
-            audioPipe.Dispose();
+            lock (publicationGate)
+            {
+                if (disposed || completed) return;
+                stopped.Cancel();
+                TryKill();
+                videoPipe.Dispose();
+                audioPipe.Dispose();
+            }
         }
 
         public void Dispose()

@@ -38,6 +38,38 @@ namespace HollowKnightTAS.Companion.Tests
 
         [TestMethod]
         [Timeout(30000)]
+        public async Task VideoExportFinalizationUsesOperationIdentityWithoutModePrecondition()
+        {
+            var fixture = CreateFixture();
+            fixture.ControlMode = "Stepping";
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var runtime = RunFakeRuntimeAsync(fixture, cancellation.Token);
+            using var sessions = new SessionRegistry("video-operation-integration");
+            Assert.IsTrue(await sessions.RegisterAsync(fixture.Registration, cancellation.Token));
+            using var broker = CreateBroker(sessions);
+            try
+            {
+                foreach (var command in new[] { AutomationCommandIds.FinishVideoExport, AutomationCommandIds.CancelVideoExport })
+                {
+                    var result = await broker.ExecuteHumanAsync(command, AutomationScope.ControlPlayback,
+                        new Dictionary<string, string> { ["operationId"] = "video-test" },
+                        string.Empty, null, cancellation.Token);
+                    Assert.IsTrue(result.Success, result.ResultCode + ": " + result.Detail);
+                    Assert.AreEqual(command, result.Data["command"]);
+                    var missing = await broker.ExecuteHumanAsync(command, AutomationScope.ControlPlayback,
+                        new Dictionary<string, string>(), string.Empty, null, cancellation.Token);
+                    Assert.AreEqual("InvalidArguments", missing.ResultCode);
+                }
+            }
+            finally
+            {
+                cancellation.Cancel();
+                try { await runtime; } catch (OperationCanceledException) { }
+            }
+        }
+
+        [TestMethod]
+        [Timeout(30000)]
         public async Task NativeSlotLoadValidatesArgumentsAndUsesMenuSafePreflight()
         {
             var fixture = CreateFixture();

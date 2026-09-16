@@ -142,6 +142,26 @@ namespace HollowKnightTAS.Automation.Client
             long expectedMovieTick,
             CancellationToken cancellationToken = default);
 
+        Task<AutomationResultEnvelope> StartVideoExportAsync(
+            string ffmpegPath,
+            string outputPath,
+            int maximumFrames,
+            string leaseId,
+            string expectedRuntimeMode,
+            long expectedMovieTick,
+            bool replayLoadedMovie = false,
+            CancellationToken cancellationToken = default);
+
+        Task<AutomationResultEnvelope> FinishVideoExportAsync(
+            string operationId,
+            string leaseId,
+            CancellationToken cancellationToken = default);
+
+        Task<AutomationResultEnvelope> CancelVideoExportAsync(
+            string operationId,
+            string leaseId,
+            CancellationToken cancellationToken = default);
+
         Task<AutomationResultEnvelope> CreateReplaySaveAsync(
             string label,
             string leaseId,

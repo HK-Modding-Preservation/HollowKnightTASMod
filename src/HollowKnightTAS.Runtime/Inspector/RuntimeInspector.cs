@@ -1011,6 +1011,7 @@ namespace HollowKnightTAS.Runtime.Inspector
 
         private void OnGUI()
         {
+            if (Media.RuntimeVideoCapture.HideTasOverlays) return;
             owner?.OnGui();
         }
     }

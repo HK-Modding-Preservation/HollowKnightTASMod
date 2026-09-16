@@ -664,7 +664,9 @@ namespace HollowKnightTAS.Companion.Automation
                     Fields("operationId", operationId, "state", cancelled.Latest.State.ToString()));
             }
 
-            if (capability.RequiresLease)
+            if (capability.RequiresLease
+                && command.CommandId != AutomationCommandIds.FinishVideoExport
+                && command.CommandId != AutomationCommandIds.CancelVideoExport)
             {
                 if (string.IsNullOrEmpty(
                         command.ExpectedRuntimeMode))
@@ -3087,6 +3089,7 @@ namespace HollowKnightTAS.Companion.Automation
             {
                 case AutomationCommandIds.StartVideoExport:
                     required = new[] { "ffmpegPath", "outputPath", "maximumFrames" };
+                    optional = new[] { "replayLoadedMovie" };
                     break;
                 case AutomationCommandIds.FinishVideoExport:
                 case AutomationCommandIds.CancelVideoExport:

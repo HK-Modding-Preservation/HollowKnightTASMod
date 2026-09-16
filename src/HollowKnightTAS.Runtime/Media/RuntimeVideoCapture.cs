@@ -19,14 +19,23 @@ namespace HollowKnightTAS.Runtime.Media
         private volatile string state = "Capturing";
         private volatile string detail = string.Empty;
         private volatile bool cancelled;
+        private volatile bool failed;
         private int lastUnityFrame;
         private bool detached;
+        private readonly bool finishAtFrameLimit;
+        private readonly Action? onFailure;
+        private readonly Action? afterFrame;
+        public static bool HideTasOverlays { get; private set; }
 
-        public RuntimeVideoCapture(string ffmpeg, string output, int maximumFrames, Action<string> log)
+        public RuntimeVideoCapture(string ffmpeg, string output, int maximumFrames, Action<string> log,
+            bool finishAtFrameLimit = true, Action? onFailure = null, Action? afterFrame = null)
         {
             if (maximumFrames <= 0) throw new ArgumentOutOfRangeException(nameof(maximumFrames));
             this.maximumFrames = maximumFrames;
             this.log = log;
+            this.finishAtFrameLimit = finishAtFrameLimit;
+            this.onFailure = onFailure;
+            this.afterFrame = afterFrame;
             OperationId = "video-" + Guid.NewGuid().ToString("N");
             var delta = Time.captureDeltaTime;
             if (float.IsNaN(delta) || float.IsInfinity(delta) || delta <= 0 || delta < 1f / 240f)
@@ -40,11 +49,13 @@ namespace HollowKnightTAS.Runtime.Media
             // Start is accepted while paused at an already-rendered boundary. Do not recapture it.
             lastUnityFrame = Time.frameCount;
             CompletedFrameBoundarySignal.Reached += OnCompletedFrame;
+            HideTasOverlays = true;
             log("video capture started: " + OperationId);
         }
 
         public string OperationId { get; }
-        public bool IsActive => state == "Capturing" || state == "Finalizing";
+        public string State => state;
+        public bool IsActive => state == "Capturing" || state == "Finalizing" || state == "Cancelling";
 
         public void AppendStatus(IDictionary<string, string> fields)
         {
@@ -69,13 +80,13 @@ namespace HollowKnightTAS.Runtime.Media
                 try
                 {
                     encoder.Complete();
-                    state = "Completed";
                 }
-                catch (Exception exception) { detail = exception.Message; state = cancelled ? "Cancelled" : "Failed"; }
+                catch (Exception exception) { detail = exception.Message; if (!cancelled) failed = true; }
                 finally
                 {
                     try { encoder.Dispose(); }
-                    catch (Exception exception) { detail = exception.Message; state = "Failed"; }
+                    catch (Exception exception) { detail = exception.Message; failed = true; }
+                    state = failed ? "Failed" : encoder.IsCompleted ? "Completed" : cancelled ? "Cancelled" : "Failed";
                 }
             });
         }
@@ -84,12 +95,16 @@ namespace HollowKnightTAS.Runtime.Media
         {
             if (!IsActive) return;
             cancelled = true;
+            state = "Cancelling";
             try { Detach(); }
             finally
             {
                 encoder.Cancel();
-                if (finalization == null) encoder.Dispose();
-                state = "Cancelled";
+                if (finalization == null)
+                {
+                    encoder.Dispose();
+                    state = "Cancelled";
+                }
             }
         }
 
@@ -97,6 +112,20 @@ namespace HollowKnightTAS.Runtime.Media
         {
             Cancel();
             if (finalization == null) encoder.Dispose();
+        }
+
+        public void Fail(string reason)
+        {
+            detail = reason;
+            failed = true;
+            try { Cancel(); }
+            catch (Exception cleanup) { detail += " Cleanup: " + cleanup.Message; }
+            state = "Failed";
+            // Never let a subscriber failure escape the completed-frame gate.
+            try { onFailure?.Invoke(); }
+            catch (Exception cleanup) { detail += " Playback cleanup: " + cleanup.Message; }
+            try { log("video capture failed: " + detail); }
+            catch { /* Diagnostics must not break the frame gate. */ }
         }
 
         private void OnCompletedFrame()
@@ -107,15 +136,16 @@ namespace HollowKnightTAS.Runtime.Media
             {
                 capture.Capture(encoder.FrameCount, out var rgb, out var pcm);
                 encoder.WriteFrame(rgb, pcm);
-                if (encoder.FrameCount >= maximumFrames) Finish();
+                afterFrame?.Invoke();
+                if (encoder.FrameCount >= maximumFrames)
+                {
+                    if (finishAtFrameLimit) Finish();
+                    else throw new InvalidOperationException("Export frame safety limit reached before replay completion.");
+                }
             }
             catch (Exception exception)
             {
-                detail = exception.Message;
-                try { Cancel(); }
-                catch (Exception cleanup) { detail += " Cleanup: " + cleanup.Message; }
-                state = "Failed";
-                log("video capture failed: " + detail);
+                Fail(exception.Message);
             }
         }
 
@@ -123,6 +153,7 @@ namespace HollowKnightTAS.Runtime.Media
         {
             if (detached) return;
             detached = true;
+            HideTasOverlays = false;
             CompletedFrameBoundarySignal.Reached -= OnCompletedFrame;
             capture.Dispose();
         }

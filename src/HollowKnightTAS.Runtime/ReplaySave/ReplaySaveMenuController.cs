@@ -370,6 +370,7 @@ namespace HollowKnightTAS.Runtime.ReplaySave
 
         private void OnGUI()
         {
+            if (Media.RuntimeVideoCapture.HideTasOverlays) return;
             owner?.OnGui();
         }
     }

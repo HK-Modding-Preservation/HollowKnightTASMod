@@ -93,6 +93,8 @@ namespace HollowKnightTAS.Runtime.Ipc
         private bool pausedWindowExitPending;
         private bool disposed;
         private Media.RuntimeVideoCapture? videoCapture;
+        private bool videoReplaysLoadedMovie;
+        private string lastVideoState = string.Empty;
 
         public RuntimeCommandDispatcher(
             RuntimeCommandQueue commands,
@@ -283,6 +285,7 @@ namespace HollowKnightTAS.Runtime.Ipc
             frameCount++;
             if (server.ConsumeDisconnectPending())
             {
+                if (videoCapture?.IsActive == true) videoCapture.Fail("Companion disconnected during video export.");
                 FailSourceLifecycleReload("Companion disconnected during native reload.");
                 subscriptions.Clear();
                 upload = null;
@@ -432,6 +435,7 @@ namespace HollowKnightTAS.Runtime.Ipc
             {
                 PublishRuntimeStatus();
             }
+            PollVideoExport();
 
             // Unity LateUpdate is blocked by this completed-frame guard.
             // Finish queued disk work even when no new command arrives.
@@ -452,6 +456,7 @@ namespace HollowKnightTAS.Runtime.Ipc
 
             if (disconnected || server.ConsumeDisconnectPending())
             {
+                if (videoCapture?.IsActive == true) videoCapture.Fail("Companion disconnected during video export.");
                 FailSourceLifecycleReload("Companion disconnected during native reload.");
                 subscriptions.Clear();
                 upload = null;
@@ -652,18 +657,44 @@ namespace HollowKnightTAS.Runtime.Ipc
                     if (videoCapture?.IsActive == true) throw new InvalidOperationException("A video export is already active.");
                     if (controls.ControlMode != SimulationControlMode.Paused)
                         throw new InvalidOperationException("Pause at the sequence start before starting video export.");
+                    var replayLoaded = command.Fields.TryGetValue("replayLoadedMovie", out var replayVideoText)
+                        && bool.Parse(replayVideoText);
+                    var replayCount = replayLoaded ? controls.LoadedMovieFrameCount : 0;
+                    var videoMaximum = int.Parse(command.Fields["maximumFrames"], CultureInfo.InvariantCulture);
+                    if (replayLoaded && videoMaximum <= replayCount)
+                        throw new InvalidOperationException("Video safety limit must exceed the movie input count to allow scene transitions.");
                     videoCapture?.Dispose();
                     videoCapture = new Media.RuntimeVideoCapture(command.Fields["ffmpegPath"], command.Fields["outputPath"],
-                        int.Parse(command.Fields["maximumFrames"], CultureInfo.InvariantCulture),
-                        message => emit("video-export", new Dictionary<string, string> { ["detail"] = message }));
+                        videoMaximum,
+                        message => emit("video-export", new Dictionary<string, string> { ["detail"] = message }),
+                        !replayLoaded, StopVideoPlayback, OnVideoFrameCompleted);
+                    videoReplaysLoadedMovie = replayLoaded;
+                    if (replayLoaded)
+                    {
+                        try
+                        {
+                            var replayStart = controls.StartReplay();
+                            if (!replayStart.Success) throw new InvalidOperationException(replayStart.Error);
+                            RequireSuccess(controls.Step(replayCount));
+                        }
+                        catch (Exception exception) { videoCapture.Fail(exception.Message); throw; }
+                    }
                     return videoCapture.OperationId;
                 case IpcMessageTypes.FinishVideoExport:
                 case IpcMessageTypes.CancelVideoExport:
                     RequireFields(command.Fields, "operationId", "requestId");
                     if (videoCapture == null || videoCapture.OperationId != command.Fields["operationId"])
                         throw new InvalidOperationException("Video export operationId does not match.");
-                    if (command.MessageType == IpcMessageTypes.CancelVideoExport) videoCapture.Cancel();
-                    else videoCapture.Finish();
+                    if (command.MessageType == IpcMessageTypes.CancelVideoExport)
+                    {
+                        videoCapture.Cancel();
+                        StopVideoPlayback();
+                    }
+                    else
+                    {
+                        if (videoReplaysLoadedMovie) throw new InvalidOperationException("Sequence export finishes automatically; cancel to stop it early.");
+                        videoCapture.Finish();
+                    }
                     return videoCapture.OperationId;
                 case IpcMessageTypes.CommitStateMutation:
                     return CommitStateMutation(command.Fields);
@@ -702,6 +733,11 @@ namespace HollowKnightTAS.Runtime.Ipc
                     return "Replay stopping.";
                 case IpcMessageTypes.Pause:
                     RequireFields(command.Fields, "requestId");
+                    if (videoReplaysLoadedMovie && controls.ControlMode == SimulationControlMode.Stepping)
+                    {
+                        controls.InterruptVideoStep();
+                        return "Video export will pause at the completed frame boundary.";
+                    }
                     return RequireSuccess(controls.Pause());
                 case IpcMessageTypes.Step:
                     RequireFields(
@@ -730,6 +766,12 @@ namespace HollowKnightTAS.Runtime.Ipc
                     return RunInputBatch(command.Fields);
                 case IpcMessageTypes.Resume:
                     RequireFields(command.Fields, "requestId");
+                    if (videoReplaysLoadedMovie)
+                    {
+                        var remaining = checked(controls.LoadedMovieFrameCount - (int)(controls.LastReplayMovieTick + 1));
+                        if (remaining <= 0) throw new InvalidOperationException("Video replay is already ending.");
+                        return RequireSuccess(controls.Step(remaining));
+                    }
                     return RequireSuccess(controls.Resume());
                 case IpcMessageTypes.QuitGame:
                     RequireFields(command.Fields, "requestId");
@@ -3677,8 +3719,12 @@ namespace HollowKnightTAS.Runtime.Ipc
             Publish(IpcMessageTypes.RuntimeStatus, fields);
         }
 
-        private static bool IsAllowedDuringVideoExport(string messageType)
+        private bool IsAllowedDuringVideoExport(string messageType)
         {
+            if (videoReplaysLoadedMovie && (messageType == IpcMessageTypes.Step
+                || messageType == IpcMessageTypes.RunInputBatch || messageType == IpcMessageTypes.RunUntil
+                || messageType == IpcMessageTypes.StartReplay || messageType == IpcMessageTypes.StopReplay))
+                return false;
             switch (messageType)
             {
                 case IpcMessageTypes.FinishVideoExport:
@@ -3700,6 +3746,43 @@ namespace HollowKnightTAS.Runtime.Ipc
                 case IpcMessageTypes.Ping:
                     return true;
                 default: return false;
+            }
+        }
+
+        private void StopVideoPlayback()
+        {
+            if (!videoReplaysLoadedMovie) return;
+            videoReplaysLoadedMovie = false;
+            if (controls.PlaybackMode != PlaybackMode.Idle) controls.StopReplay();
+            if (controls.ControlMode == SimulationControlMode.Stepping) controls.InterruptVideoStep();
+            else if (controls.ControlMode == SimulationControlMode.Running) controls.Pause();
+        }
+
+        private void OnVideoFrameCompleted()
+        {
+            if (!videoReplaysLoadedMovie) return;
+            // Stop on the last rendered input frame, without a synthetic release frame.
+            if (controls.PlaybackMode == PlaybackMode.Stopping || controls.LastPlaybackStopReason.HasValue)
+                controls.InterruptVideoStep();
+        }
+
+        private void PollVideoExport()
+        {
+            if (videoCapture == null) return;
+            if (videoReplaysLoadedMovie && videoCapture.State == "Capturing")
+            {
+                if (controls.LastPlaybackStopReason == PlaybackStopReason.Completed)
+                {
+                    videoReplaysLoadedMovie = false;
+                    videoCapture.Finish();
+                }
+                else if (controls.LastPlaybackStopReason.HasValue)
+                    videoCapture.Fail("Replay ended before completion: " + controls.LastPlaybackStopReason);
+            }
+            if (lastVideoState != videoCapture.State)
+            {
+                lastVideoState = videoCapture.State;
+                PublishRuntimeStatus();
             }
         }
 

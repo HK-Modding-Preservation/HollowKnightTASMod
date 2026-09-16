@@ -659,6 +659,32 @@ namespace HollowKnightTAS.AgentBridge
                         Empty(),
                         arguments,
                         cancellationToken);
+                case "hktas_start_video_export":
+                    return await WriteCommandAsync(
+                        AutomationCommandIds.StartVideoExport,
+                        AutomationScope.ControlPlayback,
+                        SelectOptional(
+                            arguments,
+                            "ffmpegPath",
+                            "outputPath",
+                            "maximumFrames",
+                            "replayLoadedMovie"),
+                        arguments,
+                        cancellationToken);
+                case "hktas_finish_video_export":
+                    return await WriteCommandAsync(
+                        AutomationCommandIds.FinishVideoExport,
+                        AutomationScope.ControlPlayback,
+                        Select(arguments, "operationId"),
+                        arguments,
+                        cancellationToken);
+                case "hktas_cancel_video_export":
+                    return await WriteCommandAsync(
+                        AutomationCommandIds.CancelVideoExport,
+                        AutomationScope.ControlPlayback,
+                        Select(arguments, "operationId"),
+                        arguments,
+                        cancellationToken);
                 case "hktas_start_replay":
                     return await WriteCommandAsync(
                         AutomationCommandIds.StartReplay,
@@ -889,7 +915,9 @@ namespace HollowKnightTAS.AgentBridge
         {
             RequireLease(scope);
             var operationCancellation = commandId == AutomationCommandIds.CancelRecordingRestart
-                || commandId == AutomationCommandIds.CancelReplaySaveRestore;
+                || commandId == AutomationCommandIds.CancelReplaySaveRestore
+                || commandId == AutomationCommandIds.FinishVideoExport
+                || commandId == AutomationCommandIds.CancelVideoExport;
             var mode = operationCancellation ? string.Empty : RequiredString(
                 toolArguments,
                 "expectedRuntimeMode");
@@ -1181,6 +1209,15 @@ namespace HollowKnightTAS.AgentBridge
                 name => name,
                 name => all[name],
                 StringComparer.Ordinal);
+        }
+
+        private static IReadOnlyDictionary<string, string> SelectOptional(
+            JsonElement arguments,
+            params string[] names)
+        {
+            var all = FlatArguments(arguments);
+            return names.Where(all.ContainsKey)
+                .ToDictionary(name => name, name => all[name], StringComparer.Ordinal);
         }
 
         private static IReadOnlyDictionary<string, string> SelectOptionalLifecycle(JsonElement arguments, params string[] names)

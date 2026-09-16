@@ -97,6 +97,19 @@ pwsh -File "<工具目录>/Transfer-ReplaySave.ps1" -Mode Import `
 
 完整局内记录模式下，**Undo / Redo** 切换本次窗口会话的分支选择，最多保留 100 步撤销；第一次编辑也能撤销回原始记录。它们不会推进或回退游戏。选择完成后，仍需点击 **Apply Branch + Seek** 才会恢复游戏。撤销后创建新编辑会清除重做路径；重新打开窗口或手动切换到历史栈之外的分支时，请通过保存的分支 ID 重新选择。安装版已实际完成连续编辑、两次撤销/重做及恢复到第 0 帧。
 
+## 导出 MP4（开发版）
+
+此入口已实现，尚待新版本实机验收；旧交付包不含此功能。
+
+1. 先恢复到所选序列的合法起点并暂停，打开 Movie Editor 中的序列。仅上传文本不会恢复游戏状态。
+2. 点击“导出 MP4”。工具优先使用 PATH 中的 FFmpeg，找不到时选择本机 `ffmpeg.exe`，再选择一个尚不存在的 `.mp4` 文件。
+3. 工具上传当前编辑文本并重放，显示阶段、帧数和输出路径。序列结束后自动封装；看到 `Completed` 才表示文件已发布。
+4. 需要等待时使用 Control & State 的 Pause/Resume；提前终止请点击“取消 MP4 导出”，不要使用 Stop 或修改输入。
+
+导出包含游戏声音，但采集期间扬声器静音，结束后恢复。暂停等待不会计入视频时长。分辨率保持不变；导出期间调整分辨率会报错。已有文件不会被覆盖，失败原因显示在状态栏。
+
+AI 可通过 SDK 的 `StartVideoExportAsync`，或 MCP 的 `hktas_start_video_export` 设置 `replayLoadedMovie=true`。`getState` 返回 `videoExport.*` 状态；取消必须携带对应 `operationId`，并持有 `control.playback` 租约。
+
 ## 外部 AI 和错误处理
 
 人工界面与 AI 共用控制服务；AI 需要控制租约，不能抢占另一个控制者。只读状态无需控制租约。**Structured State** 读取语义快照，**Combat State** 读取最新详细状态；调用者应检查字段新鲜度和采样失败信息。

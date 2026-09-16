@@ -289,6 +289,39 @@ namespace HollowKnightTAS.AgentBridge
                     ControlSchema(),
                     false),
                 Tool(
+                    "hktas_start_video_export",
+                    "Start exporting gameplay frames and audio to a video file.",
+                    Schema(
+                        Props(
+                            ("ffmpegPath", String(1024)),
+                            ("outputPath", String(1024)),
+                            ("maximumFrames", Integer(1)),
+                            ("replayLoadedMovie", Boolean()),
+                            ("expectedRuntimeMode", String(32)),
+                            ("expectedMovieTick", Integer(0))),
+                        new[]
+                        {
+                            "ffmpegPath",
+                            "outputPath",
+                            "maximumFrames",
+                            "expectedRuntimeMode"
+                        }),
+                    false),
+                Tool(
+                    "hktas_finish_video_export",
+                    "Finish an active video export identified by operationId.",
+                    Schema(
+                        Props(("operationId", String(96))),
+                        new[] { "operationId" }),
+                    false),
+                Tool(
+                    "hktas_cancel_video_export",
+                    "Cancel an active video export identified by operationId.",
+                    Schema(
+                        Props(("operationId", String(96))),
+                        new[] { "operationId" }),
+                    false),
+                Tool(
                     "hktas_start_replay",
                     "Start replay of the loaded canonical movie.",
                     ControlSchema(),

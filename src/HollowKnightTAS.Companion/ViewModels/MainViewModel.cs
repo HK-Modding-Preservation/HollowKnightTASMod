@@ -68,6 +68,8 @@ namespace HollowKnightTAS.Companion.ViewModels
         private string runtimeReadinessBadge = "NOT READY";
         private string runtimeSummary = "No Runtime status yet.";
         private string latestState = string.Empty;
+        private string videoExportStatus = "未开始视频导出。导出期间游戏扬声器会静音。";
+        private string videoExportOperationId = string.Empty;
         private bool autoSaveEnabled = true;
         private string autoSaveInterval = "18000";
         private string autoSaveRetention = "20";
@@ -143,6 +145,10 @@ namespace HollowKnightTAS.Companion.ViewModels
                     () => ExecuteHumanAsync(
                         AutomationCommandIds.StopReplay,
                         AutomationScope.ControlPlayback));
+            StartVideoExportCommand = Command(StartVideoExportAsync);
+            CancelVideoExportCommand = Command(
+                CancelVideoExportAsync,
+                requireConnected: false);
             PauseCommand =
                 Command(
                     () => ExecuteHumanAsync(
@@ -374,6 +380,12 @@ namespace HollowKnightTAS.Companion.ViewModels
             private set => Set(ref latestState, value);
         }
 
+        public string VideoExportStatus
+        {
+            get => videoExportStatus;
+            private set => Set(ref videoExportStatus, value);
+        }
+
         public string? SelectedReplaySave
         {
             get => selectedReplaySave;
@@ -531,6 +543,8 @@ namespace HollowKnightTAS.Companion.ViewModels
         public ICommand RefreshRuntimeMovieCommand { get; }
         public ICommand StartReplayCommand { get; }
         public ICommand StopReplayCommand { get; }
+        public ICommand StartVideoExportCommand { get; }
+        public ICommand CancelVideoExportCommand { get; }
         public ICommand PauseCommand { get; }
         public ICommand StepCommand { get; }
         public ICommand ResumeCommand { get; }
@@ -575,6 +589,113 @@ namespace HollowKnightTAS.Companion.ViewModels
         public ICommand StartRecordingCommand { get; }
         public ICommand StopRecordingCommand { get; }
         public ICommand RunUntilCommand { get; }
+
+        private async Task StartVideoExportAsync()
+        {
+            if (!string.Equals(currentControlMode, "Paused", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "请先暂停游戏，并获取最新 Runtime 状态后再导出视频。");
+            }
+
+            var candidate = movieEditor.Validate(MovieText);
+            if (!candidate.Success || candidate.ExpandedTicks < 1)
+            {
+                ValidateMovie(false);
+                throw new InvalidDataException("当前 MovieText 无法导出。");
+            }
+
+            var ffmpegPath = FindFfmpegOnPath();
+            if (string.IsNullOrEmpty(ffmpegPath))
+            {
+                var ffmpegDialog = new OpenFileDialog
+                {
+                    Title = "选择 FFmpeg 可执行文件",
+                    Filter = "FFmpeg (ffmpeg.exe)|ffmpeg.exe|所有文件|*.*",
+                    CheckFileExists = true,
+                    Multiselect = false,
+                    FileName = "ffmpeg.exe"
+                };
+                if (ffmpegDialog.ShowDialog() != true)
+                {
+                    return;
+                }
+
+                ffmpegPath = ffmpegDialog.FileName;
+            }
+
+            var outputDialog = new SaveFileDialog
+            {
+                Title = "选择 MP4 导出文件（不会覆盖已有文件）",
+                Filter = "MP4 视频|*.mp4",
+                DefaultExt = ".mp4",
+                AddExtension = true,
+                OverwritePrompt = false,
+                FileName = "hktas-export.mp4"
+            };
+            if (outputDialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            var outputPath = outputDialog.FileName;
+            if (File.Exists(outputPath))
+            {
+                throw new IOException("导出文件已存在；为防止覆盖，请选择新的 .mp4 文件。");
+            }
+
+            // Upload first so the Runtime receives the exact current MovieText.
+            await UploadMovieAsync();
+            var maximumFrames = Math.Min(
+                int.MaxValue,
+                checked(candidate.ExpandedTicks * 4L + 10000L));
+            var result = await ExecuteHumanResultAsync(
+                AutomationCommandIds.StartVideoExport,
+                AutomationScope.ControlPlayback,
+                Fields(
+                    "ffmpegPath", ffmpegPath,
+                    "outputPath", outputPath,
+                    "maximumFrames", maximumFrames.ToString(CultureInfo.InvariantCulture),
+                    "replayLoadedMovie", "true"));
+            RequireAutomationSuccess(result);
+            videoExportOperationId = RequireResultField(result, "detail");
+            VideoExportStatus = "已开始 · 阶段=Capturing · 帧数=0 · 输出=" + outputPath
+                                + "（导出期间游戏扬声器会静音）";
+            Status = "视频导出已开始。";
+        }
+
+        private async Task CancelVideoExportAsync()
+        {
+            if (string.IsNullOrEmpty(videoExportOperationId))
+            {
+                throw new InvalidOperationException("当前没有可取消的视频导出。");
+            }
+
+            var operationId = videoExportOperationId;
+            var result = await ExecuteHumanResultAsync(
+                AutomationCommandIds.CancelVideoExport,
+                AutomationScope.ControlPlayback,
+                Fields("operationId", operationId),
+                expectedModeRequired: false);
+            RequireAutomationSuccess(result);
+            VideoExportStatus = "已请求取消 · operationId=" + operationId;
+            videoExportOperationId = string.Empty;
+            Status = "视频导出取消请求已发送。";
+        }
+
+        private static string? FindFfmpegOnPath()
+        {
+            var path = Environment.GetEnvironmentVariable("PATH");
+            if (string.IsNullOrEmpty(path)) return null;
+            foreach (var directory in path.Split(Path.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(directory)) continue;
+                var candidate = Path.Combine(directory.Trim().Trim('"'), "ffmpeg.exe");
+                if (File.Exists(candidate)) return candidate;
+            }
+
+            return null;
+        }
 
         private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true)
         {
@@ -1687,6 +1808,43 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (fields == null)
             {
                 return;
+            }
+
+            if (fields.Keys.Any(key => key.StartsWith("videoExport.", StringComparison.Ordinal)))
+            {
+                var statusOperationId = fields.TryGetValue("videoExport.operationId", out var operationId)
+                    ? operationId
+                    : string.Empty;
+                var previousOperationId = videoExportOperationId;
+                if (!string.IsNullOrEmpty(statusOperationId))
+                {
+                    videoExportOperationId = statusOperationId;
+                }
+                var phase = fields.TryGetValue("videoExport.state", out var state)
+                    ? state
+                    : "未知";
+                var detail = fields.TryGetValue("videoExport.detail", out var exportDetail)
+                    ? exportDetail
+                    : string.Empty;
+                var frames = fields.TryGetValue("videoExport.frames", out var frameCount)
+                    ? frameCount
+                    : "未记录";
+                var output = fields.TryGetValue("videoExport.outputPath", out var exportPath)
+                    ? exportPath
+                    : "未记录";
+                VideoExportStatus = "阶段=" + phase + " · 帧数=" + frames + " · 输出=" + output
+                                    + (string.IsNullOrEmpty(detail) ? string.Empty : " · " + detail);
+                if (string.Equals(phase, "Completed", StringComparison.Ordinal)
+                    || string.Equals(phase, "Cancelled", StringComparison.Ordinal)
+                    || string.Equals(phase, "Failed", StringComparison.Ordinal))
+                {
+                    if (string.Equals(videoExportOperationId, statusOperationId, StringComparison.Ordinal)
+                        && (string.IsNullOrEmpty(previousOperationId)
+                            || string.Equals(previousOperationId, statusOperationId, StringComparison.Ordinal)))
+                    {
+                        videoExportOperationId = string.Empty;
+                    }
+                }
             }
 
             if (fields.TryGetValue("movieTick", out var movieTickText)

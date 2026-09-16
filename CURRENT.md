@@ -1,8 +1,8 @@
 # 当前任务：序列导出 MP4
 
-实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。游戏画面和真实音频已经流式导出为 MP4；60 帧短探针通过。Studio/MCP 专用入口、一键序列协调与完整假骑士导出尚未完成。
+实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。游戏画面和真实音频已经流式导出为 MP4；60 帧短探针通过。Studio/SDK/MCP 导出入口和序列自动结束已实现、编译通过，尚未安装实测；完整假骑士导出仍待完成。
 
-下一步：接入 Studio/SDK/MCP 的产品入口与序列重放协调，复用本次成功的采集模块。Unity 音频按 1024 样本 DSP 块渲染，已用完整块采集加缓冲重分帧解决零音频；zerolatency 后实机 60 帧无停滞。只做相关定向检查，不重跑旧矩阵。
+下一步：关闭已核实的旧游戏与 Studio，构建安装当前版本，从合法起点验证短序列自动导出及暂停续录，再完成假骑士整段导出。新入口要求先恢复序列起点，上传文本不等于回档。已通过 3 项接口定向检查及 4 项编码器测试；没有重跑旧矩阵。Unity 音频按 1024 样本 DSP 块渲染；zerolatency 后实机 60 帧无停滞。
 
 startVideoExport / finishVideoExport / cancelVideoExport（control.playback）已可经通用接口调用，状态在 getState 的 videoExport.* 字段。开始要求 Paused，结束和取消校验 operationId。实际时钟为 50 fps。`artifacts/d04-live/probe-dsp-60.mp4` 为 800×450、H.264 + AAC 双声道，音画各 1.2 秒、189630 字节；暂停未增加帧数，取消未留下文件。当前游戏 PID 17000、tick 259 暂停；进程是否仍在需读实时状态。构建后 Core/Runtime 身份已改变，旧假骑士示范不得改哈希冒充兼容。
 
