@@ -1,0 +1,15 @@
+LocalBuildProperties.props
+.vs/
+.idea/
+.vscode/
+bin/
+obj/
+TestResults/
+artifacts/
+.local/
+packaging/staging/
+packaging/publish/
+*.user
+*.suo
+__pycache__/
+*.py[cod]

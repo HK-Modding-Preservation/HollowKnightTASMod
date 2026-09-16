@@ -1,0 +1,2089 @@
+{
+  "schemaVersion": 1,
+  "auditId": "t24-runtime-hook-mutation-allowlist-v1",
+  "reviewedUtc": "2026-08-14T00:25:00Z",
+  "scanRoots": [
+    "src/HollowKnightTAS.Runtime",
+    "src/HollowKnightTAS.ReferenceObserver",
+    "src/HollowKnightTAS.GameObservation",
+    "src/HollowKnightTAS.ClockPayload"
+  ],
+  "normalTasAllowedWriterPolicies": [
+    "auxiliary-emergency-input",
+    "canonical-player-action-input",
+    "complete-frame-time-boundary",
+    "rollback-environment-restore",
+    "vanilla-scene-orchestration"
+  ],
+  "absenceGuards": [
+    {
+      "scanRoots": [
+        "src/HollowKnightTAS.Runtime"
+      ],
+      "expression": "new ReplayDeterministicTimingLease(",
+      "count": 0,
+      "rationale": "T24 forbids production construction of the legacy in-Mod deterministic timing override."
+    }
+  ],
+  "sources": [
+    {
+      "path": "src/HollowKnightTAS.Runtime/Timing/InControlClockProbe.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: runtime-event-subscription"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate+=",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Timing/RuntimeClockProbe.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase",
+        "complete-frame boundary, rollback restore, or explicit probe",
+        "fixture startup or rollback scene transition"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "captured time/frame profile and control state",
+        "requested slot/scene and GameManager transition state"
+      ],
+      "writeSet": [
+        "audited category: modhook-subscription",
+        "audited category: scene-orchestration-writer",
+        "audited category: time-settings-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Command-line T03 profile experiment; unavailable in ordinary TAS.",
+      "findings": [
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.HeroUpdateHook-=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.HeroUpdateHook+=",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.LoadGameFromUI",
+          "count": 2
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.ReturnToMainMenu",
+          "count": 1
+        },
+        {
+          "category": "time-settings-writer",
+          "expression": "Application.targetFrameRate=",
+          "count": 3
+        },
+        {
+          "category": "time-settings-writer",
+          "expression": "QualitySettings.vSyncCount=",
+          "count": 2
+        },
+        {
+          "category": "time-settings-writer",
+          "expression": "Time.fixedDeltaTime=",
+          "count": 1
+        },
+        {
+          "category": "time-settings-writer",
+          "expression": "Time.timeScale=",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "FixedUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "388689f3ec6113a16414237cdb28dd1ea2317e5b438ba19a5330131c0b2dacd4",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Timing/RuntimeClockProbe.cs",
+          "expression": "--hktas-timing-probe=",
+          "count": 1,
+          "sourceSha256": "388689f3ec6113a16414237cdb28dd1ea2317e5b438ba19a5330131c0b2dacd4"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Timing/SceneEpochTracker.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: modhook-subscription",
+        "audited category: runtime-event-subscription"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.BeforeSceneLoadHook-=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.BeforeSceneLoadHook+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged+=",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Rng/RuntimeRngProbeExperiment.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase",
+        "fixture startup or rollback scene transition",
+        "explicit verification/debug operation only"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "requested slot/scene and GameManager transition state",
+        "pre-operation game state for verification/debug rollback"
+      ],
+      "writeSet": [
+        "audited category: player-resource-writer",
+        "audited category: random-state-writer",
+        "audited category: runtime-event-subscription",
+        "audited category: scene-orchestration-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Command-line T10 seed/health experiment; unavailable in ordinary TAS.",
+      "findings": [
+        {
+          "category": "player-resource-writer",
+          "expression": "PlayerData.instance.health=",
+          "count": 2
+        },
+        {
+          "category": "random-state-writer",
+          "expression": "UnityEngine.Random.InitState",
+          "count": 1
+        },
+        {
+          "category": "random-state-writer",
+          "expression": "UnityEngine.Random.state=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged+=",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.LoadGameFromUI",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "manager.BeginSceneTransition",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "FixedUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "1267835058cb66f0754ca0d98aec52360d980cc3a6ead2ec53275c17099c53ce",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Rng/RuntimeRngProbeExperiment.cs",
+          "expression": "--hktas-rng-probe=",
+          "count": 1,
+          "sourceSha256": "1267835058cb66f0754ca0d98aec52360d980cc3a6ead2ec53275c17099c53ce"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Rng/UnityRandomStateCodec_1_5_78_11833.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "explicit verification/debug operation only"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "pre-operation game state for verification/debug rollback"
+      ],
+      "writeSet": [
+        "audited category: random-state-writer"
+      ],
+      "rationale": "Normal path fingerprints RNG only; state-changing round trip is called solely by the frozen T10 probe.",
+      "findings": [
+        {
+          "category": "random-state-writer",
+          "expression": "UnityEngine.Random.InitState",
+          "count": 1,
+          "reachability": "verification-only"
+        },
+        {
+          "category": "random-state-writer",
+          "expression": "UnityEngine.Random.state=",
+          "count": 1,
+          "reachability": "verification-only"
+        }
+      ],
+      "sourceSha256": "f32ebf2db39399eec1bce3e0a38fe32f9fb979de2ac3b0a512dbbceb9b544846",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Rng/RuntimeRngProbeExperiment.cs",
+          "expression": "rngProbe.VerifyCodecRoundTrip(",
+          "count": 1,
+          "sourceSha256": "1267835058cb66f0754ca0d98aec52360d980cc3a6ead2ec53275c17099c53ce"
+        },
+        {
+          "path": "src/HollowKnightTAS.Runtime/Rng/RuntimeRngProbeExperiment.cs",
+          "expression": "--hktas-rng-probe=",
+          "count": 1,
+          "sourceSha256": "1267835058cb66f0754ca0d98aec52360d980cc3a6ead2ec53275c17099c53ce"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/State/RuntimeSnapshotProbeExperiment.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "declared Unity lifecycle phase",
+        "complete-frame boundary, rollback restore, or explicit probe",
+        "fixture startup or rollback scene transition",
+        "explicit verification/debug operation only"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "captured time/frame profile and control state",
+        "requested slot/scene and GameManager transition state",
+        "pre-operation game state for verification/debug rollback"
+      ],
+      "writeSet": [
+        "audited category: hero-transform-writer",
+        "audited category: player-resource-writer",
+        "audited category: rigidbody-position-writer",
+        "audited category: scene-orchestration-writer",
+        "audited category: time-settings-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Command-line T05 mutation/restore experiment; unavailable in ordinary TAS.",
+      "findings": [
+        {
+          "category": "hero-transform-writer",
+          "expression": "hero.gameObject.transform.position=",
+          "count": 2
+        },
+        {
+          "category": "player-resource-writer",
+          "expression": "playerData.health=",
+          "count": 1
+        },
+        {
+          "category": "rigidbody-position-writer",
+          "expression": "body.position=",
+          "count": 2
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.BeginSceneTransition",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.LoadGameFromUI",
+          "count": 1
+        },
+        {
+          "category": "time-settings-writer",
+          "expression": "Time.timeScale=",
+          "count": 2
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "FixedUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "d13b9f15648493dd8b37d90eba753bf588537ab74b534e642b6d2dd283a4ae90",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/State/RuntimeSnapshotProbeExperiment.cs",
+          "expression": "--hktas-state-probe=",
+          "count": 1,
+          "sourceSha256": "d13b9f15648493dd8b37d90eba753bf588537ab74b534e642b6d2dd283a4ae90"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/ReplaySave/RuntimeReplaySaveProbeExperiment.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "declared Unity lifecycle phase",
+        "fixture startup or rollback scene transition"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "requested slot/scene and GameManager transition state"
+      ],
+      "writeSet": [
+        "audited category: scene-orchestration-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Frozen command-line verification component; unavailable without its explicit probe request.",
+      "findings": [
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance!.BeginSceneTransition",
+          "count": 2
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.LoadGameFromUI",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "1e4ec5aed4591501cea9459f7a9ed84c7974c07759bd4d3c4da0ee4dcb8714fc",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/ReplaySave/RuntimeReplaySaveProbeExperiment.cs",
+          "expression": "--hktas-replay-save-probe=",
+          "count": 1,
+          "sourceSha256": "1e4ec5aed4591501cea9459f7a9ed84c7974c07759bd4d3c4da0ee4dcb8714fc"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Rng/RngCallSiteHooks.cs",
+      "reachability": "verification-only",
+      "installPhase": "explicit T10 probe -> RuntimeRngProbe.EnableDiagnostics",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "explicit verification/debug operation only"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: detour-subscription"
+      ],
+      "rationale": "Read-only RNG call-site detours are attached only by the explicit command-line T10 diagnostic probe.",
+      "findings": [
+        {
+          "category": "detour-subscription",
+          "expression": "On.Helper.GetRandomVector2InRange-=",
+          "count": 2
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.Helper.GetRandomVector2InRange+=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.HeroController.TakeDamage-=",
+          "count": 2
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.HeroController.TakeDamage+=",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "183e4fb4cbc8787ea3c4d0d9a48eaf68bb8937c02a9ae5630d3f83c2f341dc5e",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Rng/RuntimeRngProbeExperiment.cs",
+          "expression": "rngProbe.EnableDiagnostics();",
+          "count": 1,
+          "sourceSha256": "1267835058cb66f0754ca0d98aec52360d980cc3a6ead2ec53275c17099c53ce"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Rng/RuntimeRngProbe.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start for passive codec; explicit T10 probe for diagnostic subscriptions",
+      "executionPhase": [
+        "passive RNG state capture on explicit caller request",
+        "explicit verification/debug operation only"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: runtime-event-subscription"
+      ],
+      "rationale": "Normal TAS exposes only passive RNG state capture; per-tick subscriptions and call-site hooks require the explicit T10 diagnostic gate.",
+      "findings": [
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate-=",
+          "count": 1,
+          "reachability": "verification-only"
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate+=",
+          "count": 1,
+          "reachability": "verification-only"
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged-=",
+          "count": 1,
+          "reachability": "verification-only"
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged+=",
+          "count": 1,
+          "reachability": "verification-only"
+        }
+      ],
+      "sourceSha256": "6464fc511ed237cb4ec9679bb78f3dbec289a638b6f9b8ad63a4f5eed69cef18",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Rng/RuntimeRngProbeExperiment.cs",
+          "expression": "rngProbe.EnableDiagnostics();",
+          "count": 1,
+          "sourceSha256": "1267835058cb66f0754ca0d98aec52360d980cc3a6ead2ec53275c17099c53ce"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/ReplaySave/RestoreSettingsLease.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "complete-frame boundary, rollback restore, or explicit probe"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "captured time/frame profile and control state"
+      ],
+      "writeSet": [
+        "audited category: time-settings-writer"
+      ],
+      "rationale": "Rollback restores captured environment settings before vanilla replay resumes.",
+      "findings": [
+        {
+          "category": "time-settings-writer",
+          "expression": "Application.targetFrameRate=",
+          "count": 1,
+          "normalTasPolicy": "rollback-environment-restore"
+        },
+        {
+          "category": "time-settings-writer",
+          "expression": "QualitySettings.vSyncCount=",
+          "count": 1,
+          "normalTasPolicy": "rollback-environment-restore"
+        },
+        {
+          "category": "time-settings-writer",
+          "expression": "Time.fixedDeltaTime=",
+          "count": 1,
+          "normalTasPolicy": "rollback-environment-restore"
+        },
+        {
+          "category": "time-settings-writer",
+          "expression": "Time.timeScale=",
+          "count": 1,
+          "normalTasPolicy": "rollback-environment-restore"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/ReplaySave/RuntimeReplayRestoreCoordinator.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase",
+        "fixture startup or rollback scene transition"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "requested slot/scene and GameManager transition state"
+      ],
+      "writeSet": [
+        "audited category: modhook-subscription",
+        "audited category: runtime-event-subscription",
+        "audited category: scene-orchestration-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Rollback invokes original GameManager load/transition APIs and never writes Hero/FSM/physics fields.",
+      "findings": [
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.BeforeSceneLoadHook-=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.BeforeSceneLoadHook+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "UnityEngine.SceneManagement.SceneManager.activeSceneChanged-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "UnityEngine.SceneManagement.SceneManager.activeSceneChanged+=",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "manager.BeginSceneTransition",
+          "count": 1,
+          "normalTasPolicy": "vanilla-scene-orchestration"
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "manager.LoadGame",
+          "count": 1,
+          "normalTasPolicy": "vanilla-scene-orchestration"
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "manager.ReturnToMainMenu",
+          "count": 1,
+          "normalTasPolicy": "vanilla-scene-orchestration"
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "FixedUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/ReplaySave/RuntimeReplaySaveManager.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: runtime-event-subscription",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "runtime-event-subscription",
+          "expression": "journal.BaselineEstablished-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "journal.BaselineEstablished+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "journal.MovieTickCommitted-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "journal.MovieTickCommitted+=",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Playback/RuntimeReplayJournal.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start -> original ModHooks and InputManager.OnUpdate subscriptions; Application.onBeforeRender only while a supported baseline anchor is pending",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "original InControl input-update boundary",
+        "post-LateUpdate pre-render completed-frame boundary"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: modhook-subscription",
+        "audited category: runtime-event-subscription"
+      ],
+      "rationale": "Continuous replay history observes the original input-update event without adding a Unity lifecycle component or writing gameplay state. Semantic baseline capture temporarily observes Application.onBeforeRender only after a reproducible bench or neutral anchor is detected, then unregisters after three stable completed frames.",
+      "findings": [
+        {
+          "category": "runtime-event-subscription",
+          "expression": "Application.onBeforeRender-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "Application.onBeforeRender+=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.AfterSavegameLoadHook-=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.AfterSavegameLoadHook+=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.NewGameHook-=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.NewGameHook+=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.SavegameLoadHook-=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.SavegameLoadHook+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate+=",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/ReplaySave/ReplayDeterministicTimingLease.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, replay journal, or restore lifecycle",
+      "executionPhase": [
+        "read-only movie-tick eligibility check"
+      ],
+      "readSet": [
+        "Time.timeScale exact Float32 bits"
+      ],
+      "writeSet": [
+        "none; legacy timing writes removed"
+      ],
+      "rationale": "T24-retired lease is now a read-only timeScale eligibility helper and cannot write Unity clock settings.",
+      "findings": [],
+      "sourceSha256": "a4204455cd30b7f26dd2fec1933645ddf0124023a3987c1f7d932e8b58f5c792",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Runtime/TasRuntimeHost.cs",
+          "expression": "ReplaySaveDeterministicTimingEnabled was ignored",
+          "count": 1,
+          "sourceSha256": "62e9c2436095f51a02f7d54bfa75e80ae67a3bf68adf7c43249e1852f9302886"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/ReplaySave/ReplaySaveMenuController.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "declared Unity lifecycle phase"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: detour-subscription",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "detour-subscription",
+          "expression": "On.GameManager.Update-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.GameManager.Update+=",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "OnGUI",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Playback/HeroActionReplayer.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: detour-subscription",
+        "audited category: runtime-event-subscription"
+      ],
+      "rationale": "Primes TasBindingSource before vanilla PlayerAction.Update and otherwise forwards the original input pipeline.",
+      "findings": [
+        {
+          "category": "detour-subscription",
+          "expression": "On.InControl.PlayerActionSet.Update-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.InControl.PlayerActionSet.Update+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate+=",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Playback/RuntimePlaybackController.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: runtime-event-subscription",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "runtime-event-subscription",
+          "expression": "GameManager.SceneTransitionBegan-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "GameManager.SceneTransitionBegan+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "subscribedGameManager.OnFinishedSceneTransition-=",
+          "count": 2
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "subscribedGameManager.OnFinishedSceneTransition+=",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "FixedUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Playback/RuntimePlaybackProbeExperiment.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "declared Unity lifecycle phase",
+        "before vanilla PlayerAction.Update or binding attach/restore",
+        "fixture startup or rollback scene transition",
+        "explicit verification/debug operation only"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "canonical InputSample and PlayerAction bindings",
+        "requested slot/scene and GameManager transition state",
+        "pre-operation game state for verification/debug rollback"
+      ],
+      "writeSet": [
+        "audited category: hero-control-writer",
+        "audited category: hero-transform-writer",
+        "audited category: input-binding-writer",
+        "audited category: input-value-writer",
+        "audited category: rigidbody-position-writer",
+        "audited category: rigidbody-velocity-writer",
+        "audited category: scene-orchestration-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Command-line T06 experiment with deliberate control/pose/input noise; unavailable in ordinary TAS.",
+      "findings": [
+        {
+          "category": "hero-control-writer",
+          "expression": "hero.RegainControl",
+          "count": 1
+        },
+        {
+          "category": "hero-control-writer",
+          "expression": "hero.RelinquishControl",
+          "count": 2
+        },
+        {
+          "category": "hero-transform-writer",
+          "expression": "hero.gameObject.transform.position=",
+          "count": 2
+        },
+        {
+          "category": "input-binding-writer",
+          "expression": "actions.attack.AddBinding",
+          "count": 1
+        },
+        {
+          "category": "input-binding-writer",
+          "expression": "actions.attack.RemoveBinding",
+          "count": 1
+        },
+        {
+          "category": "input-binding-writer",
+          "expression": "actions.left.AddBinding",
+          "count": 1
+        },
+        {
+          "category": "input-binding-writer",
+          "expression": "actions.left.RemoveBinding",
+          "count": 1
+        },
+        {
+          "category": "input-value-writer",
+          "expression": "syntheticAttackNoise.SetValue",
+          "count": 1
+        },
+        {
+          "category": "input-value-writer",
+          "expression": "syntheticLeftNoise.SetValue",
+          "count": 1
+        },
+        {
+          "category": "rigidbody-position-writer",
+          "expression": "body.position=",
+          "count": 2
+        },
+        {
+          "category": "rigidbody-velocity-writer",
+          "expression": "body.velocity=",
+          "count": 3
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.LoadGameFromUI",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "manager.BeginSceneTransition",
+          "count": 2
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "FixedUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "446e41562ab9fea97c4804d630983c35d2f64122ae996f34f64460c7c32986b4",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Playback/RuntimePlaybackProbeExperiment.cs",
+          "expression": "--hktas-playback-probe=",
+          "count": 1,
+          "sourceSha256": "446e41562ab9fea97c4804d630983c35d2f64122ae996f34f64460c7c32986b4"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Inspector/RuntimeInspectorProbeExperiment.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase",
+        "fixture startup or rollback scene transition"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "requested slot/scene and GameManager transition state"
+      ],
+      "writeSet": [
+        "audited category: runtime-event-subscription",
+        "audited category: scene-orchestration-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Frozen command-line verification component; unavailable without its explicit probe request.",
+      "findings": [
+        {
+          "category": "runtime-event-subscription",
+          "expression": "inspector.FrameSampled-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "inspector.FrameSampled+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged+=",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.LoadGameFromUI",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "manager.BeginSceneTransition",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "74cd11c1ea6c2cc2b9152c6ba8892b3e747d7afb92c99bf650bcb2c83c61fb69",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Inspector/RuntimeInspectorProbeExperiment.cs",
+          "expression": "--hktas-inspector-probe=",
+          "count": 1,
+          "sourceSha256": "74cd11c1ea6c2cc2b9152c6ba8892b3e747d7afb92c99bf650bcb2c83c61fb69"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Ipc/RuntimeCommandDispatcher.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: detour-subscription",
+        "audited category: runtime-event-subscription",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "IPC mutation adapters require approved control, debug enabled, non-verification, paused-idle safe point.",
+      "findings": [
+        {
+          "category": "detour-subscription",
+          "expression": "On.GameManager.Update-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.GameManager.Update+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "inspector.FrameSampled-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "inspector.FrameSampled+=",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Playback/EmergencyStopController.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "before vanilla PlayerAction.Update or binding attach/restore"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "canonical InputSample and PlayerAction bindings"
+      ],
+      "writeSet": [
+        "audited category: input-binding-writer"
+      ],
+      "rationale": "Adds an independent F8 emergency action and does not write Hero gameplay state.",
+      "findings": [
+        {
+          "category": "input-binding-writer",
+          "expression": "EmergencyStop.AddDefaultBinding",
+          "count": 1,
+          "normalTasPolicy": "auxiliary-emergency-input"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Inspector/EnemyWatchProvider.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "component-local call phase"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: sensitive-member-assignment-review"
+      ],
+      "rationale": "this.health is a provider HealthManager reference assigned by its constructor, not game health.",
+      "findings": [
+        {
+          "category": "sensitive-member-assignment-review",
+          "expression": "this.health=",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Inspector/FsmWatchProvider.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: detour-subscription"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "detour-subscription",
+          "expression": "On.PlayMakerFSM.SendEvent-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.PlayMakerFSM.SendEvent+=",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Inspector/RuntimeInspector.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: runtime-event-subscription",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "runtime-event-subscription",
+          "expression": "journal.BaselineEstablished-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "journal.BaselineEstablished+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged+=",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "FixedUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "OnGUI",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Input/IHeroInputAdapter.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "before vanilla PlayerAction.Update or binding attach/restore"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "canonical InputSample and PlayerAction bindings"
+      ],
+      "writeSet": [
+        "audited category: input-value-writer"
+      ],
+      "rationale": "Normal TAS supplies canonical values through TasBindingSource before vanilla PlayerAction.Update.",
+      "findings": [
+        {
+          "category": "input-value-writer",
+          "expression": "item.Value.SetValue",
+          "count": 1,
+          "normalTasPolicy": "canonical-player-action-input"
+        },
+        {
+          "category": "input-value-writer",
+          "expression": "source.SetValue",
+          "count": 1,
+          "normalTasPolicy": "canonical-player-action-input"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Input/InputPhaseProbe.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase",
+        "before vanilla PlayerAction.Update or binding attach/restore",
+        "fixture startup or rollback scene transition",
+        "explicit verification/debug operation only"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "canonical InputSample and PlayerAction bindings",
+        "requested slot/scene and GameManager transition state",
+        "pre-operation game state for verification/debug rollback"
+      ],
+      "writeSet": [
+        "audited category: detour-subscription",
+        "audited category: hero-input-gate-writer",
+        "audited category: input-binding-writer",
+        "audited category: modhook-subscription",
+        "audited category: runtime-event-subscription",
+        "audited category: scene-orchestration-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Command-line T02 probe; optional acceptingInput freeze and fixture loading are verification-only.",
+      "findings": [
+        {
+          "category": "detour-subscription",
+          "expression": "On.InControl.InputManager.UpdateInternal-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.InControl.InputManager.UpdateInternal+=",
+          "count": 1
+        },
+        {
+          "category": "hero-input-gate-writer",
+          "expression": "attachedHero.acceptingInput=",
+          "count": 1
+        },
+        {
+          "category": "hero-input-gate-writer",
+          "expression": "hero.acceptingInput=",
+          "count": 2
+        },
+        {
+          "category": "input-binding-writer",
+          "expression": "EmergencyStop.AddDefaultBinding",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.HeroUpdateHook-=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.HeroUpdateHook+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged+=",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.LoadGameFromUI",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.ReturnToMainMenu",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "FixedUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "cc76bb41d5200d86fe0f79e5e5d2b27fc8690001b037916507f3debd3397c0ef",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Input/InputPhaseProbe.cs",
+          "expression": "--hktas-input-probe=",
+          "count": 1,
+          "sourceSha256": "cc76bb41d5200d86fe0f79e5e5d2b27fc8690001b037916507f3debd3397c0ef"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Inspector/BossPracticeWatchProvider.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: detour-subscription",
+        "audited category: runtime-event-subscription"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "detour-subscription",
+          "expression": "On.HeroController.TakeDamage-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.HeroController.TakeDamage+=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.PlayMakerFSM.SendEvent-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.PlayMakerFSM.SendEvent+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "boss.OnDeath-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "boss.OnDeath+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "boundController.OnBossesDead-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "boundController.OnBossSceneComplete-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "controller.OnBossesDead+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "controller.OnBossSceneComplete+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged+=",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Control/TimeSettingsLease.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "complete-frame boundary, rollback restore, or explicit probe"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "captured time/frame profile and control state"
+      ],
+      "writeSet": [
+        "audited category: time-settings-writer"
+      ],
+      "rationale": "Pause/step changes timeScale only at a complete frame boundary and restores it exactly.",
+      "findings": [
+        {
+          "category": "time-settings-writer",
+          "expression": "Time.timeScale=",
+          "count": 2,
+          "normalTasPolicy": "complete-frame-time-boundary"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/HollowKnightTASMod.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: modhook-subscription"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.ApplicationQuitHook-=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.ApplicationQuitHook+=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.FinishedLoadingModsHook-=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.FinishedLoadingModsHook+=",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Input/BindingLease.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "before vanilla PlayerAction.Update or binding attach/restore"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "canonical InputSample and PlayerAction bindings"
+      ],
+      "writeSet": [
+        "audited category: input-binding-writer"
+      ],
+      "rationale": "Normal TAS changes only PlayerAction bindings and restores the exact original collection.",
+      "findings": [
+        {
+          "category": "input-binding-writer",
+          "expression": "slot.PlayerAction.AddBinding",
+          "count": 2,
+          "normalTasPolicy": "canonical-player-action-input"
+        },
+        {
+          "category": "input-binding-writer",
+          "expression": "slot.PlayerAction.ClearBindings",
+          "count": 2,
+          "normalTasPolicy": "canonical-player-action-input"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Companion/RuntimeControlService.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: runtime-event-subscription"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "runtime-event-subscription",
+          "expression": "journal.MovieTickCommitted-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "this.journal.MovieTickCommitted+=",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Control/RuntimePauseController.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: detour-subscription",
+        "audited category: modhook-subscription",
+        "audited category: runtime-event-subscription",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Controls post-render end-of-frame pause and reads input/scene phases; contains no direct gameplay writer.",
+      "findings": [
+        {
+          "category": "detour-subscription",
+          "expression": "On.InControl.PlayerActionSet.Update-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.InControl.PlayerActionSet.Update+=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.BeforeSceneLoadHook-=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.BeforeSceneLoadHook+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "InputManager.OnUpdate+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "USceneManager.activeSceneChanged+=",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "FixedUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Control/RuntimeStepProbeExperiment.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "declared Unity lifecycle phase",
+        "fixture startup or rollback scene transition",
+        "explicit verification/debug operation only"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "requested slot/scene and GameManager transition state",
+        "pre-operation game state for verification/debug rollback"
+      ],
+      "writeSet": [
+        "audited category: hero-control-writer",
+        "audited category: hero-transform-writer",
+        "audited category: rigidbody-position-writer",
+        "audited category: rigidbody-velocity-writer",
+        "audited category: scene-orchestration-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Command-line T08 experiment with synthetic Hero/scene setup; unavailable in ordinary TAS.",
+      "findings": [
+        {
+          "category": "hero-control-writer",
+          "expression": "hero.RegainControl",
+          "count": 1
+        },
+        {
+          "category": "hero-control-writer",
+          "expression": "hero.RelinquishControl",
+          "count": 2
+        },
+        {
+          "category": "hero-transform-writer",
+          "expression": "hero.gameObject.transform.position=",
+          "count": 2
+        },
+        {
+          "category": "rigidbody-position-writer",
+          "expression": "body.position=",
+          "count": 2
+        },
+        {
+          "category": "rigidbody-velocity-writer",
+          "expression": "body.velocity=",
+          "count": 3
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.LoadGameFromUI",
+          "count": 1
+        },
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "manager.BeginSceneTransition",
+          "count": 2
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "b3bfe710d772e0f23172008c7e7e500b386338bb58d5ba19864798cdb39cfd01",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Control/RuntimeStepProbeExperiment.cs",
+          "expression": "--hktas-step-probe=",
+          "count": 1,
+          "sourceSha256": "b3bfe710d772e0f23172008c7e7e500b386338bb58d5ba19864798cdb39cfd01"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Automation/RuntimeAutomationReadyProbe.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "declared Unity lifecycle phase",
+        "fixture startup or rollback scene transition"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "requested slot/scene and GameManager transition state"
+      ],
+      "writeSet": [
+        "audited category: scene-orchestration-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Frozen command-line verification component; unavailable without its explicit probe request.",
+      "findings": [
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.LoadGameFromUI",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "2c6bf87ff17a59937d5aa338fb24c88d13d2215e740af58b86f7812c031a640a",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Automation/RuntimeAutomationReadyProbe.cs",
+          "expression": "--hktas-automation-ready-run=",
+          "count": 1,
+          "sourceSha256": "2c6bf87ff17a59937d5aa338fb24c88d13d2215e740af58b86f7812c031a640a"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Automation/RuntimeFinalTasReadyProbe.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "declared Unity lifecycle phase",
+        "fixture startup or rollback scene transition"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "requested slot/scene and GameManager transition state"
+      ],
+      "writeSet": [
+        "audited category: scene-orchestration-writer",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Frozen command-line verification component; unavailable without its explicit probe request.",
+      "findings": [
+        {
+          "category": "scene-orchestration-writer",
+          "expression": "GameManager.instance.LoadGameFromUI",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "72b14684caa5f42040243d1b10f9ccc8a006e679e0ef3e7444964e579c38148a",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Automation/RuntimeFinalTasReadyProbe.cs",
+          "expression": "--hktas-final-tas-ready-run=",
+          "count": 1,
+          "sourceSha256": "72b14684caa5f42040243d1b10f9ccc8a006e679e0ef3e7444964e579c38148a"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Companion/RuntimeCompanionService.cs",
+      "reachability": "normal-tas",
+      "installPhase": "TasRuntimeHost.Start, component Attach, or replay lifecycle",
+      "executionPhase": [
+        "declared Unity lifecycle phase"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: detour-subscription",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Reviewed normal lifecycle/observation/journaling source; no direct gameplay-state writer is listed.",
+      "findings": [
+        {
+          "category": "detour-subscription",
+          "expression": "On.GameManager.Update-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.GameManager.Update+=",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "OnGUI",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.ReferenceObserver/HollowKnightTASReferenceObserverMod.cs",
+      "reachability": "verification-only",
+      "installPhase": "TasRuntimeHost.Start -> TryStart after explicit command-line parse",
+      "executionPhase": [
+        "hook/event callback and registration/disposal",
+        "declared Unity lifecycle phase"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments"
+      ],
+      "writeSet": [
+        "audited category: detour-subscription",
+        "audited category: modhook-subscription",
+        "audited category: runtime-event-subscription",
+        "audited category: unity-lifecycle"
+      ],
+      "rationale": "Read-only no-Mod observer; detours call original and emit phase/gameplay evidence only.",
+      "findings": [
+        {
+          "category": "detour-subscription",
+          "expression": "On.HutongGames.PlayMaker.Actions.ListenForRight.OnUpdate-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.HutongGames.PlayMaker.Actions.ListenForRight.OnUpdate+=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.HutongGames.PlayMaker.Fsm.EnterState-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.HutongGames.PlayMaker.Fsm.EnterState+=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.HutongGames.PlayMaker.Fsm.Event_FsmEvent-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.HutongGames.PlayMaker.Fsm.Event_FsmEvent+=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.InControl.PlayerActionSet.Update-=",
+          "count": 1
+        },
+        {
+          "category": "detour-subscription",
+          "expression": "On.InControl.PlayerActionSet.Update+=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "CompletedFrameBoundarySignal.Reached-=",
+          "count": 1
+        },
+        {
+          "category": "runtime-event-subscription",
+          "expression": "CompletedFrameBoundarySignal.Reached+=",
+          "count": 1
+        },
+        {
+          "category": "modhook-subscription",
+          "expression": "ModHooks.ApplicationQuitHook+=",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "FixedUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "LateUpdate",
+          "count": 1
+        },
+        {
+          "category": "unity-lifecycle",
+          "expression": "Update",
+          "count": 1
+        }
+      ],
+      "sourceSha256": "e16a185a90d68ee76d9e0ef7326c2ae42ae1c67736ac2de18822beee982bbc43"
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Automation/Mutation/HeroPoseMutationAdapter.cs",
+      "reachability": "debug-only",
+      "installPhase": "Explicit debug transaction or compiled inactive legacy helper",
+      "executionPhase": [
+        "explicit verification/debug operation only"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "pre-operation game state for verification/debug rollback"
+      ],
+      "writeSet": [
+        "audited category: hero-transform-writer",
+        "audited category: hero-velocity-writer",
+        "audited category: rigidbody-velocity-writer"
+      ],
+      "rationale": "Direct pose/velocity writer retained only for explicit non-verifiable debug transactions.",
+      "findings": [
+        {
+          "category": "hero-transform-writer",
+          "expression": "hero.transform.position=",
+          "count": 3
+        },
+        {
+          "category": "hero-velocity-writer",
+          "expression": "hero.current_velocity=",
+          "count": 3
+        },
+        {
+          "category": "rigidbody-velocity-writer",
+          "expression": "body.velocity=",
+          "count": 3
+        }
+      ],
+      "sourceSha256": "e630410bbf37c6b5e9e15c71cf8103ff985d0c3ac0e504439caf552a3ee5ddb6",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Ipc/RuntimeCommandDispatcher.cs",
+          "expression": "if (!debugMutationEnabled)",
+          "count": 1,
+          "sourceSha256": "a8da8d21ae87cd808ebade4e456795078204d2356b9f745d5cf3e80ac9f44eae"
+        },
+        {
+          "path": "src/HollowKnightTAS.Runtime/Ipc/RuntimeCommandDispatcher.cs",
+          "expression": "if (verificationModeRequested)",
+          "count": 1,
+          "sourceSha256": "a8da8d21ae87cd808ebade4e456795078204d2356b9f745d5cf3e80ac9f44eae"
+        }
+      ]
+    },
+    {
+      "path": "src/HollowKnightTAS.Runtime/Automation/Mutation/PlayerResourcesMutationAdapter.cs",
+      "reachability": "debug-only",
+      "installPhase": "Explicit debug transaction or compiled inactive legacy helper",
+      "executionPhase": [
+        "explicit verification/debug operation only"
+      ],
+      "readSet": [
+        "source-local state and original callback arguments",
+        "pre-operation game state for verification/debug rollback"
+      ],
+      "writeSet": [
+        "audited category: player-resource-writer"
+      ],
+      "rationale": "Direct health/soul writer retained only for explicit non-verifiable debug transactions.",
+      "findings": [
+        {
+          "category": "player-resource-writer",
+          "expression": "hero.SetMPCharge",
+          "count": 3
+        },
+        {
+          "category": "player-resource-writer",
+          "expression": "player.SetInt",
+          "count": 3
+        }
+      ],
+      "sourceSha256": "60d80217cc5fe7bceef031f23204e544b1c2f561bde275e54ca6ed77fdcb4a0b",
+      "gates": [
+        {
+          "path": "src/HollowKnightTAS.Runtime/Ipc/RuntimeCommandDispatcher.cs",
+          "expression": "if (!debugMutationEnabled)",
+          "count": 1,
+          "sourceSha256": "a8da8d21ae87cd808ebade4e456795078204d2356b9f745d5cf3e80ac9f44eae"
+        },
+        {
+          "path": "src/HollowKnightTAS.Runtime/Ipc/RuntimeCommandDispatcher.cs",
+          "expression": "if (verificationModeRequested)",
+          "count": 1,
+          "sourceSha256": "a8da8d21ae87cd808ebade4e456795078204d2356b9f745d5cf3e80ac9f44eae"
+        }
+      ]
+    }
+  ]
+}

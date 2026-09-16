@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "edge-sequence-v1",
+  "tickCount": 60,
+  "segments": [
+    { "firstTick": 0, "lastTick": 9, "held": [] },
+    { "firstTick": 10, "lastTick": 29, "held": ["Right"] },
+    { "firstTick": 30, "lastTick": 38, "held": ["Right", "Jump"] },
+    { "firstTick": 39, "lastTick": 39, "held": ["Right"] },
+    { "firstTick": 40, "lastTick": 40, "held": ["Right", "Attack"] },
+    { "firstTick": 41, "lastTick": 41, "held": ["Right"] },
+    { "firstTick": 42, "lastTick": 42, "held": ["Right", "Dash"] },
+    { "firstTick": 43, "lastTick": 43, "held": ["Right"] },
+    { "firstTick": 44, "lastTick": 59, "held": [] }
+  ]
+}

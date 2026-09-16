@@ -1,0 +1,14 @@
+hktas 1
+game 1.5.78.11833
+api 1.5.78.11833-77
+manifest-sha256 77b19f22c6df1a8db00ebf1307106a63321af90054a433191acef1267a8c7285
+baseline slot-2-gg-vengefly 8b8c7995768198cdac8b44a563e875a50bb47efc70a25eab2e7afabccbd262b9
+tick-unit input
+---
+marker "p0 start"
+frames 20 hold=-
+checkpoint movement-start
+frames 45 hold=left
+checkpoint movement-end
+frames 120 hold=-
+assert scene.name == "GG_Vengefly"

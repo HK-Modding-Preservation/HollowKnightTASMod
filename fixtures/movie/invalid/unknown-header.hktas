@@ -1,0 +1,9 @@
+hktas 1
+include C:\arbitrary-file
+game 1.5.78.11833
+api 1.5.78.11833-77
+manifest-sha256 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+baseline none none
+tick-unit input
+---
+frames 1 hold=-

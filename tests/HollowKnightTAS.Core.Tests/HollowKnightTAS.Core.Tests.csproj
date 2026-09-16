@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>HollowKnightTAS.Core.Tests</AssemblyName>
+    <RootNamespace>HollowKnightTAS.Core.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.2">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\HollowKnightTAS.Core\HollowKnightTAS.Core.csproj" />
+    <ProjectReference Include="..\..\src\HollowKnightTAS.Cli\HollowKnightTAS.Cli.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Ipc\PausedWindowExitShortcut.cs"
+             Link="Ipc\PausedWindowExitShortcut.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Rng\IsolatedRandomStream.cs" Link="Rng\IsolatedRandomStream.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\ReplaySave\ColdReplayPrefixPolicy.cs"
+             Link="ReplaySave\ColdReplayPrefixPolicy.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Inspector\WatchJsonLinesExporter.cs"
+             Link="Inspector\WatchJsonLinesExporter.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.ReferenceObserver\ReferenceObserverOptions.cs" Link="ReferenceObserverOptions.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Settings\TasGlobalSettings.cs"
+             Link="Settings\TasGlobalSettings.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.ClockPayload\DoublePhaseCorrection.cs"
+             Link="Verification\DoublePhaseCorrection.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.ClockPayload\RecordingClockCalibrationPolicy.cs"
+             Link="Verification\RecordingClockCalibrationPolicy.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.ClockPayload\SceneRngSeedDerivation.cs"
+             Link="Verification\SceneRngSeedDerivation.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Control\T24DeferredRecordingArmGate.cs"
+             Link="Verification\T24DeferredRecordingArmGate.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\fixtures\manifest\*.json"
+          Link="fixtures\manifest\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\fixtures\input\*"
+          Link="fixtures\input\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\fixtures\ledger\*.jsonl"
+          Link="fixtures\ledger\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\fixtures\movie\**\*"
+          Link="fixtures\movie\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\fixtures\state\*"
+          Link="fixtures\state\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\fixtures\routes\*"
+          Link="fixtures\routes\%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\fixtures\verification\**\*"
+          Link="fixtures\verification\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\fixtures\rng\**\*"
+          Link="fixtures\rng\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\fixtures\automation\**\*"
+          Link="fixtures\automation\%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

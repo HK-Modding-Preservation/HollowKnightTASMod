@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>HollowKnightTAS.BundleTool</AssemblyName>
+    <RootNamespace>HollowKnightTAS.BundleTool</RootNamespace>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HollowKnightTAS.Core\HollowKnightTAS.Core.csproj" />
+  </ItemGroup>
+</Project>

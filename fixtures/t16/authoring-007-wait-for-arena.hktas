@@ -1,0 +1,21 @@
+hktas 1
+game 1.5.78.11833
+api 1.5.78.11833-77
+manifest-sha256 0000000000000000000000000000000000000000000000000000000000000000
+baseline none none
+tick-unit input
+---
+marker "T16 authoring 007: wait through Attuned arena transition"
+assert scene.name == "GG_Workshop"
+checkpoint seated-start
+frames 346 hold=right
+frames 8 hold=-
+frames 90 hold=dreamnail
+frames 20 hold=-
+frames 12 hold=left
+frames 8 hold=-
+frames 1 hold=up
+frames 40 hold=-
+frames 1 hold=jump
+frames 900 hold=-
+checkpoint trial-end

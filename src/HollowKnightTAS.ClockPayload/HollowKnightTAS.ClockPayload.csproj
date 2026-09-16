@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>HollowKnightTAS.ClockPayload</AssemblyName>
+    <RootNamespace>HollowKnightTAS.ClockPayload</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\HollowKnightTAS.Core\Ipc\RecordingRootConfiguration.cs" Link="RecordingRootConfiguration.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(HKManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(HKManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(HKManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="MMHOOK_Assembly-CSharp">
+      <HintPath>$(HKManagedDir)\MMHOOK_Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="ValidateLocalBuildConfig" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(HKManagedDir)' == ''"
+           Text="HKManagedDir is required for the clock payload." />
+    <Error Condition="!Exists('$(HKManagedDir)\Assembly-CSharp.dll')"
+           Text="Assembly-CSharp.dll was not found under HKManagedDir." />
+    <Error Condition="!Exists('$(HKManagedDir)\MMHOOK_Assembly-CSharp.dll')"
+           Text="MMHOOK_Assembly-CSharp.dll was not found under HKManagedDir." />
+  </Target>
+</Project>

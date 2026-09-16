@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "t24.hero-action-correlation.v1",
+  "description": "椅子起身、原版攻击本体/刀光相关性，以及快速二段跳本体/翅膀/物理相关性。",
+  "fixture": {
+    "slot": 2,
+    "startScene": "GG_Workshop"
+  },
+  "movie": {
+    "path": "fixtures/t24/attack-double-jump-v1.hktas",
+    "sha256": "3864a8a2d9ea97aeec2c5bbfbcd259de785d01227f91b628fe037b03008eb8d7",
+    "expandedTicks": 1200,
+    "inputMode": "digital-only",
+    "digitalActionMask": 51
+  },
+  "requiredFields": [
+    { "key": "game.state", "kind": "Utf8String" },
+    { "key": "hero.animation.clip", "kind": "Utf8String" },
+    { "key": "hero.animation.controlEnabled", "kind": "Boolean" },
+    { "key": "hero.animation.frame", "kind": "Int32" },
+    { "key": "hero.doubleJump.wings.activeInHierarchy", "kind": "Boolean" },
+    { "key": "hero.positionDelta.y", "kind": "Float32Bits" },
+    { "key": "hero.rigidbody.positionDelta.y", "kind": "Float32Bits" },
+    { "key": "hero.rigidbody.simulated", "kind": "Boolean" },
+    { "key": "hero.slash.executing", "kind": "Boolean" },
+    { "key": "hero.slash.struck", "kind": "Boolean" },
+    { "key": "hero.state.attacking", "kind": "Boolean" },
+    { "key": "hero.state.doubleJumping", "kind": "Boolean" },
+    { "key": "hero.state.falling", "kind": "Boolean" },
+    { "key": "hero.state.jumping", "kind": "Boolean" },
+    { "key": "hero.state.onGround", "kind": "Boolean" },
+    { "key": "hero.velocity.y", "kind": "Float32Bits" },
+    { "key": "input.held", "kind": "Int32" },
+    { "key": "input.pressed", "kind": "Int32" },
+    { "key": "input.released", "kind": "Int32" },
+    { "key": "player.atBench", "kind": "Boolean" },
+    { "key": "scene.name", "kind": "Utf8String" },
+    { "key": "tick.fixedSteps", "kind": "Int32" },
+    { "key": "world.rng.unity.synchronizedOrigin.s0", "kind": "Int32" },
+    { "key": "world.rng.unity.synchronizedOrigin.s1", "kind": "Int32" },
+    { "key": "world.rng.unity.synchronizedOrigin.s2", "kind": "Int32" },
+    { "key": "world.rng.unity.synchronizedOrigin.s3", "kind": "Int32" }
+  ],
+  "assertions": [
+    {
+      "id": "slash-drives-original-hero-action",
+      "type": "all-when",
+      "description": "每个刀光执行帧都必须伴随 Hero 原版 attacking 状态和攻击 clip，不能只剩刀光或椅子贴图。",
+      "when": { "field": "hero.slash.executing", "op": "eq", "value": true },
+      "then": [
+        { "field": "hero.state.attacking", "op": "eq", "value": true },
+        { "field": "hero.animation.clip", "op": "regex", "value": "\\A(?:Slash|SlashAlt|UpSlash|DownSlash|WallSlash)\\z" },
+        { "field": "hero.animation.controlEnabled", "op": "eq", "value": true },
+        { "field": "hero.rigidbody.simulated", "op": "eq", "value": true }
+      ],
+      "minTriggered": 12
+    },
+    {
+      "id": "wings-never-outlive-original-airborne-physics",
+      "type": "all-when",
+      "description": "原版翅膀会比 Double Jump clip 多保留数帧，但其整个生命周期内 Hero 都必须离地且 Rigidbody 正常模拟。",
+      "when": { "field": "hero.doubleJump.wings.activeInHierarchy", "op": "eq", "value": true },
+      "then": [
+        { "field": "hero.state.onGround", "op": "eq", "value": false },
+        { "field": "hero.rigidbody.simulated", "op": "eq", "value": true }
+      ],
+      "minTriggered": 5
+    },
+    {
+      "id": "double-jump-state-drives-original-hero-and-wings",
+      "type": "all-when",
+      "description": "每个原版 doubleJumping 状态帧都必须同时存在 Hero 的 Double Jump clip、翅膀、离地状态和完整物理。",
+      "when": { "field": "hero.state.doubleJumping", "op": "eq", "value": true },
+      "then": [
+        { "field": "hero.doubleJump.wings.activeInHierarchy", "op": "eq", "value": true },
+        { "field": "hero.state.onGround", "op": "eq", "value": false },
+        { "field": "hero.animation.clip", "op": "regex", "value": "\\ADouble Jump\\z" },
+        { "field": "hero.rigidbody.simulated", "op": "eq", "value": true }
+      ],
+      "minTriggered": 8
+    },
+    {
+      "id": "attack-input-present",
+      "type": "seen",
+      "description": "冻结 movie 的攻击输入确实提交给了原版 HeroActions。",
+      "condition": { "field": "input.held", "op": "in", "value": [32, 33, 34, 35] },
+      "minCount": 20
+    },
+    {
+      "id": "jump-input-present",
+      "type": "seen",
+      "description": "冻结 movie 的跳跃输入确实提交给了原版 HeroActions。",
+      "condition": { "field": "input.held", "op": "in", "value": [16, 17, 18, 19] },
+      "minCount": 40
+    },
+    {
+      "id": "leave-ground",
+      "type": "transition",
+      "description": "Hero 必须从原版接地状态进入离地状态。",
+      "from": { "field": "hero.state.onGround", "op": "eq", "value": true },
+      "to": { "field": "hero.state.onGround", "op": "eq", "value": false },
+      "minCount": 1
+    },
+    {
+      "id": "land-again",
+      "type": "transition",
+      "description": "二段跳后 Hero 必须由原版物理重新落地。",
+      "from": { "field": "hero.state.onGround", "op": "eq", "value": false },
+      "to": { "field": "hero.state.onGround", "op": "eq", "value": true },
+      "minCount": 1
+    },
+    {
+      "id": "double-jump-clip-and-state",
+      "type": "coincident",
+      "description": "二段跳状态与本体动画必须真实同帧发生。",
+      "conditions": [
+        { "field": "hero.state.doubleJumping", "op": "eq", "value": true },
+        { "field": "hero.animation.clip", "op": "eq", "value": "Double Jump" }
+      ],
+      "minCount": 5
+    },
+    {
+      "id": "vertical-motion-produced",
+      "type": "delta",
+      "description": "跳跃必须让 Rigidbody 在相邻 gameplay tick 产生真实向上位移。",
+      "field": "hero.rigidbody.positionDelta.y",
+      "direction": "increase",
+      "minMagnitude": 0.001,
+      "minCount": 2
+    },
+    {
+      "id": "hero-action-order",
+      "type": "ordered-match",
+      "description": "Hero 本体必须依次完成起身、攻击、起跳、二段跳和落地，而不是仅播放特效。",
+      "field": "hero.animation.clip",
+      "patterns": [
+        "\\A(?:Wake To Sit|Get Off|Idle|Run|Turn)\\z",
+        "\\A(?:Slash|SlashAlt)\\z",
+        "\\A(?:Airborne|Jump)\\z",
+        "\\ADouble Jump\\z",
+        "\\A(?:Airborne|Idle|Run|Land)\\z"
+      ],
+      "minCount": 1
+    }
+  ],
+  "requiredModes": [
+    "VanillaReference",
+    "TasPassive",
+    "ManualTas",
+    "AiTas",
+    "SequentialStep",
+    "BatchStep"
+  ],
+  "terminal": {
+    "allowedScenes": ["GG_Workshop"],
+    "maxTicks": 1200
+  }
+}

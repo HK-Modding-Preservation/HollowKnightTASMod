@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>HollowKnightTAS.Cli</AssemblyName>
+    <RootNamespace>HollowKnightTAS.Cli</RootNamespace>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HollowKnightTAS.Core\HollowKnightTAS.Core.csproj" />
+    <ProjectReference Include="..\HollowKnightTAS.Automation.Client\HollowKnightTAS.Automation.Client.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>HollowKnightTAS.Core.Tests</_Parameter1>
+    </AssemblyAttribute>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>HollowKnightTAS.Companion.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+</Project>

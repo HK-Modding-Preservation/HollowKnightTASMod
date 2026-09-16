@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>HollowKnightTAS.Automation.Client</AssemblyName>
+    <RootNamespace>HollowKnightTAS.Automation.Client</RootNamespace>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HollowKnightTAS.Core\HollowKnightTAS.Core.csproj" />
+  </ItemGroup>
+</Project>

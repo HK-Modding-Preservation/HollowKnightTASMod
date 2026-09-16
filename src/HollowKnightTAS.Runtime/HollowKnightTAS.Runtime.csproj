@@ -1,0 +1,167 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>HollowKnightTAS</AssemblyName>
+    <RootNamespace>HollowKnightTAS.Runtime</RootNamespace>
+    <Version>0.1.0</Version>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <InstallDir>$(HKModsDir)\HollowKnightTAS</InstallDir>
+    <PackageDir>$(BaseIntermediateOutputPath)package\</PackageDir>
+    <CompanionBundleRoot Condition="'$(CompanionBundleRoot)' == ''">$(MSBuildThisFileDirectory)..\..\packaging\staging\bundle</CompanionBundleRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HollowKnightTAS.Core\HollowKnightTAS.Core.csproj">
+      <Private>true</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(HKManagedDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(HKManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(HKManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.Physics2DModule">
+      <HintPath>$(HKManagedDir)\UnityEngine.Physics2DModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.InputLegacyModule">
+      <HintPath>$(HKManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(HKManagedDir)\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(HKManagedDir)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>$(HKManagedDir)\UnityEngine.ScreenCaptureModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="MMHOOK_Assembly-CSharp">
+      <HintPath>$(HKManagedDir)\MMHOOK_Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="MonoMod.RuntimeDetour">
+      <HintPath>$(HKManagedDir)\MonoMod.RuntimeDetour.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="MonoMod.Utils">
+      <HintPath>$(HKManagedDir)\MonoMod.Utils.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Mono.Cecil">
+      <HintPath>$(HKManagedDir)\Mono.Cecil.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="PlayMaker">
+      <HintPath>$(HKManagedDir)\PlayMaker.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="MMHOOK_PlayMaker">
+      <HintPath>$(HKManagedDir)\MMHOOK_PlayMaker.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="ValidateLocalBuildConfig" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(HKManagedDir)' == ''"
+           Text="HKManagedDir is not set. Copy LocalBuildProperties.props.example to LocalBuildProperties.props and configure the Hollow Knight Managed directory." />
+    <Error Condition="'$(HKModsDir)' == ''"
+           Text="HKModsDir is not set. Copy LocalBuildProperties.props.example to LocalBuildProperties.props and configure the Hollow Knight Mods directory." />
+    <Error Condition="!Exists('$(HKManagedDir)\Assembly-CSharp.dll')"
+           Text="Assembly-CSharp.dll was not found under HKManagedDir. Verify LocalBuildProperties.props." />
+    <Error Condition="!Exists('$(HKManagedDir)\UnityEngine.dll')"
+           Text="UnityEngine.dll was not found under HKManagedDir. Verify LocalBuildProperties.props." />
+    <Error Condition="!Exists('$(HKManagedDir)\UnityEngine.CoreModule.dll')"
+           Text="UnityEngine.CoreModule.dll was not found under HKManagedDir. Verify LocalBuildProperties.props." />
+    <Error Condition="!Exists('$(HKManagedDir)\PlayMaker.dll')"
+           Text="PlayMaker.dll was not found under HKManagedDir. T01 requires it for the environment fingerprint." />
+    <Error Condition="!Exists('$(HKManagedDir)\MMHOOK_Assembly-CSharp.dll')"
+           Text="MMHOOK_Assembly-CSharp.dll was not found under HKManagedDir. T01 requires it for the environment fingerprint." />
+    <Error Condition="!Exists('$(HKManagedDir)\UnityEngine.Physics2DModule.dll')"
+           Text="UnityEngine.Physics2DModule.dll was not found under HKManagedDir. T02 requires it for Hero velocity evidence." />
+    <Error Condition="!Exists('$(HKManagedDir)\UnityEngine.InputLegacyModule.dll')"
+           Text="UnityEngine.InputLegacyModule.dll was not found under HKManagedDir. T09 requires it for the standalone replay-save menu." />
+    <Error Condition="!Exists('$(HKManagedDir)\UnityEngine.IMGUIModule.dll')"
+           Text="UnityEngine.IMGUIModule.dll was not found under HKManagedDir. T09 requires it for the standalone replay-save overlay." />
+    <Error Condition="!Exists('$(HKManagedDir)\UnityEngine.UI.dll')"
+           Text="UnityEngine.UI.dll was not found under HKManagedDir. T16 requires it for non-visual challenge-menu selection watches." />
+    <Error Condition="!Exists('$(HKManagedDir)\UnityEngine.ScreenCaptureModule.dll')"
+           Text="UnityEngine.ScreenCaptureModule.dll was not found under HKManagedDir. T11 requires it for overlay acceptance evidence." />
+    <Error Condition="!Exists('$(HKManagedDir)\MonoMod.RuntimeDetour.dll')"
+           Text="MonoMod.RuntimeDetour.dll was not found under HKManagedDir. T02 requires it for the InControl phase hook." />
+    <Error Condition="!Exists('$(HKManagedDir)\MonoMod.Utils.dll')"
+           Text="MonoMod.Utils.dll was not found under HKManagedDir. T02 requires it for the InControl phase hook." />
+    <Error Condition="!Exists('$(HKManagedDir)\Mono.Cecil.dll')"
+           Text="Mono.Cecil.dll was not found under HKManagedDir. T10 requires it for exact RNG call-site resolution." />
+    <Error Condition="!Exists('$(HKManagedDir)\MMHOOK_PlayMaker.dll')"
+           Text="MMHOOK_PlayMaker.dll was not found under HKManagedDir. T11 requires it for read-only FSM event observation." />
+  </Target>
+
+  <Target Name="InstallAndPackageHollowKnightTAS"
+          AfterTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(SkipHKTASInstall)' != 'true'">
+    <MakeDir Directories="$(InstallDir)" />
+
+    <ItemGroup>
+      <RuntimePackageFiles Include="$(TargetPath)" />
+      <RuntimePackageFiles Include="$(TargetDir)HollowKnightTAS.Core.dll" />
+      <RuntimePackageFiles Include="$(TargetDir)HollowKnightTAS.pdb"
+                           Condition="Exists('$(TargetDir)HollowKnightTAS.pdb')" />
+      <RuntimePackageFiles Include="$(TargetDir)HollowKnightTAS.Core.pdb"
+                           Condition="Exists('$(TargetDir)HollowKnightTAS.Core.pdb')" />
+      <CompanionManifestFile Include="$(CompanionBundleRoot)\companion.manifest.json"
+                             Condition="Exists('$(CompanionBundleRoot)\companion.manifest.json')" />
+      <CompanionPayloadFiles Include="$(CompanionBundleRoot)\Companion\**\*"
+                             Condition="Exists('$(CompanionBundleRoot)\Companion')" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(RuntimePackageFiles)"
+          DestinationFolder="$(InstallDir)"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(CompanionManifestFile)"
+          DestinationFiles="@(CompanionManifestFile->'$(InstallDir)\companion.manifest.json')"
+          SkipUnchangedFiles="true"
+          Condition="'@(CompanionManifestFile)' != ''" />
+    <Copy SourceFiles="@(CompanionPayloadFiles)"
+          DestinationFiles="@(CompanionPayloadFiles->'$(InstallDir)\Companion\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true"
+          Condition="'@(CompanionPayloadFiles)' != ''" />
+
+    <RemoveDir Directories="$(PackageDir)" Condition="Exists('$(PackageDir)')" />
+    <MakeDir Directories="$(PackageDir)" />
+    <Copy SourceFiles="@(RuntimePackageFiles)"
+          DestinationFiles="@(RuntimePackageFiles->'$(PackageDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(CompanionManifestFile)"
+          DestinationFiles="@(CompanionManifestFile->'$(PackageDir)companion.manifest.json')"
+          Condition="'@(CompanionManifestFile)' != ''" />
+    <Copy SourceFiles="@(CompanionPayloadFiles)"
+          DestinationFiles="@(CompanionPayloadFiles->'$(PackageDir)Companion\%(RecursiveDir)%(Filename)%(Extension)')"
+          Condition="'@(CompanionPayloadFiles)' != ''" />
+
+    <ZipDirectory SourceDirectory="$(PackageDir)"
+                  DestinationFile="$(InstallDir)\HollowKnightTAS.zip"
+                  Overwrite="true" />
+    <GetFileHash Files="$(InstallDir)\HollowKnightTAS.zip" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="HollowKnightTASPackageHash" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(InstallDir)\SHA256.txt"
+                      Lines="@(HollowKnightTASPackageHash->'%(FileHash)  HollowKnightTAS.zip')"
+                      Overwrite="true"
+                      Encoding="UTF-8" />
+    <RemoveDir Directories="$(PackageDir)" />
+  </Target>
+</Project>

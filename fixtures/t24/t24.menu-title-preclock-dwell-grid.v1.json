@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "t24.menu-title-preclock-dwell-grid.v1",
+  "description": "无 Mod 在 Menu_Title、外部时钟注入与存档槽加载之前的预定 wall-clock 停留负对照。",
+  "selectionPolicy": "all-scheduled-points-no-filter",
+  "dwellMilliseconds": [
+    0,
+    1000,
+    2000,
+    3000,
+    4000,
+    5000,
+    6000,
+    6500,
+    7000,
+    8000,
+    9000,
+    10000
+  ],
+  "requiredRuns": 12,
+  "fixtureSlot": 2,
+  "maxTicks": 1200,
+  "requirements": {
+    "tasRuntimeAbsent": true,
+    "observerOnlyManagedMod": true,
+    "externalPhysicalInputSynchronized": true,
+    "externalRngSynchronized": true,
+    "scenarioCoverageVerdict": "PASS",
+    "inputInjected": false,
+    "timeWritten": false,
+    "gameplayStateWritten": false,
+    "visualRecognitionUsed": false
+  }
+}

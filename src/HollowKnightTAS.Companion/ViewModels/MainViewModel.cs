@@ -1,0 +1,2118 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Input;
+using HollowKnightTAS.Companion.Automation;
+using HollowKnightTAS.Companion.Services;
+using HollowKnightTAS.Core.Automation;
+using HollowKnightTAS.Core.Input;
+using HollowKnightTAS.Core.Ipc;
+using HollowKnightTAS.Core.Movie;
+using Microsoft.Win32;
+
+namespace HollowKnightTAS.Companion.ViewModels
+{
+    public sealed class SessionViewItem
+    {
+        public SessionViewItem(RuntimeSessionClient client)
+        {
+            Client = client;
+        }
+
+        public RuntimeSessionClient Client { get; }
+        public string DisplayName =>
+            "PID "
+            + Client.GameProcessId.ToString(
+                CultureInfo.InvariantCulture)
+            + " · "
+            + Client.SessionId.Substring(
+                0,
+                Math.Min(12, Client.SessionId.Length));
+    }
+
+    public sealed class MainViewModel : INotifyPropertyChanged
+    {
+        private const int MaximumTimelineItems = 5000;
+        private readonly SessionRegistry registry;
+        private readonly MovieEditorService movieEditor;
+        private readonly CapabilityBroker capabilityBroker;
+        private readonly NativeHostLauncher nativeHostLauncher;
+        private readonly AutomationBroker automationBroker;
+        private readonly Func<string, Task>? launchGame;
+        private readonly HashSet<string> warmedSessions =
+            new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> readySessions =
+            new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> nativeObservedSessions =
+            new HashSet<string>(StringComparer.Ordinal);
+        private readonly object nativeObserveSync = new object();
+        private SessionViewItem? selectedSession;
+        private string movieText = string.Empty;
+        private string validationOutput =
+            "Open or paste an HK-TAS Movie v1 document.";
+        private string canonicalDiff =
+            "Validate a movie to compare it with canonical HK-TAS Movie v1 text.";
+        private string firstDifference =
+            "No desync or first-difference event has been received.";
+        private string status = "Waiting for a Runtime session.";
+        private string connectionBadge = "DISCONNECTED";
+        private string runtimeReadinessBadge = "NOT READY";
+        private string runtimeSummary = "No Runtime status yet.";
+        private string latestState = string.Empty;
+        private bool autoSaveEnabled = true;
+        private string autoSaveInterval = "18000";
+        private string autoSaveRetention = "20";
+        private string? selectedReplaySave;
+        private string restoreStatus =
+            "Replay-save catalog has not been requested.";
+        private string nativeEvidence =
+            "Native process observation has not been requested.";
+        private string automationControlStatus =
+            "External automation is read-only by default. "
+            + "Approved control requires the in-game setting, restart, "
+            + "and a short exclusive lease.";
+        private string frameInputHold = "-";
+        private string frameInputCount = "1";
+        private string timelineStartTick = "0";
+        private bool timelineIncludeLifecycle;
+        private bool timelineEditStoredBranch;
+        private readonly LifecycleBranchHistory lifecycleBranchHistory = new LifecycleBranchHistory();
+        private string timelineDeleteCount = "1";
+        private string timelineReplacementHold = "-";
+        private string timelineReplacementCount = "1";
+        private string seekTargetTick = "0";
+        private string branchMovieId = string.Empty;
+        private string runUntilTargetTick = "0";
+        private string authoringStatus =
+            "Pause first, then submit one frame or a bounded input batch.";
+        private readonly Stack<string> timelineUndo =
+            new Stack<string>();
+        private readonly Stack<string> timelineRedo =
+            new Stack<string>();
+        private long currentMovieTick = -1;
+        private int currentSceneEpoch = -1;
+        private string currentControlMode = string.Empty;
+
+        public MainViewModel(
+            SessionRegistry registry,
+            MovieEditorService movieEditor,
+            CapabilityBroker capabilityBroker,
+            NativeHostLauncher nativeHostLauncher,
+            AutomationBroker automationBroker,
+            Func<string, Task>? launchGame = null)
+        {
+            this.registry = registry;
+            this.movieEditor = movieEditor;
+            this.capabilityBroker = capabilityBroker;
+            this.nativeHostLauncher = nativeHostLauncher;
+            this.automationBroker = automationBroker;
+            automationBroker.SlotRecoveryChanged += (_, _) => Dispatch(() =>
+            {
+                var recovery = automationBroker.LatestSlotRecovery;
+                if (recovery != null)
+                    RestoreStatus = "槽恢复 " + recovery.Status + " · " + recovery.OperationId + " · " + recovery.Detail;
+            });
+            this.launchGame = launchGame;
+            LaunchGameCommand = new AsyncRelayCommand(LaunchGameAsync, () => this.launchGame != null);
+            OpenMovieCommand = new AsyncRelayCommand(OpenMovieAsync);
+            SaveMovieCommand = new AsyncRelayCommand(SaveMovieAsync);
+            ValidateMovieCommand =
+                new RelayCommand(() => ValidateMovie(false));
+            FormatMovieCommand =
+                new RelayCommand(() => ValidateMovie(true));
+            UploadMovieCommand =
+                Command(UploadMovieAsync);
+            RefreshRuntimeMovieCommand =
+                Command(RefreshRuntimeMovieAsync);
+            StartReplayCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds.StartReplay,
+                        AutomationScope.ControlPlayback));
+            StopReplayCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds.StopReplay,
+                        AutomationScope.ControlPlayback));
+            PauseCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds.Pause,
+                        AutomationScope.ControlPlayback));
+            StepCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds.Step,
+                        AutomationScope.ControlStep,
+                        Fields(
+                            "count",
+                            "1")));
+            ResumeCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds.Resume,
+                        AutomationScope.ControlPlayback));
+            QuitGameCommand = Command(() => ExecuteHumanAsync(
+                AutomationCommandIds.QuitGame, AutomationScope.ControlPlayback));
+            LoadGameSlotCommand = Command(() => ExecuteHumanAsync(
+                AutomationCommandIds.LoadGameSlot, AutomationScope.ControlPlayback,
+                Fields("slot", ParseCount(GameSlot, 1, 4, "game slot").ToString(CultureInfo.InvariantCulture))));
+            RestartRecordingSessionCommand = Command(RestartRecordingSessionAsync);
+            ReloadGameSlotCommand = Command(() => ExecuteHumanAsync(
+                AutomationCommandIds.ReloadGameSlot, AutomationScope.ControlPlayback,
+                Fields("slot", ParseCount(GameSlot, 1, 4, "game slot").ToString(CultureInfo.InvariantCulture))));
+            CancelRecordingRestartCommand = Command(() => ExecuteHumanAsync(
+                AutomationCommandIds.CancelRecordingRestart, AutomationScope.ControlPlayback,
+                Fields("operationId", automationBroker.ActiveRecordingRestartOperationId), expectedModeRequired: false),
+                requireConnected: false);
+            SnapshotCommand =
+                Command(RefreshStructuredStateAsync);
+            RefreshCombatStateCommand =
+                Command(RefreshCombatStateAsync);
+            SubscribeWatchCommand =
+                Command(
+                    () => SendAsync(
+                        IpcMessageTypes.Subscribe,
+                        Fields("stream", "watch")));
+            SubscribeLedgerCommand =
+                Command(
+                    () => SendAsync(
+                        IpcMessageTypes.Subscribe,
+                        Fields("stream", "ledger")));
+            ClearTimelineCommand =
+                new RelayCommand(Timeline.Clear);
+            RefreshReplaySavesCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds.GetReplaySaves,
+                        AutomationScope.ObserveReplaySaves,
+                        expectedModeRequired: false));
+            CreateReplaySaveCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds.CreateReplaySave,
+                        AutomationScope.ControlReplaySave,
+                        Fields(
+                            "label",
+                            "Studio "
+                            + DateTime.Now.ToString(
+                                "yyyy-MM-dd HH:mm:ss",
+                                CultureInfo.InvariantCulture))));
+            RestoreReplaySaveCommand =
+                Command(RestoreSelectedAsync);
+            SetAutoSavePolicyCommand = Command(() => ExecuteHumanAsync(
+                AutomationCommandIds.SetAutoSavePolicy, AutomationScope.ControlReplaySave,
+                Fields("enabled", AutoSaveEnabled ? "true" : "false",
+                    "intervalMovieTicks", AutoSaveInterval,
+                    "retentionCount", AutoSaveRetention)));
+            RefreshAutoSavePolicyCommand = Command(RefreshAutoSavePolicyAsync);
+            ApproveReplaySaveOverwriteCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds
+                            .ApproveReplaySaveOverwrite,
+                        AutomationScope.ControlReplaySave,
+                        Fields("approved", "true")));
+            DenyReplaySaveOverwriteCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds
+                            .ApproveReplaySaveOverwrite,
+                        AutomationScope.ControlReplaySave,
+                        Fields("approved", "false")));
+            ResumeReplaySaveRestoreCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds
+                            .ResumeReplaySaveRestore,
+                        AutomationScope.ControlReplaySave));
+            CancelReplaySaveRestoreCommand =
+                Command(CancelReplayRestoreAsync, requireConnected: false);
+            RefreshCapabilitiesCommand =
+                Command(
+                    () => SendSimpleAsync(
+                        IpcMessageTypes.RequestCapabilityCatalog));
+            CaptureNativeObserveCommand =
+                Command(
+                    () => CaptureNativeObserveAsync(null));
+            RevokeAutomationLeaseCommand =
+                new RelayCommand(
+                    () => AutomationControlStatus =
+                        this.automationBroker
+                            .RevokeControlLeaseByUser());
+            StepWithInputCommand =
+                Command(() => SendFrameInputAsync(singleFrame: true));
+            RunInputBatchCommand =
+                Command(() => SendFrameInputAsync(singleFrame: false));
+            ReplaceInputRangeCommand =
+                Command(
+                    () => ApplyTimelineEditAsync(
+                        TimelineEditKind.Replace));
+            InsertInputRangeCommand =
+                Command(
+                    () => ApplyTimelineEditAsync(
+                        TimelineEditKind.Insert));
+            DeleteInputRangeCommand =
+                Command(
+                    () => ApplyTimelineEditAsync(
+                        TimelineEditKind.Delete));
+            UndoTimelineEditCommand =
+                Command(UndoTimelineEditAsync);
+            RedoTimelineEditCommand =
+                Command(RedoTimelineEditAsync);
+            SeekMovieTickCommand = Command(SeekMovieTickAsync);
+            ApplyMovieBranchCommand = Command(ApplyMovieBranchAsync);
+            ApplyBranchAndSeekCommand =
+                Command(ApplyBranchAndSeekAsync);
+            RefreshBranchesCommand = Command(() => LoadBranchesAsync(false));
+            MoreBranchesCommand = Command(() => LoadBranchesAsync(true));
+            StartRecordingCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds.StartRecording,
+                        AutomationScope.ControlRecording));
+            StopRecordingCommand =
+                Command(
+                    () => ExecuteHumanAsync(
+                        AutomationCommandIds.StopRecording,
+                        AutomationScope.ControlRecording));
+            RunUntilCommand = Command(RunUntilAsync);
+
+            registry.SessionsChanged += OnSessionsChanged;
+            registry.EnvelopeReceived += OnEnvelopeReceived;
+            RefreshSessions();
+            RefreshCapabilityView();
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public ObservableCollection<SessionViewItem> Sessions { get; } =
+            new ObservableCollection<SessionViewItem>();
+        public ObservableCollection<string> Timeline { get; } =
+            new ObservableCollection<string>();
+        public ObservableCollection<string> ReplaySaves { get; } =
+            new ObservableCollection<string>();
+        public ObservableCollection<string> Capabilities { get; } =
+            new ObservableCollection<string>();
+
+        public SessionViewItem? SelectedSession
+        {
+            get => selectedSession;
+            set
+            {
+                if (ReferenceEquals(selectedSession, value))
+                {
+                    return;
+                }
+
+                selectedSession = value;
+                OnPropertyChanged();
+                UpdateConnectionStatus();
+            }
+        }
+
+        public string MovieText
+        {
+            get => movieText;
+            set => Set(ref movieText, value);
+        }
+
+        public string ValidationOutput
+        {
+            get => validationOutput;
+            private set => Set(ref validationOutput, value);
+        }
+
+        public string CanonicalDiff
+        {
+            get => canonicalDiff;
+            private set => Set(ref canonicalDiff, value);
+        }
+
+        public string FirstDifference
+        {
+            get => firstDifference;
+            private set => Set(ref firstDifference, value);
+        }
+
+        public string Status
+        {
+            get => status;
+            private set => Set(ref status, value);
+        }
+
+        public string ConnectionBadge
+        {
+            get => connectionBadge;
+            private set => Set(ref connectionBadge, value);
+        }
+
+        public string RuntimeReadinessBadge
+        {
+            get => runtimeReadinessBadge;
+            private set => Set(ref runtimeReadinessBadge, value);
+        }
+
+        public string RuntimeSummary
+        {
+            get => runtimeSummary;
+            private set => Set(ref runtimeSummary, value);
+        }
+
+        public string LatestState
+        {
+            get => latestState;
+            private set => Set(ref latestState, value);
+        }
+
+        public string? SelectedReplaySave
+        {
+            get => selectedReplaySave;
+            set => Set(ref selectedReplaySave, value);
+        }
+
+        public string RestoreStatus
+        {
+            get => restoreStatus;
+            private set => Set(ref restoreStatus, value);
+        }
+
+        public string NativeEvidence
+        {
+            get => nativeEvidence;
+            private set => Set(ref nativeEvidence, value);
+        }
+
+        public string AutomationControlStatus
+        {
+            get => automationControlStatus;
+            private set => Set(ref automationControlStatus, value);
+        }
+
+        public string FrameInputHold
+        {
+            get => frameInputHold;
+            set => Set(ref frameInputHold, value);
+        }
+
+        public bool AutoSaveEnabled
+        {
+            get => autoSaveEnabled;
+            set => Set(ref autoSaveEnabled, value);
+        }
+        public string AutoSaveInterval
+        {
+            get => autoSaveInterval;
+            set => Set(ref autoSaveInterval, value);
+        }
+        public string AutoSaveRetention
+        {
+            get => autoSaveRetention;
+            set => Set(ref autoSaveRetention, value);
+        }
+
+        public string FrameInputCount
+        {
+            get => frameInputCount;
+            set => Set(ref frameInputCount, value);
+        }
+
+        public string TimelineStartTick
+        {
+            get => timelineStartTick;
+            set => Set(ref timelineStartTick, value);
+        }
+
+        public bool TimelineIncludeLifecycle
+        {
+            get => timelineIncludeLifecycle;
+            set => Set(ref timelineIncludeLifecycle, value);
+        }
+
+        public bool TimelineEditStoredBranch
+        {
+            get => timelineEditStoredBranch;
+            set => Set(ref timelineEditStoredBranch, value);
+        }
+
+        public string TimelineDeleteCount
+        {
+            get => timelineDeleteCount;
+            set => Set(ref timelineDeleteCount, value);
+        }
+
+        public string TimelineReplacementHold
+        {
+            get => timelineReplacementHold;
+            set => Set(ref timelineReplacementHold, value);
+        }
+
+        public string TimelineReplacementCount
+        {
+            get => timelineReplacementCount;
+            set => Set(ref timelineReplacementCount, value);
+        }
+
+        public string SeekTargetTick
+        {
+            get => seekTargetTick;
+            set => Set(ref seekTargetTick, value);
+        }
+
+        public string BranchMovieId
+        {
+            get => branchMovieId;
+            set => Set(ref branchMovieId, value);
+        }
+
+        public ObservableCollection<MovieBranchCatalogItem> SavedBranches { get; } = new ObservableCollection<MovieBranchCatalogItem>();
+        private MovieBranchCatalogItem? selectedSavedBranch;
+        private string nextBranchOffset = string.Empty;
+        public MovieBranchCatalogItem? SelectedSavedBranch
+        {
+            get => selectedSavedBranch;
+            set
+            {
+                Set(ref selectedSavedBranch, value);
+                if (value == null) return;
+                BranchMovieId = value.BranchId;
+                TimelineIncludeLifecycle = value.IncludesLifecycle;
+                TimelineEditStoredBranch = value.IncludesLifecycle;
+                AuthoringStatus = "已选择分支，游戏未改变。归档内容与执行环境将在应用时校验。";
+            }
+        }
+        public ICommand RefreshBranchesCommand { get; }
+        public ICommand MoreBranchesCommand { get; }
+
+        private async Task LoadBranchesAsync(bool more)
+        {
+            if (more && nextBranchOffset.Length == 0) return;
+            var result = await ExecuteHumanResultAsync(AutomationCommandIds.GetMovie, AutomationScope.MovieRead,
+                Fields("listBranches", "true", "branchOffset", more ? nextBranchOffset : "0"), expectedModeRequired: false);
+            RequireAutomationSuccess(result);
+            var entries = System.Text.Json.JsonSerializer.Deserialize<MovieBranchCatalogItem[]>(result.Data["branchesJson"])
+                ?? throw new InvalidDataException("Branch catalog is missing.");
+            if (!more) SavedBranches.Clear();
+            foreach (var entry in entries)
+                if (!SavedBranches.Any(x => x.BranchId == entry.BranchId && x.IncludesLifecycle == entry.IncludesLifecycle))
+                    SavedBranches.Add(entry);
+            nextBranchOffset = result.Data["nextOffset"];
+            AuthoringStatus = $"已列出 {SavedBranches.Count} 个分支（目录信息，未校验回放）。"
+                + (nextBranchOffset.Length == 0 ? "已到末页。" : "点击更多分支继续读取。");
+        }
+
+        public string RunUntilTargetTick
+        {
+            get => runUntilTargetTick;
+            set => Set(ref runUntilTargetTick, value);
+        }
+
+        public string AuthoringStatus
+        {
+            get => authoringStatus;
+            private set => Set(ref authoringStatus, value);
+        }
+
+        public ICommand OpenMovieCommand { get; }
+        public ICommand LaunchGameCommand { get; }
+        public ICommand SaveMovieCommand { get; }
+        public ICommand ValidateMovieCommand { get; }
+        public ICommand FormatMovieCommand { get; }
+        public ICommand UploadMovieCommand { get; }
+        public ICommand RefreshRuntimeMovieCommand { get; }
+        public ICommand StartReplayCommand { get; }
+        public ICommand StopReplayCommand { get; }
+        public ICommand PauseCommand { get; }
+        public ICommand StepCommand { get; }
+        public ICommand ResumeCommand { get; }
+        public ICommand QuitGameCommand { get; }
+        public ICommand LoadGameSlotCommand { get; }
+        public ICommand ReloadGameSlotCommand { get; }
+        public ICommand RestartRecordingSessionCommand { get; }
+        public ICommand CancelRecordingRestartCommand { get; }
+        private string gameSlot = "2";
+        public string GameSlot
+        {
+            get => gameSlot;
+            set => Set(ref gameSlot, value);
+        }
+        public ICommand SnapshotCommand { get; }
+        public ICommand RefreshCombatStateCommand { get; }
+        public ICommand SubscribeWatchCommand { get; }
+        public ICommand SubscribeLedgerCommand { get; }
+        public ICommand ClearTimelineCommand { get; }
+        public ICommand RefreshReplaySavesCommand { get; }
+        public ICommand CreateReplaySaveCommand { get; }
+        public ICommand SetAutoSavePolicyCommand { get; }
+        public ICommand RefreshAutoSavePolicyCommand { get; }
+        public ICommand RestoreReplaySaveCommand { get; }
+        public ICommand ApproveReplaySaveOverwriteCommand { get; }
+        public ICommand DenyReplaySaveOverwriteCommand { get; }
+        public ICommand ResumeReplaySaveRestoreCommand { get; }
+        public ICommand CancelReplaySaveRestoreCommand { get; }
+        public ICommand RefreshCapabilitiesCommand { get; }
+        public ICommand CaptureNativeObserveCommand { get; }
+        public ICommand RevokeAutomationLeaseCommand { get; }
+        public ICommand StepWithInputCommand { get; }
+        public ICommand RunInputBatchCommand { get; }
+        public ICommand ReplaceInputRangeCommand { get; }
+        public ICommand InsertInputRangeCommand { get; }
+        public ICommand DeleteInputRangeCommand { get; }
+        public ICommand UndoTimelineEditCommand { get; }
+        public ICommand RedoTimelineEditCommand { get; }
+        public ICommand SeekMovieTickCommand { get; }
+        public ICommand ApplyMovieBranchCommand { get; }
+        public ICommand ApplyBranchAndSeekCommand { get; }
+        public ICommand StartRecordingCommand { get; }
+        public ICommand StopRecordingCommand { get; }
+        public ICommand RunUntilCommand { get; }
+
+        private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true)
+        {
+            var command = new AsyncRelayCommand(
+                async () =>
+                {
+                    try
+                    {
+                        await action();
+                    }
+                    catch (Exception exception)
+                    {
+                        Status = exception.Message;
+                    }
+                },
+                () => !requireConnected || SelectedSession?.Client.IsConnected == true);
+            return command;
+        }
+
+        private async Task LaunchGameAsync()
+        {
+            if (launchGame == null) return;
+            var dialog = new OpenFileDialog
+            {
+                Title = "选择 Hollow Knight 游戏程序",
+                Filter = "Hollow Knight (hollow_knight.exe)|hollow_knight.exe",
+                CheckFileExists = true,
+                Multiselect = false
+            };
+            if (dialog.ShowDialog() != true) return;
+            try
+            {
+                Status = "正在校验组件并启动游戏…";
+                await launchGame(dialog.FileName);
+                Status = "游戏已启动；等待 Runtime 连接。回退可用性以启动与录制根校验为准。";
+            }
+            catch (Exception exception)
+            {
+                Status = "启动失败：" + exception.Message;
+            }
+        }
+
+        private async Task OpenMovieAsync()
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter =
+                    "HK-TAS Movie (*.hktas)|*.hktas|Text files (*.txt)|*.txt|All files (*.*)|*.*",
+                CheckFileExists = true,
+                Multiselect = false
+            };
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            var info = new FileInfo(dialog.FileName);
+            if (info.Length > 16 * 1024 * 1024)
+            {
+                throw new InvalidDataException(
+                    "Movie source exceeds 16 MiB.");
+            }
+
+            MovieText = await File.ReadAllTextAsync(
+                dialog.FileName,
+                new UTF8Encoding(false, true));
+            ValidateMovie(false);
+        }
+
+        private async Task SaveMovieAsync()
+        {
+            var dialog = new SaveFileDialog
+            {
+                Filter = "HK-TAS Movie (*.hktas)|*.hktas",
+                AddExtension = true,
+                DefaultExt = ".hktas"
+            };
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            await File.WriteAllTextAsync(
+                dialog.FileName,
+                MovieText,
+                new UTF8Encoding(false, true));
+            Status = "Movie saved.";
+        }
+
+        private void ValidateMovie(bool applyFormat)
+        {
+            var result = movieEditor.Validate(MovieText);
+            if (!result.Success)
+            {
+                ValidationOutput = string.Join(
+                    Environment.NewLine,
+                    result.Diagnostics.Select(
+                        diagnostic => diagnostic.ToString()));
+                CanonicalDiff =
+                    "Canonical comparison is unavailable until validation succeeds.";
+                Status = "Movie validation failed.";
+                return;
+            }
+
+            CanonicalDiff = BuildCanonicalDiff(
+                MovieText,
+                result.CanonicalText);
+            if (applyFormat)
+            {
+                MovieText = result.CanonicalText;
+                CanonicalDiff =
+                    "No difference. The editor now contains canonical text.";
+            }
+
+            ValidationOutput =
+                "VALID · movieId="
+                + result.MovieId
+                + " · expandedTicks="
+                + result.ExpandedTicks.ToString(
+                    CultureInfo.InvariantCulture);
+            Status = applyFormat
+                ? "Movie formatted canonically."
+                : "Movie is valid.";
+        }
+
+        private async Task UploadMovieAsync()
+        {
+            var candidate = movieEditor.Validate(MovieText);
+            if (!candidate.Success)
+            {
+                ValidateMovie(false);
+                return;
+            }
+
+            var current = await ExecuteHumanResultAsync(
+                AutomationCommandIds.GetMovie,
+                AutomationScope.MovieRead,
+                expectedModeRequired: false);
+            RequireAutomationSuccess(current);
+            var baseMovieId = current.Data.TryGetValue(
+                                  "available",
+                                  out var available)
+                              && available == "true"
+                              && current.Data.TryGetValue(
+                                  "movieId",
+                                  out var loadedMovieId)
+                ? loadedMovieId
+                : "none";
+            var proposed = await ExecuteHumanResultAsync(
+                AutomationCommandIds.ProposeMoviePatch,
+                AutomationScope.MoviePropose,
+                Fields(
+                    "baseMovieId",
+                    baseMovieId,
+                    "candidateMovieBase64",
+                    Convert.ToBase64String(
+                        new UTF8Encoding(false).GetBytes(
+                            candidate.CanonicalText)),
+                    "expectedMilestone",
+                    "ui-upload",
+                    "reason",
+                    "human selected Upload in Studio"),
+                expectedModeRequired: false);
+            RequireAutomationSuccess(proposed);
+            var branchId = RequireResultField(
+                proposed,
+                "branchMovieId");
+            await ApplyMovieBranchByIdAsync(branchId);
+            BranchMovieId = branchId;
+            Status = "Canonical movie proposed and applied through the shared authoring service.";
+        }
+
+        private async Task SendFrameInputAsync(bool singleFrame)
+        {
+            if (!string.Equals(
+                    currentControlMode,
+                    "Paused",
+                    StringComparison.Ordinal)
+                || currentMovieTick < 0
+                || currentSceneEpoch < 0)
+            {
+                throw new InvalidOperationException(
+                    "A fresh Paused Runtime status with movie tick and scene epoch is required. Click Pause and Snapshot first.");
+            }
+
+            var count = singleFrame
+                ? 1
+                : ParseCount(
+                    FrameInputCount,
+                    1,
+                    MovieProtocolV1.DefaultMaxExpandedTicks,
+                    "frame count");
+            var inputMovie = CreateInputMovie(
+                FrameInputHold,
+                count,
+                "studio-input-batch.hktas");
+            var result = await ExecuteHumanResultAsync(
+                singleFrame
+                    ? AutomationCommandIds.StepWithInput
+                    : AutomationCommandIds.QueueInputBatch,
+                AutomationScope.ControlInput,
+                Fields(
+                    "candidateMovieBase64",
+                    Convert.ToBase64String(
+                        new UTF8Encoding(false).GetBytes(
+                            inputMovie.CanonicalText)),
+                    "expectedSceneEpoch",
+                    currentSceneEpoch.ToString(
+                        CultureInfo.InvariantCulture)));
+            RequireAutomationSuccess(result);
+            if (result.Data.TryGetValue(
+                    "batchMovieId",
+                    out var batchMovieId))
+            {
+                BranchMovieId = batchMovieId;
+            }
+
+            AuthoringStatus = singleFrame
+                ? "One input tick scheduled. Runtime will return to Paused."
+                : count.ToString(CultureInfo.InvariantCulture)
+                  + " input ticks scheduled. Runtime will return to Paused.";
+        }
+
+        private async Task ApplyTimelineEditAsync(TimelineEditKind kind)
+        {
+            var current = movieEditor.Validate(MovieText);
+            if (!TimelineIncludeLifecycle && (!current.Success || current.Document == null))
+            {
+                ValidateMovie(false);
+                throw new InvalidDataException(
+                    "Validate and upload the current movie before editing its timeline.");
+            }
+
+            var start = ParseCount(
+                TimelineStartTick,
+                0,
+                MovieProtocolV1.DefaultMaxExpandedTicks,
+                "start tick");
+            var arguments = new Dictionary<string, string>(
+                StringComparer.Ordinal)
+            {
+                ["baseMovieId"] = current.MovieId,
+                ["startTick"] = start.ToString(
+                    CultureInfo.InvariantCulture)
+            };
+            if (TimelineIncludeLifecycle)
+            {
+                if (TimelineEditStoredBranch)
+                {
+                    if (!MovieProtocolV1.IsLowerSha256(BranchMovieId))
+                        throw new InvalidDataException("先选择要继续编辑的生命周期分支 ID。");
+                    arguments["baseMovieId"] = BranchMovieId;
+                }
+                else
+                {
+                    var source = await ExecuteHumanResultAsync(AutomationCommandIds.GetMovie, AutomationScope.MovieRead,
+                        Fields("includeLifecycle", "true"), expectedModeRequired: false);
+                    RequireAutomationSuccess(source);
+                    arguments["baseMovieId"] = RequireResultField(source, "movieId");
+                }
+                arguments["includeLifecycle"] = "true";
+            }
+            var commandId = kind switch
+            {
+                TimelineEditKind.Replace =>
+                    AutomationCommandIds.ReplaceInputRange,
+                TimelineEditKind.Insert =>
+                    AutomationCommandIds.InsertInputRange,
+                TimelineEditKind.Delete =>
+                    AutomationCommandIds.DeleteInputRange,
+                _ => throw new ArgumentOutOfRangeException(nameof(kind))
+            };
+            if (kind == TimelineEditKind.Delete)
+            {
+                arguments["count"] = ParseCount(
+                        TimelineDeleteCount,
+                        1,
+                        MovieProtocolV1.DefaultMaxExpandedTicks,
+                        "delete count")
+                    .ToString(CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                if (kind == TimelineEditKind.Replace)
+                {
+                    arguments["deleteCount"] = ParseCount(
+                            TimelineDeleteCount,
+                            0,
+                            MovieProtocolV1.DefaultMaxExpandedTicks,
+                            "delete count")
+                        .ToString(CultureInfo.InvariantCulture);
+                }
+
+                var replacement = CreateInputMovie(
+                    TimelineReplacementHold,
+                    ParseCount(
+                        TimelineReplacementCount,
+                        1,
+                        MovieProtocolV1.DefaultMaxExpandedTicks,
+                        "replacement count"),
+                    "studio-timeline-edit.hktas");
+                arguments["replacementMovieBase64"] =
+                    Convert.ToBase64String(
+                        new UTF8Encoding(false).GetBytes(
+                            replacement.CanonicalText));
+            }
+
+            var edited = await ExecuteHumanResultAsync(
+                commandId,
+                AutomationScope.MovieEdit,
+                arguments,
+                expectedModeRequired: false);
+            RequireAutomationSuccess(edited);
+            if (edited.Data.TryGetValue("branchFormat", out var branchFormat)
+                && (branchFormat == "hklbranch-v2" || branchFormat == "hklbranch-v3"))
+            {
+                var lifecycleBranchId = RequireResultField(edited, "branchMovieId");
+                if (edited.Data.TryGetValue("undoBranchMovieId", out var undoBranchId))
+                    lifecycleBranchHistory.Record(undoBranchId, lifecycleBranchId);
+                BranchMovieId = lifecycleBranchId;
+                AuthoringStatus = "生命周期分支已保存，待执行重放验证；原始记录保留。";
+                return;
+            }
+            var branchId = RequireResultField(
+                edited,
+                "branchMovieId");
+            var canonicalText = DecodeMovieResult(
+                edited,
+                "canonicalMovieBase64");
+            await ApplyMovieBranchByIdAsync(branchId);
+            RememberTimelineUndo(MovieText);
+            MovieText = canonicalText;
+            BranchMovieId = branchId;
+            timelineRedo.Clear();
+            ValidationOutput =
+                "VALID · typed "
+                + kind.ToString().ToLowerInvariant()
+                + " · branch="
+                + branchId;
+            AuthoringStatus =
+                "Timeline edit stored and applied through the shared authoring service. Use Apply Branch + Seek to re-execute changed history.";
+        }
+
+        private async Task UndoTimelineEditAsync()
+        {
+            if (TimelineIncludeLifecycle)
+            {
+                if (lifecycleBranchHistory.TryUndo(BranchMovieId, out var branch))
+                {
+                    BranchMovieId = branch;
+                    TimelineEditStoredBranch = true;
+                    AuthoringStatus = "已选回上一分支；游戏状态未改变。执行 Apply Branch + Seek 后重放。";
+                }
+                else AuthoringStatus = "当前分支没有可撤销的编辑。";
+                return;
+            }
+            if (timelineUndo.Count == 0)
+            {
+                AuthoringStatus = "No timeline edit to undo.";
+                return;
+            }
+
+            var previous = timelineUndo.Peek();
+            await ProposeAndApplyMovieTextAsync(previous, "ui-undo");
+            timelineRedo.Push(MovieText);
+            MovieText = timelineUndo.Pop();
+            AuthoringStatus =
+                "Timeline edit undone through a content-addressed child branch.";
+        }
+
+        private async Task RedoTimelineEditAsync()
+        {
+            if (TimelineIncludeLifecycle)
+            {
+                if (lifecycleBranchHistory.TryRedo(BranchMovieId, out var branch))
+                {
+                    BranchMovieId = branch;
+                    TimelineEditStoredBranch = true;
+                    AuthoringStatus = "已选回下一分支；游戏状态未改变。执行 Apply Branch + Seek 后重放。";
+                }
+                else AuthoringStatus = "当前分支没有可重做的编辑。";
+                return;
+            }
+            if (timelineRedo.Count == 0)
+            {
+                AuthoringStatus = "No timeline edit to redo.";
+                return;
+            }
+
+            var next = timelineRedo.Peek();
+            await ProposeAndApplyMovieTextAsync(next, "ui-redo");
+            RememberTimelineUndo(MovieText);
+            MovieText = timelineRedo.Pop();
+            AuthoringStatus =
+                "Timeline edit redone through a content-addressed child branch.";
+        }
+
+        private void RememberTimelineUndo(string value)
+        {
+            if (timelineUndo.Count >= 100)
+            {
+                var retained = timelineUndo.Reverse()
+                    .Take(99)
+                    .Reverse()
+                    .ToArray();
+                timelineUndo.Clear();
+                foreach (var item in retained)
+                {
+                    timelineUndo.Push(item);
+                }
+            }
+
+            timelineUndo.Push(value);
+        }
+
+        private async Task ProposeAndApplyMovieTextAsync(
+            string candidateText,
+            string reason)
+        {
+            var current = movieEditor.Validate(MovieText);
+            var candidate = movieEditor.Validate(candidateText);
+            if (!current.Success || !candidate.Success)
+            {
+                throw new InvalidDataException(
+                    "Undo/redo requires canonical current and candidate movies.");
+            }
+
+            var proposed = await ExecuteHumanResultAsync(
+                AutomationCommandIds.ProposeMoviePatch,
+                AutomationScope.MoviePropose,
+                Fields(
+                    "baseMovieId",
+                    current.MovieId,
+                    "candidateMovieBase64",
+                    Convert.ToBase64String(
+                        new UTF8Encoding(false).GetBytes(
+                            candidate.CanonicalText)),
+                    "expectedMilestone",
+                    "ui-history",
+                    "reason",
+                    reason),
+                expectedModeRequired: false);
+            RequireAutomationSuccess(proposed);
+            await ApplyMovieBranchByIdAsync(
+                RequireResultField(proposed, "branchMovieId"));
+        }
+
+        private Task ApplyMovieBranchAsync()
+        {
+            if (!MovieProtocolV1.IsLowerSha256(BranchMovieId))
+            {
+                throw new InvalidDataException(
+                    "Enter a lowercase content-addressed branch movie ID.");
+            }
+
+            return ApplyMovieBranchByIdAsync(BranchMovieId);
+        }
+
+        private async Task ApplyMovieBranchByIdAsync(string branchId)
+        {
+            var applied = await ExecuteHumanResultAsync(
+                AutomationCommandIds.ApplyMovieBranch,
+                AutomationScope.MovieApplyBranch,
+                Fields("branchMovieId", branchId));
+            RequireAutomationSuccess(applied);
+            BranchMovieId = branchId;
+        }
+
+        private async Task SeekMovieTickAsync()
+        {
+            RequireFreshSceneEpoch();
+            var target = ParseCount(
+                SeekTargetTick,
+                0,
+                MovieProtocolV1.DefaultMaxExpandedTicks - 1,
+                "seek target tick");
+            var result = await ExecuteHumanResultAsync(
+                AutomationCommandIds.SeekMovieTick,
+                AutomationScope.ControlReplaySave,
+                Fields(
+                    "targetMovieTick",
+                    target.ToString(CultureInfo.InvariantCulture),
+                    "expectedSceneEpoch",
+                    currentSceneEpoch.ToString(
+                        CultureInfo.InvariantCulture)));
+            RequireAutomationSuccess(result);
+            AuthoringStatus =
+                "Seek accepted. Follow MovieSeekProgress until Completed or Failed.";
+        }
+
+        private async Task ApplyBranchAndSeekAsync()
+        {
+            RequireFreshSceneEpoch();
+            if (!MovieProtocolV1.IsLowerSha256(BranchMovieId))
+            {
+                throw new InvalidDataException(
+                    "Enter a lowercase content-addressed branch movie ID.");
+            }
+
+            var target = ParseCount(
+                SeekTargetTick,
+                0,
+                MovieProtocolV1.DefaultMaxExpandedTicks - 1,
+                "seek target tick");
+            var result = await ExecuteHumanResultAsync(
+                AutomationCommandIds.ApplyBranchAndSeek,
+                AutomationScope.MovieApplyBranch,
+                Fields(
+                    "branchMovieId",
+                    BranchMovieId,
+                    "targetMovieTick",
+                    target.ToString(CultureInfo.InvariantCulture),
+                    "expectedSceneEpoch",
+                    currentSceneEpoch.ToString(
+                        CultureInfo.InvariantCulture)));
+            RequireAutomationSuccess(result);
+            AuthoringStatus =
+                "Branch apply + seek accepted. Follow MovieSeekProgress until terminal.";
+        }
+
+        private async Task RunUntilAsync()
+        {
+            var target = ParseCount(
+                RunUntilTargetTick,
+                0,
+                MovieProtocolV1.DefaultMaxExpandedTicks - 1,
+                "run-until target tick");
+            var result = await ExecuteHumanResultAsync(
+                AutomationCommandIds.RunUntil,
+                AutomationScope.ControlRunUntil,
+                Fields(
+                    "targetMovieTick",
+                    target.ToString(CultureInfo.InvariantCulture)));
+            RequireAutomationSuccess(result);
+        }
+
+        private async Task RefreshStructuredStateAsync()
+        {
+            var result = await ExecuteHumanResultAsync(
+                AutomationCommandIds.GetState,
+                AutomationScope.ObserveStateSummary,
+                expectedModeRequired: false);
+            RequireAutomationSuccess(result);
+            LatestState = RequireResultField(result, "stateJson");
+        }
+
+        private async Task RefreshRuntimeMovieAsync()
+        {
+            var result = await ExecuteHumanResultAsync(
+                AutomationCommandIds.GetMovie,
+                AutomationScope.MovieRead,
+                expectedModeRequired: false);
+            RequireAutomationSuccess(result);
+            if (!result.Data.TryGetValue("available", out var available)
+                || available != "true")
+            {
+                throw new InvalidOperationException(
+                    "Runtime has no loaded canonical movie.");
+            }
+
+            MovieText = DecodeMovieResult(result, "movieBase64");
+            ValidateMovie(false);
+        }
+
+        private async Task RefreshAutoSavePolicyAsync()
+        {
+            var result = await ExecuteHumanResultAsync(AutomationCommandIds.GetState,
+                AutomationScope.ObserveStateSummary,
+                new Dictionary<string, string> { ["statusOnly"] = "true" },
+                expectedModeRequired: false);
+            RequireAutomationSuccess(result);
+            if (!result.Data.TryGetValue("autoSaveEnabled", out var enabled)
+                || !result.Data.TryGetValue("autoSaveIntervalMovieTicks", out var interval)
+                || !result.Data.TryGetValue("autoSaveRetentionCount", out var retention))
+                throw new InvalidOperationException("Runtime did not report an auto-save policy.");
+            AutoSaveEnabled = enabled == "true";
+            AutoSaveInterval = interval;
+            AutoSaveRetention = retention;
+        }
+
+        private async Task RefreshCombatStateAsync()
+        {
+            var result = await ExecuteHumanResultAsync(
+                AutomationCommandIds.GetCombatState,
+                AutomationScope.ObserveStateDeep,
+                expectedModeRequired: false);
+            RequireAutomationSuccess(result);
+            LatestState = result.Data.TryGetValue("json", out var json)
+                ? json
+                : new UTF8Encoding(false, true).GetString(
+                    result.CanonicalDataUtf8);
+        }
+
+        private Task CancelReplayRestoreAsync()
+        {
+            var operationId = automationBroker.ActiveColdRestoreOperationId;
+            return ExecuteHumanAsync(AutomationCommandIds.CancelReplaySaveRestore,
+                AutomationScope.ControlReplaySave,
+                string.IsNullOrEmpty(operationId) ? null : Fields("operationId", operationId),
+                expectedModeRequired: string.IsNullOrEmpty(operationId));
+        }
+
+        private async Task RestartRecordingSessionAsync()
+        {
+            var started = await ExecuteHumanResultAsync(AutomationCommandIds.RestartRecordingSession,
+                AutomationScope.ControlPlayback,
+                Fields("slot", ParseCount(GameSlot, 1, 4, "game slot").ToString(CultureInfo.InvariantCulture)));
+            RequireAutomationSuccess(started);
+            var id = started.Data["operationId"];
+            var deadline = DateTimeOffset.UtcNow.AddMinutes(4);
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                var result = await ExecuteHumanResultAsync(AutomationCommandIds.GetStatus,
+                    AutomationScope.ObserveStatus, expectedModeRequired: false);
+                RequireAutomationSuccess(result);
+                if (!result.Data.TryGetValue("recordingRestart.operationId", out var currentId) || currentId != id)
+                    throw new InvalidOperationException("重启状态与本次操作不匹配：" + id);
+                var phase = result.Data["recordingRestart.phase"];
+                Status = "重新开始录制：" + phase + " — " + result.Data["recordingRestart.detail"];
+                if (phase == "Ready" || phase == "Failed" || phase == "Cancelled") return;
+                await Task.Delay(250);
+            }
+            Status = "重启状态观察超时；操作可能仍在进行，请查询状态。操作 ID：" + id;
+        }
+
+        private Task ExecuteHumanAsync(
+            string commandId,
+            string scope,
+            IReadOnlyDictionary<string, string>? arguments = null,
+            bool expectedModeRequired = true)
+        {
+            return ExecuteHumanAndUpdateStatusAsync(
+                commandId,
+                scope,
+                arguments,
+                expectedModeRequired);
+        }
+
+        private async Task ExecuteHumanAndUpdateStatusAsync(
+            string commandId,
+            string scope,
+            IReadOnlyDictionary<string, string>? arguments,
+            bool expectedModeRequired)
+        {
+            var result = await ExecuteHumanResultAsync(
+                commandId,
+                scope,
+                arguments,
+                expectedModeRequired);
+            RequireAutomationSuccess(result);
+            Status = commandId + ": " + result.Detail;
+        }
+
+        private Task<AutomationResultEnvelope> ExecuteHumanResultAsync(
+            string commandId,
+            string scope,
+            IReadOnlyDictionary<string, string>? arguments = null,
+            bool expectedModeRequired = true)
+        {
+            var mode = expectedModeRequired
+                ? RequireCurrentControlMode()
+                : string.Empty;
+            // A Running movie tick advances while the UI command is in flight,
+            // so pinning it makes Pause and other live commands inherently
+            // stale. Paused ticks are stable and remain exact preconditions for
+            // single-frame stepping, edits, branch application, and rollback.
+            var expectedMovieTick = expectedModeRequired
+                                    && string.Equals(
+                                        mode,
+                                        "Paused",
+                                        StringComparison.Ordinal)
+                                    && currentMovieTick >= 0
+                ? currentMovieTick
+                : (long?)null;
+            IReadOnlyDictionary<string, string>? automationArguments =
+                arguments;
+            if (arguments != null && arguments.ContainsKey("requestId"))
+            {
+                // Fields() also serves raw Runtime IPC, where requestId belongs
+                // in the payload. Automation owns requestId in its envelope, so
+                // forwarding the legacy payload field violates the strict
+                // per-command argument schema.
+                var copy = new SortedDictionary<string, string>(
+                    StringComparer.Ordinal);
+                foreach (var pair in arguments)
+                {
+                    copy.Add(pair.Key, pair.Value);
+                }
+                copy.Remove("requestId");
+                automationArguments = copy;
+            }
+            return automationBroker.ExecuteHumanAsync(
+                commandId,
+                scope,
+                automationArguments,
+                mode,
+                expectedMovieTick,
+                CancellationToken.None);
+        }
+
+        private string RequireCurrentControlMode()
+        {
+            if (string.IsNullOrEmpty(currentControlMode))
+            {
+                throw new InvalidOperationException(
+                    "Request a fresh Runtime Snapshot before issuing a TAS write command.");
+            }
+
+            return currentControlMode;
+        }
+
+        private void RequireFreshSceneEpoch()
+        {
+            if (currentSceneEpoch < 0 || currentMovieTick < 0)
+            {
+                throw new InvalidOperationException(
+                    "A fresh Runtime movie tick and scene epoch are required.");
+            }
+        }
+
+        private static void RequireAutomationSuccess(
+            AutomationResultEnvelope result)
+        {
+            if (!result.Success)
+            {
+                throw new InvalidOperationException(
+                    result.ResultCode + ": " + result.Detail);
+            }
+        }
+
+        private static string RequireResultField(
+            AutomationResultEnvelope result,
+            string name)
+        {
+            if (!result.Data.TryGetValue(name, out var value)
+                || string.IsNullOrEmpty(value))
+            {
+                throw new InvalidDataException(
+                    "Automation result is missing " + name + ".");
+            }
+
+            return value;
+        }
+
+        private static string DecodeMovieResult(
+            AutomationResultEnvelope result,
+            string name)
+        {
+            var base64 = RequireResultField(result, name);
+            try
+            {
+                return new UTF8Encoding(false, true).GetString(
+                    Convert.FromBase64String(base64));
+            }
+            catch (Exception exception)
+                when (exception is FormatException
+                      || exception is DecoderFallbackException)
+            {
+                throw new InvalidDataException(
+                    "Automation returned a malformed canonical movie.",
+                    exception);
+            }
+        }
+
+        private MovieEditorResult CreateInputMovie(
+            string hold,
+            long count,
+            string sourceName)
+        {
+            var session = SelectedSession?.Client
+                          ?? throw new InvalidOperationException(
+                              "Select a Runtime session.");
+            var current = movieEditor.Validate(MovieText);
+            var header = current.Success && current.Document != null
+                ? current.Document.Header
+                : new MovieHeader(
+                    MovieProtocolV1.Version,
+                    "1.5.78.11833",
+                    "1.5.78.11833-77",
+                    session.EnvironmentManifestSha256,
+                    "none",
+                    "none",
+                    MovieProtocolV1.TickUnit);
+            if (!string.Equals(
+                    header.ManifestSha256,
+                    session.EnvironmentManifestSha256,
+                    StringComparison.Ordinal))
+            {
+                header = new MovieHeader(
+                    header.ProtocolVersion,
+                    header.GameVersion,
+                    header.ApiVersion,
+                    session.EnvironmentManifestSha256,
+                    header.BaselineId,
+                    header.BaselineSha256,
+                    header.TickUnit);
+            }
+
+            var document = new MovieDocument(
+                sourceName,
+                header,
+                new[] { CreateFrameRun(hold, count, sourceName) });
+            var canonical = new MovieCanonicalWriter().WriteToString(
+                document);
+            var validated = movieEditor.Validate(canonical, sourceName);
+            if (!validated.Success)
+            {
+                throw new InvalidDataException(
+                    string.Join(
+                        Environment.NewLine,
+                        validated.Diagnostics.Select(
+                            value => value.ToString())));
+            }
+
+            return validated;
+        }
+
+        private static FrameRunCommand CreateFrameRun(
+            string hold,
+            long count,
+            string sourceName)
+        {
+            var actions = TasAction.None;
+            var value = (hold ?? string.Empty).Trim().ToLowerInvariant();
+            if (value.Length != 0 && value != "-")
+            {
+                foreach (var name in value.Split(','))
+                {
+                    var trimmed = name.Trim();
+                    if (!MovieProtocolV1.TryParseAction(
+                            trimmed,
+                            out var action))
+                    {
+                        throw new InvalidDataException(
+                            "Unknown TAS action: " + trimmed + ".");
+                    }
+
+                    actions |= action;
+                }
+            }
+
+            return new FrameRunCommand(
+                count,
+                actions,
+                0,
+                0,
+                false,
+                new MovieSourceSpan(sourceName, 1, 1, 1));
+        }
+
+        private static long ParseCount(
+            string text,
+            long minimum,
+            long maximum,
+            string label)
+        {
+            if (!long.TryParse(
+                    text,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var result)
+                || result < minimum
+                || result > maximum)
+            {
+                throw new InvalidDataException(
+                    label
+                    + " must be in ["
+                    + minimum.ToString(CultureInfo.InvariantCulture)
+                    + ","
+                    + maximum.ToString(CultureInfo.InvariantCulture)
+                    + "].");
+            }
+
+            return result;
+        }
+
+        private Task SendSimpleAsync(string messageType)
+        {
+            return SendAsync(
+                messageType,
+                Fields(
+                    "requestId",
+                    "request-"
+                    + Guid.NewGuid().ToString("N")));
+        }
+
+        private async Task SendAsync(
+            string messageType,
+            IReadOnlyDictionary<string, string> fields)
+        {
+            var session = SelectedSession?.Client
+                          ?? throw new InvalidOperationException(
+                              "Select a Runtime session.");
+            IReadOnlyDictionary<string, string> outbound = fields;
+            if (!fields.ContainsKey("requestId"))
+            {
+                var copy = new Dictionary<string, string>(
+                    fields,
+                    StringComparer.Ordinal)
+                {
+                    ["requestId"] =
+                        "studio-" + Guid.NewGuid().ToString("N")
+                };
+                outbound = copy;
+            }
+
+            await session.SendCommandAsync(
+                messageType,
+                outbound,
+                CancellationToken.None);
+            Status = messageType + " sent.";
+        }
+
+        private Task RestoreSelectedAsync()
+        {
+            if (string.IsNullOrWhiteSpace(SelectedReplaySave))
+            {
+                throw new InvalidOperationException(
+                    "Select a replay save.");
+            }
+
+            var separator = SelectedReplaySave.IndexOf(
+                " · ",
+                StringComparison.Ordinal);
+            var replaySaveId = separator < 0
+                ? SelectedReplaySave
+                : SelectedReplaySave.Substring(0, separator);
+            return ExecuteHumanAsync(
+                AutomationCommandIds.RestoreReplaySave,
+                AutomationScope.ControlReplaySave,
+                Fields("replaySaveId", replaySaveId));
+        }
+
+        private void OnSessionsChanged(
+            object? sender,
+            EventArgs eventArgs)
+        {
+            Dispatch(RefreshSessions);
+        }
+
+        private void RefreshSessions()
+        {
+            var selectedId = SelectedSession?.Client.SessionId;
+            Sessions.Clear();
+            foreach (var client in registry.Sessions)
+            {
+                Sessions.Add(new SessionViewItem(client));
+            }
+
+            SelectedSession = Sessions.FirstOrDefault(
+                                  item => item.Client.IsConnected && string.Equals(
+                                      item.Client.SessionId,
+                                      selectedId,
+                                      StringComparison.Ordinal))
+                              ?? Sessions.Where(item => item.Client.IsConnected)
+                                  .OrderByDescending(item => item.Client.GameProcessStartTimeUtcTicks).FirstOrDefault()
+                              ?? Sessions.FirstOrDefault();
+            UpdateConnectionStatus();
+            foreach (var item in Sessions)
+            {
+                if (item.Client.IsConnected
+                    && item.Client.NativeCapabilitiesRequested)
+                {
+                    _ = CaptureNativeObserveAsync(item.Client);
+                }
+            }
+
+            var selected = SelectedSession?.Client;
+            if (selected?.IsConnected == true
+                && warmedSessions.Add(selected.SessionId))
+            {
+                UpdateConnectionStatus();
+                _ = WarmSessionAsync(selected);
+            }
+        }
+
+        private async Task WarmSessionAsync(
+            RuntimeSessionClient session)
+        {
+            try
+            {
+                var fieldsSent = 0;
+                foreach (var messageType in new[]
+                         {
+                             IpcMessageTypes.Ping,
+                             IpcMessageTypes.Subscribe,
+                             IpcMessageTypes.Subscribe,
+                             IpcMessageTypes.RequestSnapshot,
+                             IpcMessageTypes.ListReplaySaves,
+                             IpcMessageTypes
+                                 .RequestCapabilityCatalog
+                         })
+                {
+                    IReadOnlyDictionary<string, string> fields;
+                    if (string.Equals(
+                            messageType,
+                            IpcMessageTypes.Subscribe,
+                            StringComparison.Ordinal))
+                    {
+                        var stream = fieldsSent == 0
+                            ? "watch"
+                            : "ledger";
+                        fields = Fields("stream", stream);
+                        fieldsSent++;
+                    }
+                    else
+                    {
+                        fields = Fields();
+                    }
+
+                    await session.SendCommandAsync(
+                        messageType,
+                        fields,
+                        CancellationToken.None);
+                }
+
+                await Task.Delay(
+                    TimeSpan.FromSeconds(8));
+                if (session.IsConnected)
+                {
+                    await session.SendCommandAsync(
+                        IpcMessageTypes.RequestSnapshot,
+                        Fields(),
+                        CancellationToken.None);
+                    await session.SendCommandAsync(
+                        IpcMessageTypes.RequestCapabilityCatalog,
+                        Fields(),
+                        CancellationToken.None);
+                }
+
+                Dispatch(
+                    () =>
+                    {
+                        readySessions.Add(session.SessionId);
+                        UpdateConnectionStatus();
+                        Status =
+                            "Runtime state and capability catalog initialized.";
+                    });
+            }
+            catch (Exception exception)
+            {
+                Dispatch(
+                    () =>
+                    {
+                        warmedSessions.Remove(session.SessionId);
+                        readySessions.Remove(session.SessionId);
+                        UpdateConnectionStatus();
+                        Status =
+                            "Runtime initialization failed: "
+                            + exception.Message;
+                    });
+            }
+        }
+
+        private void OnEnvelopeReceived(
+            object? sender,
+            SessionEnvelopeEventArgs eventArgs)
+        {
+            var payload =
+                IpcPayloadCodec.TryDeserialize(
+                    eventArgs.Envelope.PayloadUtf8);
+            if (string.Equals(
+                    eventArgs.Envelope.MessageType,
+                    IpcMessageTypes.CapabilityCatalog,
+                    StringComparison.Ordinal)
+                && payload.Success
+                && payload.Fields != null
+                && payload.Fields.TryGetValue(
+                    "catalog",
+                    out var capabilityCatalog)
+                && capabilityCatalog.IndexOf(
+                    "native.process.observe.v1=requested",
+                    StringComparison.Ordinal) >= 0)
+            {
+                _ = CaptureNativeObserveAsync(
+                    eventArgs.Session);
+            }
+
+            Dispatch(
+                () =>
+                {
+                    var summary = payload.Success
+                                  && payload.Fields != null
+                        ? string.Join(
+                            " ",
+                            payload.Fields.Select(
+                                pair => pair.Key
+                                        + "="
+                                        + Truncate(
+                                            pair.Value,
+                                            180)))
+                        : "invalid-payload";
+                    AddTimeline(
+                        eventArgs.Envelope.Sequence.ToString(
+                            CultureInfo.InvariantCulture)
+                        + " "
+                        + eventArgs.Envelope.MessageType
+                        + " "
+                        + summary);
+                    HandleTypedEvent(
+                        eventArgs.Envelope.MessageType,
+                        payload.Fields);
+                });
+        }
+
+        private void HandleTypedEvent(
+            string messageType,
+            IReadOnlyDictionary<string, string>? fields)
+        {
+            if (fields == null)
+            {
+                return;
+            }
+
+            if (fields.TryGetValue("movieTick", out var movieTickText)
+                && long.TryParse(
+                    movieTickText,
+                    NumberStyles.AllowLeadingSign,
+                    CultureInfo.InvariantCulture,
+                    out var movieTick))
+            {
+                currentMovieTick = movieTick;
+            }
+
+            if (fields.TryGetValue("sceneEpoch", out var epochText)
+                && int.TryParse(
+                    epochText,
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out var epoch))
+            {
+                currentSceneEpoch = epoch;
+            }
+
+            if (fields.TryGetValue(
+                    "controlMode",
+                    out var controlMode))
+            {
+                currentControlMode = controlMode;
+            }
+
+            if (string.Equals(
+                    messageType,
+                    IpcMessageTypes.WatchFrame,
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    messageType,
+                    IpcMessageTypes.RuntimeStatus,
+                    StringComparison.Ordinal))
+            {
+                LatestState = fields.TryGetValue(
+                    "json",
+                    out var json)
+                    ? json
+                    : string.Join(
+                        Environment.NewLine,
+                        fields.Select(
+                            pair => pair.Key + " = " + pair.Value));
+            }
+
+            if (string.Equals(
+                    messageType,
+                    IpcMessageTypes.RuntimeModeChanged,
+                    StringComparison.Ordinal))
+            {
+                RuntimeSummary = string.Join(
+                    " · ",
+                    fields.Select(
+                        pair => pair.Key + "=" + pair.Value));
+            }
+
+            if (string.Equals(
+                    messageType,
+                    IpcMessageTypes.ReplaySaveCatalog,
+                    StringComparison.Ordinal)
+                && fields.TryGetValue("entries", out var entries))
+            {
+                ReplaySaves.Clear();
+                foreach (var line in entries.Split(
+                             new[] { '\n' },
+                             StringSplitOptions.RemoveEmptyEntries))
+                {
+                    ReplaySaves.Add(line);
+                }
+
+                RestoreStatus =
+                    ReplaySaves.Count.ToString(
+                        CultureInfo.InvariantCulture)
+                    + " replay saves.";
+            }
+
+            if (string.Equals(
+                    messageType,
+                    IpcMessageTypes.ReplaySaveRestoreProgress,
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    messageType,
+                    IpcMessageTypes.RestoreAccelerationStatus,
+                    StringComparison.Ordinal))
+            {
+                RestoreStatus = string.Join(
+                    Environment.NewLine,
+                    fields.Select(
+                        pair => pair.Key + " = " + pair.Value));
+            }
+
+            if (string.Equals(
+                    messageType,
+                    IpcMessageTypes.CapabilityCatalog,
+                    StringComparison.Ordinal))
+            {
+                capabilityBroker.ApplyRuntimeCatalog(
+                    fields.TryGetValue("catalog", out var catalog)
+                        ? catalog
+                        : string.Empty);
+                RefreshCapabilityView();
+            }
+
+            if (string.Equals(
+                    messageType,
+                    IpcMessageTypes.CommandRejected,
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    messageType,
+                    IpcMessageTypes.Fault,
+                    StringComparison.Ordinal))
+            {
+                Status = fields.TryGetValue("detail", out var detail)
+                    ? detail
+                    : messageType;
+            }
+
+            if (string.Equals(
+                    messageType,
+                    IpcMessageTypes.Desync,
+                    StringComparison.Ordinal))
+            {
+                FirstDifference = string.Join(
+                    Environment.NewLine,
+                    fields.Select(
+                        pair => pair.Key + " = " + pair.Value));
+            }
+        }
+
+        private void AddTimeline(string value)
+        {
+            while (Timeline.Count >= MaximumTimelineItems)
+            {
+                Timeline.RemoveAt(0);
+            }
+
+            Timeline.Add(value);
+        }
+
+        private void RefreshCapabilityView()
+        {
+            Capabilities.Clear();
+            foreach (var value in capabilityBroker.Snapshot())
+            {
+                Capabilities.Add(value);
+            }
+        }
+
+        private async Task CaptureNativeObserveAsync(
+            RuntimeSessionClient? requestedSession)
+        {
+            var session = requestedSession
+                          ?? SelectedSession?.Client
+                          ?? throw new InvalidOperationException(
+                              "Select a Runtime session.");
+            lock (nativeObserveSync)
+            {
+                if (!nativeObservedSessions.Add(
+                        session.SessionId))
+                {
+                    return;
+                }
+            }
+            try
+            {
+                await session.SendCommandAsync(
+                    IpcMessageTypes.ReportNativeEvidence,
+                    Fields(
+                        "capabilityId",
+                        "native.process.observe.v1",
+                        "fallback",
+                        "runtime-t09",
+                        "status",
+                        "started"),
+                    CancellationToken.None);
+                Dispatch(
+                    () => Status =
+                        "Capturing signed NativeHost evidence.");
+                var result =
+                    await nativeHostLauncher.CaptureObserveAsync(
+                        session,
+                        CancellationToken.None);
+                capabilityBroker.ApplyNativeEvidence(
+                    result.Fields);
+                await session.SendCommandAsync(
+                    IpcMessageTypes.ReportNativeEvidence,
+                    Fields(
+                        "assemblyCSharpSha256",
+                        result.Fields["assemblyCSharpSha256"],
+                        "attachCyclesCompleted",
+                        result.Fields["attachCyclesCompleted"],
+                        "buildWhitelistId",
+                        result.Fields["buildWhitelistId"],
+                        "capabilityId",
+                        "native.process.observe.v1",
+                        "capabilityVersion",
+                        "1",
+                        "checkpointStatus",
+                        "unsupported",
+                        "coreAssemblySha256",
+                        result.Fields["coreAssemblySha256"],
+                        "environmentManifestSha256",
+                        result.Fields[
+                            "environmentManifestSha256"],
+                        "evidenceVersion",
+                        "1",
+                        "fallback",
+                        "none",
+                        "imageSha256",
+                        result.Fields["imageSha256"],
+                        "moduleMapSha256",
+                        result.Fields["moduleMapSha256"],
+                        "parentProcessVerified",
+                        result.Fields["parentProcessVerified"],
+                        "pssCaptureApiAvailable",
+                        result.Fields["pssCaptureApiAvailable"],
+                        "rawPagesPersisted",
+                        "false",
+                        "runtimeAssemblySha256",
+                        result.Fields[
+                            "runtimeAssemblySha256"],
+                        "status",
+                        "verified",
+                        "targetFingerprint",
+                        result.Fields["targetFingerprint"],
+                        "threadSetSha256",
+                        result.Fields["threadSetSha256"]),
+                    CancellationToken.None);
+                Dispatch(
+                    () =>
+                    {
+                        NativeEvidence =
+                            result.ToDisplayText();
+                        RefreshCapabilityView();
+                        Status =
+                            "Native process observation verified; raw pages were not persisted.";
+                    });
+            }
+            catch (Exception exception)
+            {
+                lock (nativeObserveSync)
+                {
+                    nativeObservedSessions.Remove(
+                        session.SessionId);
+                }
+                try
+                {
+                    await session.SendCommandAsync(
+                        IpcMessageTypes.ReportNativeEvidence,
+                        Fields(
+                            "errorCode",
+                            exception.GetType().Name,
+                            "fallback",
+                            "runtime-t09",
+                            "status",
+                            "faulted"),
+                        CancellationToken.None);
+                }
+                catch
+                {
+                    // Runtime disconnect is already represented by the
+                    // local session state; do not mask the native failure.
+                }
+                Dispatch(
+                    () =>
+                    {
+                        NativeEvidence =
+                            "Native observation failed: "
+                            + exception.Message;
+                        Status = NativeEvidence;
+                    });
+            }
+        }
+
+        private void UpdateConnectionStatus()
+        {
+            var client = SelectedSession?.Client;
+            ConnectionBadge = client?.IsConnected == true
+                ? "CONNECTED · IPC v"
+                  + client.NegotiatedProtocol.ToString(
+                      CultureInfo.InvariantCulture)
+                : "DISCONNECTED";
+            RuntimeReadinessBadge = client?.IsConnected != true
+                ? "NOT READY"
+                : readySessions.Contains(client.SessionId)
+                    ? "READY"
+                    : warmedSessions.Contains(client.SessionId)
+                        ? "WARMING"
+                        : "NOT READY";
+            if (client != null && !client.IsConnected)
+            {
+                Status = string.IsNullOrEmpty(client.LastError)
+                    ? "Runtime session is disconnected."
+                    : client.LastError;
+            }
+        }
+
+        private static SortedDictionary<string, string> Fields(
+            params string[] values)
+        {
+            if (values.Length % 2 != 0)
+            {
+                throw new ArgumentException(
+                    "Fields require name/value pairs.",
+                    nameof(values));
+            }
+
+            var result = new SortedDictionary<string, string>(
+                StringComparer.Ordinal);
+            for (var index = 0; index < values.Length; index += 2)
+            {
+                result.Add(values[index], values[index + 1]);
+            }
+
+            if (!result.ContainsKey("requestId"))
+            {
+                result.Add(
+                    "requestId",
+                    "request-" + Guid.NewGuid().ToString("N"));
+            }
+
+            return result;
+        }
+
+        private static string Truncate(
+            string value,
+            int maximum)
+        {
+            return value.Length <= maximum
+                ? value
+                : value.Substring(0, maximum) + "…";
+        }
+
+        private static string BuildCanonicalDiff(
+            string source,
+            string canonical)
+        {
+            if (string.Equals(
+                    source,
+                    canonical,
+                    StringComparison.Ordinal))
+            {
+                return "No difference. The source is canonical.";
+            }
+
+            var sourceLines = NormalizeLines(source);
+            var canonicalLines = NormalizeLines(canonical);
+            var common = Math.Min(
+                sourceLines.Length,
+                canonicalLines.Length);
+            var first = 0;
+            while (first < common
+                   && string.Equals(
+                       sourceLines[first],
+                       canonicalLines[first],
+                       StringComparison.Ordinal))
+            {
+                first++;
+            }
+
+            var lineNumber = first + 1;
+            var sourceLine = first < sourceLines.Length
+                ? sourceLines[first]
+                : "<end-of-file>";
+            var canonicalLine = first < canonicalLines.Length
+                ? canonicalLines[first]
+                : "<end-of-file>";
+            return "First canonical difference at line "
+                   + lineNumber.ToString(
+                       CultureInfo.InvariantCulture)
+                   + Environment.NewLine
+                   + "- source: "
+                   + sourceLine
+                   + Environment.NewLine
+                   + "+ canonical: "
+                   + canonicalLine
+                   + Environment.NewLine
+                   + Environment.NewLine
+                   + "Canonical preview:"
+                   + Environment.NewLine
+                   + canonical;
+        }
+
+        private static string[] NormalizeLines(string value)
+        {
+            return value.Replace("\r\n", "\n")
+                .Replace('\r', '\n')
+                .Split(new[] { '\n' });
+        }
+
+        private static void Dispatch(Action action)
+        {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher == null || dispatcher.CheckAccess())
+            {
+                action();
+            }
+            else
+            {
+                dispatcher.BeginInvoke(action);
+            }
+        }
+
+        private void Set<T>(
+            ref T field,
+            T value,
+            [CallerMemberName] string? name = null)
+        {
+            if (EqualityComparer<T>.Default.Equals(field, value))
+            {
+                return;
+            }
+
+            field = value;
+            OnPropertyChanged(name);
+        }
+
+        private void OnPropertyChanged(
+            [CallerMemberName] string? name = null)
+        {
+            PropertyChanged?.Invoke(
+                this,
+                new PropertyChangedEventArgs(name));
+        }
+    }
+}

@@ -1,0 +1,15 @@
+hktas 1
+game 1.5.78.11833
+api 1.5.78.11833-77
+manifest-sha256 0000000000000000000000000000000000000000000000000000000000000000
+baseline none none
+tick-unit input
+---
+marker "T16 authoring 004: Dream Nail False Knight version orb"
+assert scene.name == "GG_Workshop"
+checkpoint seated-start
+frames 346 hold=right
+frames 8 hold=-
+frames 90 hold=dreamnail
+frames 180 hold=-
+checkpoint trial-end

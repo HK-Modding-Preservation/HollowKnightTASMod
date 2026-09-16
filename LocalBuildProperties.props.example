@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <HKManagedDir>C:\Path\To\Hollow Knight\hollow_knight_Data\Managed</HKManagedDir>
+    <HKModsDir>C:\Path\To\Hollow Knight\hollow_knight_Data\Managed\Mods</HKModsDir>
+  </PropertyGroup>
+</Project>
+

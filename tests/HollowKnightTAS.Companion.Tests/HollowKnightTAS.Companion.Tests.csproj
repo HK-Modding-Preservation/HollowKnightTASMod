@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>HollowKnightTAS.Companion.Tests</AssemblyName>
+    <RootNamespace>HollowKnightTAS.Companion.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="MSTest.TestAdapter" Version="4.3.2">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="MSTest.TestFramework" Version="4.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\HollowKnightTAS.Core\HollowKnightTAS.Core.csproj" />
+    <ProjectReference Include="..\..\src\HollowKnightTAS.Companion\HollowKnightTAS.Companion.csproj" />
+    <ProjectReference Include="..\..\src\HollowKnightTAS.Automation.Client\HollowKnightTAS.Automation.Client.csproj" />
+    <ProjectReference Include="..\..\src\HollowKnightTAS.AgentBridge\HollowKnightTAS.AgentBridge.csproj" />
+    <ProjectReference Include="..\..\src\HollowKnightTAS.Cli\HollowKnightTAS.Cli.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\fixtures\movie\golden\actions-v1.canonical.hktas"
+          Link="fixtures\actions-v1.canonical.hktas"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\fixtures\movie\invalid\unknown-action.hktas"
+          Link="fixtures\unknown-action.hktas"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

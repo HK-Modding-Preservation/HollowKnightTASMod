@@ -1,0 +1,14 @@
+<Project>
+  <Import Project="$(MSBuildThisFileDirectory)LocalBuildProperties.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)LocalBuildProperties.props')" />
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+</Project>
+

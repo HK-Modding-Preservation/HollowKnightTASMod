@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "whitelistId": "hk-1.5.78.11833-rng-v1",
+  "gameVersion": "1.5.78.11833",
+  "codec": {
+    "codecId": "unity-random-state-1.5.78.11833-s0-s3-be-v1",
+    "assemblyName": "UnityEngine.CoreModule.dll",
+    "assemblySha256": "0f0bec6f864da12ea7fe2d068af73c04d8c4dc267b21490e5c3ca1e730e59b14",
+    "moduleVersionId": "047294ce-45cf-4b9a-9441-e48d2b8435e4",
+    "fieldOrder": [
+      "s0:System.Int32",
+      "s1:System.Int32",
+      "s2:System.Int32",
+      "s3:System.Int32"
+    ],
+    "integerEncoding": "big-endian-two-complement"
+  },
+  "callSiteAssembly": {
+    "assemblyName": "Assembly-CSharp.dll",
+    "assemblySha256": "5944411bd93830369390a4b51766ee68c4ab26195b299e25a07b5e7d0e00086d",
+    "moduleVersionId": "2b54cdaf-7a93-4f0e-b297-d50c4090ea9f"
+  },
+  "coverage": {
+    "coverageId": "unity-random-partial-whitelist-v1",
+    "unityRandomState": "captured",
+    "whitelistedMethods": 2,
+    "systemRandom": "not-covered",
+    "otherModRng": "not-covered",
+    "claim": "diagnostic-only"
+  },
+  "callSites": [
+    {
+      "callSiteId": "helper.random-vector2",
+      "declaringType": "Helper",
+      "methodSignature": "UnityEngine.Vector2 Helper::GetRandomVector2InRange(UnityEngine.Vector2,UnityEngine.Vector2)",
+      "metadataToken": 100670400,
+      "methodIlSha256": "6fe187f1d6cd4badb112c5b4269f171ade2e9cc38d561ad3095d121d0c7bcb38",
+      "hookType": "method-boundary",
+      "expectedRandomApi": "System.Single UnityEngine.Random::Range(System.Single,System.Single)",
+      "expectedRandomCallCount": 2
+    },
+    {
+      "callSiteId": "hero.take-damage",
+      "declaringType": "HeroController",
+      "methodSignature": "System.Void HeroController::TakeDamage(UnityEngine.GameObject,GlobalEnums.CollisionSide,System.Int32,System.Int32)",
+      "metadataToken": 100664696,
+      "methodIlSha256": "f5003dd615f7e330adb220543ba9582d40b4c8b6a575f63cebd788dd3512310e",
+      "hookType": "method-boundary",
+      "expectedRandomApi": "System.Int32 UnityEngine.Random::Range(System.Int32,System.Int32)",
+      "expectedRandomCallCount": 7
+    }
+  ]
+}

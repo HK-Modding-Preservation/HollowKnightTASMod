@@ -1,0 +1,22 @@
+hktas 1
+game 1.5.78.11833
+api 1.5.78.11833-77
+manifest-sha256 0000000000000000000000000000000000000000000000000000000000000000
+baseline none none
+tick-unit input
+---
+marker "T24 input copied from committed no-TAS HeroActions"
+assert scene.name == "GG_Workshop"
+checkpoint seated-start
+frames 5 hold=right
+frames 63 hold=-
+frames 4 hold=attack
+frames 10 hold=-
+frames 3 hold=left
+frames 3 hold=left,attack
+frames 3 hold=left
+frames 9 hold=-
+frames 6 hold=jump
+frames 4 hold=-
+frames 10 hold=jump
+checkpoint regression-end

@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "t24.false-knight-combat.v3",
+  "description": "从诸神堂椅子进入调谐假骑士，以 v2 的逐帧精确输入覆盖 Boss 原版 FSM、掉血、攻击碰撞以及 Hero 受伤与攻击反冲；Hero 在梦境挑战中死亡后按原版流程返回诸神堂并走回中庭。",
+  "fixture": {
+    "slot": 2,
+    "startScene": "GG_Workshop"
+  },
+  "movie": {
+    "path": "fixtures/t24/false-knight-combat-v2.hktas",
+    "sha256": "c02d69356b86d38b2062afa2cd2e700030aed5459c17d82afa7fe14889e709ef",
+    "expandedTicks": 2811,
+    "inputMode": "digital-only",
+    "digitalActionMask": 1143
+  },
+  "requiredFields": [
+    { "key": "hero.actorState", "kind": "Utf8String" },
+    { "key": "hero.animation.clip", "kind": "Utf8String" },
+    { "key": "hero.recoil.timer", "kind": "Float32Bits" },
+    { "key": "hero.rigidbody.simulated", "kind": "Boolean" },
+    { "key": "hero.slash.executing", "kind": "Boolean" },
+    { "key": "hero.state.attacking", "kind": "Boolean" },
+    { "key": "hero.state.invulnerable", "kind": "Boolean" },
+    { "key": "hero.state.nailRecoiling", "kind": "Boolean" },
+    { "key": "hero.state.recoilFrozen", "kind": "Boolean" },
+    { "key": "hero.state.recoiling", "kind": "Boolean" },
+    { "key": "hero.velocity.x", "kind": "Float32Bits" },
+    { "key": "hero.velocity.y", "kind": "Float32Bits" },
+    { "key": "input.held", "kind": "Int32" },
+    { "key": "input.pressed", "kind": "Int32" },
+    { "key": "input.released", "kind": "Int32" },
+    { "key": "player.health", "kind": "Int32" },
+    { "key": "player.maxHealth", "kind": "Int32" },
+    { "key": "scene.name", "kind": "Utf8String" },
+    { "key": "world.falseKnight.animation.clip", "kind": "Utf8String" },
+    { "key": "world.falseKnight.collider.activeCount", "kind": "Int32" },
+    { "key": "world.falseKnight.dead", "kind": "Boolean" },
+    { "key": "world.falseKnight.fsm.active", "kind": "Boolean" },
+    { "key": "world.falseKnight.fsm.name", "kind": "Utf8String" },
+    { "key": "world.falseKnight.fsm.present", "kind": "Boolean" },
+    { "key": "world.falseKnight.fsm.state", "kind": "Utf8String" },
+    { "key": "world.falseKnight.hitter.active", "kind": "Boolean" },
+    { "key": "world.falseKnight.hitter.colliderEnabled", "kind": "Boolean" },
+    { "key": "world.falseKnight.hitter.damage", "kind": "Int32" },
+    { "key": "world.falseKnight.hp", "kind": "Int32" },
+    { "key": "world.falseKnight.objectName", "kind": "Utf8String" },
+    { "key": "world.falseKnight.objectPath", "kind": "Utf8String" },
+    { "key": "world.falseKnight.present", "kind": "Boolean" },
+    { "key": "world.falseKnight.rigidbody.simulated", "kind": "Boolean" },
+    { "key": "world.rng.unity.synchronizedOrigin.s0", "kind": "Int32" },
+    { "key": "world.rng.unity.synchronizedOrigin.s1", "kind": "Int32" },
+    { "key": "world.rng.unity.synchronizedOrigin.s2", "kind": "Int32" },
+    { "key": "world.rng.unity.synchronizedOrigin.s3", "kind": "Int32" }
+  ],
+  "assertions": [
+    {
+      "id": "workshop-to-false-knight",
+      "type": "ordered-match",
+      "description": "冻结 movie 必须真实从诸神堂进入假骑士场景，并在梦境挑战死亡后按原版流程返回诸神堂、走回中庭。",
+      "field": "scene.name",
+      "patterns": ["\\AGG_Workshop\\z", "\\AGG_False_Knight\\z", "\\AGG_Workshop\\z", "\\AGG_Atrium\\z"],
+      "minCount": 1
+    },
+    {
+      "id": "authoritative-boss-identity",
+      "type": "all-when",
+      "description": "Boss 出现时必须是权威 False Knight New/FalseyControl 实例并保留原版物理。",
+      "when": { "field": "world.falseKnight.present", "op": "eq", "value": true },
+      "then": [
+        { "field": "scene.name", "op": "eq", "value": "GG_False_Knight" },
+        { "field": "world.falseKnight.objectName", "op": "eq", "value": "False Knight New" },
+        { "field": "world.falseKnight.objectPath", "op": "regex", "value": "\\A(?:Battle Scene/)?False Knight New\\z" },
+        { "field": "world.falseKnight.fsm.present", "op": "eq", "value": true },
+        { "field": "world.falseKnight.fsm.active", "op": "eq", "value": true },
+        { "field": "world.falseKnight.fsm.name", "op": "eq", "value": "FalseyControl" },
+        { "field": "world.falseKnight.rigidbody.simulated", "op": "eq", "value": true },
+        { "field": "world.falseKnight.collider.activeCount", "op": "gt", "value": 0 }
+      ],
+      "minTriggered": 500
+    },
+    {
+      "id": "boss-hp-decreases",
+      "type": "delta",
+      "description": "HealthManager HP 必须在相邻 gameplay tick 真实下降，不能只靠命中计数。",
+      "field": "world.falseKnight.hp",
+      "direction": "decrease",
+      "minMagnitude": 1,
+      "minCount": 2
+    },
+    {
+      "id": "boss-damaged-value-observed",
+      "type": "coincident",
+      "description": "冻结调谐基准中 Boss 必须在仍存在时到达首个真实受伤 HP 值。",
+      "conditions": [
+        { "field": "world.falseKnight.present", "op": "eq", "value": true },
+        { "field": "world.falseKnight.hp", "op": "eq", "value": 228 },
+        { "field": "world.falseKnight.fsm.active", "op": "eq", "value": true }
+      ],
+      "minCount": 1
+    },
+    {
+      "id": "hero-health-decreases",
+      "type": "delta",
+      "description": "Hero 必须承受一次原版伤害并由 PlayerData 扣血。",
+      "field": "player.health",
+      "direction": "decrease",
+      "minMagnitude": 1,
+      "minCount": 1
+    },
+    {
+      "id": "damage-freeze-animation",
+      "type": "coincident",
+      "description": "扣血后的原版 damage freeze 必须伴随 Hero Stun 本体动画和无敌状态。",
+      "conditions": [
+        { "field": "hero.state.recoilFrozen", "op": "eq", "value": true },
+        { "field": "hero.state.invulnerable", "op": "eq", "value": true },
+        { "field": "hero.animation.clip", "op": "eq", "value": "Stun" }
+      ],
+      "minCount": 1
+    },
+    {
+      "id": "damage-recoil-is-original",
+      "type": "coincident",
+      "description": "轨迹必须出现原版受伤后坐、无敌、Recoil 本体动画、no_input ActorState 和 Rigidbody 模拟的同帧组合；Stun 到 Recoil 的原版过渡由逐帧基准比较约束。",
+      "conditions": [
+        { "field": "hero.state.recoiling", "op": "eq", "value": true },
+        { "field": "hero.state.invulnerable", "op": "eq", "value": true },
+        { "field": "hero.animation.clip", "op": "eq", "value": "Recoil" },
+        { "field": "hero.actorState", "op": "eq", "value": "no_input" },
+        { "field": "hero.recoil.timer", "op": "ge", "value": 0 },
+        { "field": "hero.rigidbody.simulated", "op": "eq", "value": true }
+      ],
+      "minCount": 2
+    },
+    {
+      "id": "slash-drives-original-hero-action-in-combat",
+      "type": "coincident",
+      "description": "战斗轨迹必须持续出现刀光、Hero 原版攻击状态与本体攻击动画的同帧组合；原版取消和重叠过渡由逐帧基准比较约束。",
+      "conditions": [
+        { "field": "scene.name", "op": "eq", "value": "GG_False_Knight" },
+        { "field": "hero.slash.executing", "op": "eq", "value": true },
+        { "field": "hero.state.attacking", "op": "eq", "value": true },
+        { "field": "hero.animation.clip", "op": "regex", "value": "\\A(?:Slash|SlashAlt|UpSlash|DownSlash|WallSlash)\\z" },
+        { "field": "hero.rigidbody.simulated", "op": "eq", "value": true }
+      ],
+      "minCount": 30
+    },
+    {
+      "id": "nail-hit-produces-recoil",
+      "type": "coincident",
+      "description": "至少一次战斗攻击必须在刀光执行期间触发 HeroController 原版水平 nail recoil。",
+      "conditions": [
+        { "field": "scene.name", "op": "eq", "value": "GG_False_Knight" },
+        { "field": "world.falseKnight.present", "op": "eq", "value": true },
+        { "field": "hero.slash.executing", "op": "eq", "value": true },
+        { "field": "hero.state.nailRecoiling", "op": "eq", "value": true }
+      ],
+      "minCount": 1
+    },
+    {
+      "id": "boss-hitter-becomes-dangerous",
+      "type": "coincident",
+      "description": "Boss 原版 Hitter 必须真实激活、启用碰撞体并携带伤害。",
+      "conditions": [
+        { "field": "world.falseKnight.present", "op": "eq", "value": true },
+        { "field": "world.falseKnight.hitter.active", "op": "eq", "value": true },
+        { "field": "world.falseKnight.hitter.colliderEnabled", "op": "eq", "value": true },
+        { "field": "world.falseKnight.hitter.damage", "op": "gt", "value": 0 }
+      ],
+      "minCount": 1
+    },
+    {
+      "id": "boss-full-attack-cycle",
+      "type": "ordered-match",
+      "description": "FalseyControl 必须完成首个 Idle 到 Jump Antic、落地状态和再次 Idle 的原版攻击周期。",
+      "field": "world.falseKnight.fsm.state",
+      "patterns": [
+        "\\AFirst Idle\\z",
+        "\\AJump Antic\\z",
+        "\\AState 1\\z",
+        "\\AIdle\\z"
+      ],
+      "minCount": 1
+    }
+  ],
+  "requiredModes": [
+    "VanillaReference",
+    "TasPassive",
+    "ManualTas",
+    "AiTas",
+    "SequentialStep",
+    "BatchStep"
+  ],
+  "terminal": {
+    "allowedScenes": ["GG_Atrium"],
+    "maxTicks": 2811
+  }
+}
+

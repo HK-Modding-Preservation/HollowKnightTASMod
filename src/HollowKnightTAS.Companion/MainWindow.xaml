@@ -1,0 +1,416 @@
+<Window x:Class="HollowKnightTAS.Companion.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        AutomationProperties.AutomationId="HktasStudio.MainWindow"
+        Style="{StaticResource {x:Type Window}}"
+        Title="HollowKnightTAS Studio"
+        Width="1180"
+        Height="760"
+        MinWidth="900"
+        MinHeight="600">
+  <DockPanel Margin="12">
+    <Button DockPanel.Dock="Top" Content="启动 TAS 游戏"
+            HorizontalAlignment="Left" Margin="0,0,0,8"
+            AutomationProperties.AutomationId="HktasStudio.LaunchGameButton"
+            ToolTip="已有游戏时请先正常保存退出，再从这里启动。"
+            Command="{Binding LaunchGameCommand}" />
+    <Border DockPanel.Dock="Top"
+            Background="{StaticResource PanelBrush}"
+            CornerRadius="6"
+            Padding="12"
+            Margin="0,0,0,10">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="260" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Text="Session"
+                   VerticalAlignment="Center"
+                   Margin="0,0,8,0"
+                   Foreground="#A8B7C8" />
+        <ComboBox Grid.Column="1"
+                  ItemsSource="{Binding Sessions}"
+                  SelectedItem="{Binding SelectedSession}"
+                  DisplayMemberPath="DisplayName"
+                  Margin="0,0,12,0" />
+        <TextBlock Grid.Column="2"
+                   AutomationProperties.AutomationId="HktasStudio.StatusText"
+                   Text="{Binding Status}"
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="3"
+                   AutomationProperties.AutomationId="HktasStudio.RuntimeReadinessBadge"
+                   Text="{Binding RuntimeReadinessBadge}"
+                   Foreground="#A8B7C8"
+                   FontWeight="SemiBold"
+                   Margin="12,0,12,0"
+                   ToolTip="Runtime state and capability catalog readiness"
+                   VerticalAlignment="Center" />
+        <TextBlock Grid.Column="4"
+                   AutomationProperties.AutomationId="HktasStudio.ConnectionBadge"
+                   Text="{Binding ConnectionBadge}"
+                   Foreground="{StaticResource AccentBrush}"
+                   FontWeight="SemiBold"
+                   VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <TabControl AutomationProperties.AutomationId="HktasStudio.MainTabs">
+      <TabItem Header="Movie Editor"
+               AutomationProperties.AutomationId="HktasStudio.MovieEditorTab">
+        <Grid Margin="8">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="120" />
+          </Grid.RowDefinitions>
+          <WrapPanel Margin="0,0,0,6">
+            <Button Content="Open" Command="{Binding OpenMovieCommand}" />
+            <Button Content="Save" Command="{Binding SaveMovieCommand}" />
+            <Button Content="Validate"
+                    AutomationProperties.AutomationId="HktasStudio.MovieValidateButton"
+                    Command="{Binding ValidateMovieCommand}" />
+            <Button Content="Format" Command="{Binding FormatMovieCommand}" />
+            <Button Content="Upload"
+                    AutomationProperties.AutomationId="HktasStudio.MovieUploadButton"
+                    Command="{Binding UploadMovieCommand}" />
+            <Button Content="Read Runtime Movie" Command="{Binding RefreshRuntimeMovieCommand}" />
+            <Button Content="Start Replay"
+                    AutomationProperties.AutomationId="HktasStudio.MovieStartReplayButton"
+                    Command="{Binding StartReplayCommand}" />
+            <Button Content="Stop" Command="{Binding StopReplayCommand}" />
+          </WrapPanel>
+          <TextBox Grid.Row="1"
+                   AutomationProperties.AutomationId="HktasStudio.MovieText"
+                   Text="{Binding MovieText, UpdateSourceTrigger=PropertyChanged}"
+                   AcceptsReturn="True"
+                   AcceptsTab="True"
+                   FontFamily="Cascadia Mono, Consolas"
+                   FontSize="13"
+                   HorizontalScrollBarVisibility="Auto"
+                   VerticalScrollBarVisibility="Auto"
+                   SpellCheck.IsEnabled="False" />
+          <TextBox Grid.Row="2"
+                   AutomationProperties.AutomationId="HktasStudio.MovieValidationOutput"
+                   Text="{Binding ValidationOutput, Mode=OneWay}"
+                   Margin="0,8,0,0"
+                   IsReadOnly="True"
+                   TextWrapping="Wrap"
+                   VerticalScrollBarVisibility="Auto" />
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Control &amp; State"
+               AutomationProperties.AutomationId="HktasStudio.ControlStateTab">
+        <Grid Margin="8">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <WrapPanel>
+            <Button Content="Pause"
+                    AutomationProperties.AutomationId="HktasStudio.ControlPauseButton"
+                    Command="{Binding PauseCommand}" />
+            <Button Content="Step 1 Movie Tick"
+                    AutomationProperties.AutomationId="HktasStudio.ControlStepButton"
+                    Command="{Binding StepCommand}" />
+            <Button Content="Resume"
+                    AutomationProperties.AutomationId="HktasStudio.ControlResumeButton"
+                    Command="{Binding ResumeCommand}" />
+            <Button Content="Structured State" Command="{Binding SnapshotCommand}" />
+            <Button Content="退出暂停游戏" Command="{Binding QuitGameCommand}"
+                    ToolTip="先保存需要保留的 TAS 点并等待 Ready；退出不会继续运行游戏。" />
+            <TextBlock Text="游戏槽（1–4）" VerticalAlignment="Center" Margin="6,0" />
+            <TextBox Text="{Binding GameSlot, UpdateSourceTrigger=PropertyChanged}" Width="36" />
+            <Button Content="读取已有游戏槽" Command="{Binding LoadGameSlotCommand}"
+                    ToolTip="仅新启动的主菜单可用；等待录制起点就绪后再输入。不会创建或覆盖槽。" />
+            <Button Content="从此槽重新开始录制" Command="{Binding RestartRecordingSessionCommand}"
+                    ToolTip="先保存要保留的 TAS 点并等待 Ready。正常退出当前游戏，在新进程读取此槽；不保存当前局内位置到游戏槽。" />
+            <Button Content="同进程重读此槽" Command="{Binding ReloadGameSlotCommand}"
+                    ToolTip="完整帧暂停后使用。原生返回菜单并读槽，保留录制根与生命周期记录；不会将当前局内位置写入游戏槽。" />
+            <Button Content="取消重新开始" Command="{Binding CancelRecordingRestartCommand}" />
+            <Button Content="Combat State" Command="{Binding RefreshCombatStateCommand}" />
+          </WrapPanel>
+          <TextBlock Grid.Row="1"
+                     AutomationProperties.AutomationId="HktasStudio.RuntimeSummary"
+                     Text="{Binding RuntimeSummary}"
+                     Margin="4,8"
+                     Foreground="#A8B7C8"
+                     TextWrapping="Wrap" />
+          <TextBox Grid.Row="2"
+                   AutomationProperties.AutomationId="HktasStudio.LatestState"
+                   Text="{Binding LatestState, Mode=OneWay}"
+                   IsReadOnly="True"
+                   FontFamily="Cascadia Mono, Consolas"
+                   HorizontalScrollBarVisibility="Auto"
+                   VerticalScrollBarVisibility="Auto"
+                   TextWrapping="NoWrap" />
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Frame Authoring" AutomationProperties.AutomationId="HktasStudio.FrameAuthoringTab">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="10">
+            <TextBlock Text="Live frame input"
+                       FontSize="16"
+                       FontWeight="SemiBold" />
+            <TextBlock Margin="0,4,0,10"
+                       Foreground="#A8B7C8"
+                       TextWrapping="Wrap"
+                       Text="Pause the Runtime first. Actions are comma-separated Movie v1 names: left,right,up,down,jump,attack,dash,cast,quickcast,superdash,dreamnail. Use - for neutral." />
+            <WrapPanel>
+              <TextBlock Text="Hold" VerticalAlignment="Center" />
+              <TextBox Text="{Binding FrameInputHold, UpdateSourceTrigger=PropertyChanged}"
+                       Width="220"
+                       Margin="6,0,14,0" />
+              <TextBlock Text="Ticks" VerticalAlignment="Center" />
+              <TextBox Text="{Binding FrameInputCount, UpdateSourceTrigger=PropertyChanged}"
+                       Width="90"
+                       Margin="6,0,14,0" />
+              <Button Content="Step 1 With Input"
+                      Command="{Binding StepWithInputCommand}" />
+              <Button Content="Run Input Batch"
+                      Command="{Binding RunInputBatchCommand}" />
+            </WrapPanel>
+
+            <Separator Margin="0,14" />
+            <TextBlock Text="Edit past input"
+                       FontSize="16"
+                       FontWeight="SemiBold" />
+            <CheckBox Content="编辑完整局内记录（保留读槽事件）"
+                      IsChecked="{Binding TimelineIncludeLifecycle}"
+                      AutomationProperties.AutomationId="HktasStudio.TimelineIncludeLifecycle"
+                      Margin="0,6,0,4" />
+            <CheckBox Content="继续编辑 Branch ID 指定的分支（不读取当前游戏记录）"
+                      IsChecked="{Binding TimelineEditStoredBranch}"
+                      IsEnabled="{Binding TimelineIncludeLifecycle}"
+                      AutomationProperties.AutomationId="HktasStudio.TimelineEditStoredBranch"
+                      Margin="0,0,0,4" />
+            <TextBlock Margin="0,4,0,10"
+                       Foreground="#A8B7C8"
+                       TextWrapping="Wrap"
+                       Text="Edits use input-tick coordinates and update the canonical movie in Movie Editor. Upload the edited branch, then restore a replay save and replay/seek from the desired point." />
+            <WrapPanel Margin="0,0,0,8">
+              <TextBlock Text="Start tick" VerticalAlignment="Center" />
+              <TextBox Text="{Binding TimelineStartTick, UpdateSourceTrigger=PropertyChanged}"
+                       AutomationProperties.AutomationId="HktasStudio.TimelineStartTick"
+                       Width="100"
+                       Margin="6,0,14,0" />
+              <TextBlock Text="Delete ticks" VerticalAlignment="Center" />
+              <TextBox Text="{Binding TimelineDeleteCount, UpdateSourceTrigger=PropertyChanged}"
+                       Width="100"
+                       Margin="6,0,14,0" />
+            </WrapPanel>
+            <WrapPanel Margin="0,0,0,8">
+              <TextBlock Text="Replacement hold" VerticalAlignment="Center" />
+              <TextBox Text="{Binding TimelineReplacementHold, UpdateSourceTrigger=PropertyChanged}"
+                       AutomationProperties.AutomationId="HktasStudio.TimelineReplacementHold"
+                       Width="220"
+                       Margin="6,0,14,0" />
+              <TextBlock Text="Replacement ticks" VerticalAlignment="Center" />
+              <TextBox Text="{Binding TimelineReplacementCount, UpdateSourceTrigger=PropertyChanged}"
+                       Width="100"
+                       Margin="6,0,14,0" />
+            </WrapPanel>
+            <WrapPanel>
+              <Button Content="Replace Range"
+                      Command="{Binding ReplaceInputRangeCommand}" />
+              <Button Content="Insert Range"
+                      Command="{Binding InsertInputRangeCommand}" />
+              <Button Content="Delete Range"
+                      Command="{Binding DeleteInputRangeCommand}" />
+              <Button Content="Undo"
+                      Command="{Binding UndoTimelineEditCommand}" />
+              <Button Content="Redo"
+                      Command="{Binding RedoTimelineEditCommand}" />
+            </WrapPanel>
+
+            <Separator Margin="0,14" />
+            <TextBlock Text="Record and deterministic run"
+                       FontSize="16"
+                       FontWeight="SemiBold" />
+            <TextBlock Margin="0,4,0,10"
+                       Foreground="#A8B7C8"
+                       TextWrapping="Wrap"
+                       Text="Recording captures injected and live input into the canonical movie. Run Until advances deterministically to the requested movie tick." />
+            <WrapPanel>
+              <Button Content="Start Recording"
+                      Command="{Binding StartRecordingCommand}" />
+              <Button Content="Stop Recording"
+                      Command="{Binding StopRecordingCommand}" />
+              <TextBlock Text="Target tick"
+                         Margin="14,0,0,0"
+                         VerticalAlignment="Center" />
+              <TextBox Text="{Binding RunUntilTargetTick, UpdateSourceTrigger=PropertyChanged}"
+                       Width="110"
+                       Margin="6,0,14,0" />
+              <Button Content="Run Until"
+                      Command="{Binding RunUntilCommand}" />
+            </WrapPanel>
+
+            <Separator Margin="0,14" />
+            <TextBlock Text="Branch apply and time travel"
+                       FontSize="16"
+                       FontWeight="SemiBold" />
+            <TextBlock Margin="0,4,0,10"
+                       Foreground="#A8B7C8"
+                       TextWrapping="Wrap"
+                       Text="Apply a content-addressed edited branch, seek the active movie through the nearest compatible replay save, or atomically apply the branch and seek." />
+            <WrapPanel Margin="0,0,0,8">
+              <TextBlock Text="Branch movie ID"
+                         VerticalAlignment="Center" />
+              <TextBox Text="{Binding BranchMovieId, UpdateSourceTrigger=PropertyChanged}"
+                       AutomationProperties.AutomationId="HktasStudio.BranchMovieId"
+                       Width="520"
+                       Margin="6,0,14,0" />
+              <Button Content="Apply Branch"
+                      Command="{Binding ApplyMovieBranchCommand}" />
+            </WrapPanel>
+            <WrapPanel Margin="0,0,0,8">
+              <Button Content="刷新已存分支" Command="{Binding RefreshBranchesCommand}" />
+              <ComboBox ItemsSource="{Binding SavedBranches}" SelectedItem="{Binding SelectedSavedBranch}"
+                        DisplayMemberPath="Display" Width="550" Margin="8,0"
+                        AutomationProperties.AutomationId="HktasStudio.SavedBranches" />
+              <Button Content="更多分支" Command="{Binding MoreBranchesCommand}" />
+            </WrapPanel>
+            <WrapPanel>
+              <TextBlock Text="Seek target tick"
+                         VerticalAlignment="Center" />
+              <TextBox Text="{Binding SeekTargetTick, UpdateSourceTrigger=PropertyChanged}"
+                       Width="110"
+                       Margin="6,0,14,0" />
+              <Button Content="Seek"
+                      Command="{Binding SeekMovieTickCommand}" />
+              <Button Content="Apply Branch + Seek"
+                      Command="{Binding ApplyBranchAndSeekCommand}" />
+            </WrapPanel>
+            <TextBox Text="{Binding AuthoringStatus, Mode=OneWay}"
+                     Margin="0,12,0,0"
+                     MinHeight="100"
+                     IsReadOnly="True"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <TabItem Header="Timeline">
+        <Grid Margin="8">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="150" />
+          </Grid.RowDefinitions>
+          <WrapPanel>
+            <Button Content="Subscribe Watch" Command="{Binding SubscribeWatchCommand}" />
+            <Button Content="Subscribe Ledger" Command="{Binding SubscribeLedgerCommand}" />
+            <Button Content="Clear" Command="{Binding ClearTimelineCommand}" />
+          </WrapPanel>
+          <ListBox Grid.Row="1"
+                   Margin="0,8,0,0"
+                   ItemsSource="{Binding Timeline}"
+                   FontFamily="Cascadia Mono, Consolas"
+                   VirtualizingPanel.IsVirtualizing="True" />
+          <TextBox Grid.Row="2"
+                   Text="{Binding FirstDifference, Mode=OneWay}"
+                   Margin="0,8,0,0"
+                   IsReadOnly="True"
+                   FontFamily="Cascadia Mono, Consolas"
+                   TextWrapping="NoWrap"
+                   HorizontalScrollBarVisibility="Auto"
+                   VerticalScrollBarVisibility="Auto" />
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Canonical Diff">
+        <TextBox Margin="8"
+                 Text="{Binding CanonicalDiff, Mode=OneWay}"
+                 IsReadOnly="True"
+                 FontFamily="Cascadia Mono, Consolas"
+                 TextWrapping="NoWrap"
+                 HorizontalScrollBarVisibility="Auto"
+                 VerticalScrollBarVisibility="Auto" />
+      </TabItem>
+
+      <TabItem Header="Replay Saves">
+        <Grid Margin="8">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="120" />
+          </Grid.RowDefinitions>
+          <StackPanel>
+          <WrapPanel>
+            <Button Content="Refresh" Command="{Binding RefreshReplaySavesCommand}" />
+            <Button Content="Create Manual Save" Command="{Binding CreateReplaySaveCommand}" />
+            <Button Content="Restore Selected" Command="{Binding RestoreReplaySaveCommand}" />
+            <Button Content="Approve Overwrite" Command="{Binding ApproveReplaySaveOverwriteCommand}" />
+            <Button Content="Deny Overwrite" Command="{Binding DenyReplaySaveOverwriteCommand}" />
+            <Button Content="Resume" Command="{Binding ResumeReplaySaveRestoreCommand}" />
+            <Button Content="Cancel Restore" Command="{Binding CancelReplaySaveRestoreCommand}" />
+          </WrapPanel>
+          <WrapPanel Margin="0,6,0,0">
+            <Button Content="读取当前策略" Command="{Binding RefreshAutoSavePolicyCommand}" />
+            <CheckBox Content="自动存档" IsChecked="{Binding AutoSaveEnabled}" VerticalAlignment="Center" />
+            <TextBlock Text=" 间隔（有效帧） " VerticalAlignment="Center" />
+            <TextBox Width="90" Text="{Binding AutoSaveInterval, UpdateSourceTrigger=PropertyChanged}" />
+            <TextBlock Text=" 保留自动存档数 " VerticalAlignment="Center" />
+            <TextBox Width="55" Text="{Binding AutoSaveRetention, UpdateSourceTrigger=PropertyChanged}" />
+            <Button Content="应用自动存档策略" Command="{Binding SetAutoSavePolicyCommand}"
+                    ToolTip="立即应用，正常退出后保留设置。仅按推进的 Movie 帧计时；只淘汰自动存档，不删除手动存档。" />
+          </WrapPanel>
+          </StackPanel>
+          <ListBox Grid.Row="1"
+                   Margin="0,8,0,0"
+                   ItemsSource="{Binding ReplaySaves}"
+                   SelectedItem="{Binding SelectedReplaySave}" />
+          <TextBox Grid.Row="2"
+                   Text="{Binding RestoreStatus, Mode=OneWay}"
+                   Margin="0,8,0,0"
+                   IsReadOnly="True"
+                   TextWrapping="Wrap"
+                   VerticalScrollBarVisibility="Auto" />
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Capabilities">
+        <Grid Margin="8">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="220" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <WrapPanel>
+            <Button Content="Refresh Capability Catalog"
+                    Command="{Binding RefreshCapabilitiesCommand}" />
+            <Button Content="Capture Native Observe"
+                    Command="{Binding CaptureNativeObserveCommand}" />
+            <Button Content="Revoke External Control Lease"
+                    Command="{Binding RevokeAutomationLeaseCommand}" />
+          </WrapPanel>
+          <ListBox Grid.Row="1"
+                   Margin="0,8,0,0"
+                   ItemsSource="{Binding Capabilities}" />
+          <TextBox Grid.Row="2"
+                   Text="{Binding NativeEvidence, Mode=OneWay}"
+                   Margin="0,8,0,0"
+                   IsReadOnly="True"
+                   FontFamily="Cascadia Mono, Consolas"
+                   TextWrapping="NoWrap"
+                   HorizontalScrollBarVisibility="Auto"
+                   VerticalScrollBarVisibility="Auto" />
+          <TextBlock Grid.Row="3"
+                     Text="{Binding AutomationControlStatus}"
+                     Margin="4,8,4,0"
+                     Foreground="#A8B7C8"
+                     TextWrapping="Wrap" />
+        </Grid>
+      </TabItem>
+    </TabControl>
+  </DockPanel>
+</Window>

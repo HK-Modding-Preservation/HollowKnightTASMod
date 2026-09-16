@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "routeId": "p0-short-route",
+  "saveSlot": 2,
+  "initialScene": "GG_Vengefly",
+  "baselineId": "slot-2-gg-vengefly",
+  "baselineSemanticSha256": "8b8c7995768198cdac8b44a563e875a50bb47efc70a25eab2e7afabccbd262b9",
+  "isolatedManifestSha256": "77b19f22c6df1a8db00ebf1307106a63321af90054a433191acef1267a8c7285",
+  "originalExpandedTicks": 175,
+  "editedExpandedTicks": 185,
+  "edit": "increase the initial neutral wait from 10 to 20 input ticks",
+  "endpointMilestone": {
+    "scene": "GG_Vengefly",
+    "actorState": "idle",
+    "onGround": true,
+    "leftwardDisplacementMin": 1.0,
+    "leftwardDisplacementMax": 1.7,
+    "verticalDriftMax": 0.01,
+    "velocityAbsMax": 0.001
+  }
+}

@@ -1,0 +1,25 @@
+hktas 1
+game 1.5.78.11833
+api 1.5.78.11833-77
+manifest-sha256 0000000000000000000000000000000000000000000000000000000000000000
+baseline none none
+tick-unit input
+---
+marker "T24 minimal regression: vanilla bench exit, nail animation and rapid double jump"
+assert scene.name == "GG_Workshop"
+checkpoint seated-start
+frames 178 hold=right
+frames 179 hold=-
+frames 23 hold=right
+frames 109 hold=-
+frames 18 hold=attack
+frames 48 hold=-
+frames 10 hold=left
+frames 18 hold=left,attack
+frames 11 hold=left
+frames 44 hold=-
+frames 10 hold=jump
+frames 4 hold=-
+frames 30 hold=jump
+frames 518 hold=-
+checkpoint regression-end

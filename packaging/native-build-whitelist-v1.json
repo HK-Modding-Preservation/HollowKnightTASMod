@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "builds": [
+    {
+      "id": "hk-1.5.78.11833-win64-v1",
+      "architecture": "x64",
+      "gameVersion": "1.5.78.11833",
+      "imageFileName": "hollow_knight.exe",
+      "imageSha256": "4d3d0f55afbb249170241d0dc6faf9a5dcf3e1ed427a282ae990bb6e4e3a6913",
+      "assemblyCSharpSha256": "5944411bd93830369390a4b51766ee68c4ab26195b299e25a07b5e7d0e00086d"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "whitelistId": "hk-1.5.78.11833-rng-v1",
+  "assemblyName": "Assembly-CSharp.dll",
+  "assemblySha256": "5944411bd93830369390a4b51766ee68c4ab26195b299e25a07b5e7d0e00086d",
+  "moduleVersionId": "2b54cdaf-7a93-4f0e-b297-d50c4090ea9f",
+  "mutatedCallSite": {
+    "callSiteId": "helper.random-vector2",
+    "declaringType": "Helper",
+    "methodSignature": "UnityEngine.Vector2 Helper::GetRandomVector2InRange(UnityEngine.Vector2,UnityEngine.Vector2)",
+    "metadataToken": 100670401,
+    "methodIlSha256": "6fe187f1d6cd4badb112c5b4269f171ade2e9cc38d561ad3095d121d0c7bcb38",
+    "hookType": "method-boundary",
+    "expectedRandomApi": "System.Single UnityEngine.Random::Range(System.Single,System.Single)",
+    "expectedRandomCallCount": 2
+  }
+}
