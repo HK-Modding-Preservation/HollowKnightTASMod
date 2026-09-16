@@ -97,7 +97,13 @@ namespace HollowKnightTAS.Companion
         {
             if (OwnedWindows.Cast<Window>().Any(w => w.IsVisible)) { e.Handled = true; return; }
             if (DataContext is not MainViewModel viewModel) return;
-            var key = e.Key == Key.System ? e.SystemKey : e.Key;
+            var key = e.Key switch
+            {
+                Key.System => e.SystemKey,
+                Key.ImeProcessed => e.ImeProcessedKey,
+                Key.DeadCharProcessed => e.DeadCharProcessedKey,
+                _ => e.Key
+            };
             var quickSlot = StudioHotkeys.QuickSlotIndex(key, Keyboard.Modifiers);
             if (quickSlot >= 0)
             {

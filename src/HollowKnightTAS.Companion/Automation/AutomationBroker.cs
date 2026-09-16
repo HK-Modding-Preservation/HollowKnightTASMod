@@ -105,6 +105,7 @@ namespace HollowKnightTAS.Companion.Automation
             if (coldRestoreSupervisor != null)
             {
                 coldRestoreSupervisor.ActivityChanged += OnColdRestoreActivityChanged;
+                coldRestoreSupervisor.OperationChanged += OnColdRestoreOperationChanged;
                 coldRestoreSupervisor.SlotRecoveryChanged += OnSlotRecoveryChanged;
             }
             RefreshBinding();
@@ -113,6 +114,9 @@ namespace HollowKnightTAS.Companion.Automation
         public string ActiveColdRestoreOperationId => coldRestoreSupervisor?.ActiveRestoreOperationId ?? string.Empty;
         public SlotRecoveryNotice? LatestSlotRecovery => coldRestoreSupervisor?.LatestSlotRecovery;
         public event EventHandler? SlotRecoveryChanged;
+        public event EventHandler<ColdRestoreOperationChangedEventArgs>? ColdRestoreChanged;
+        private void OnColdRestoreOperationChanged(object? sender, ColdRestoreOperationChangedEventArgs args)
+            => ColdRestoreChanged?.Invoke(this, args);
         private void OnSlotRecoveryChanged(object? sender, EventArgs args) => SlotRecoveryChanged?.Invoke(this, args);
         public string ActiveRecordingRestartOperationId => coldRestoreSupervisor?.LatestRecordingRestart is { } restart
             && restart.Phase != RecordingRestartPhase.Ready && restart.Phase != RecordingRestartPhase.Cancelled
@@ -504,6 +508,7 @@ namespace HollowKnightTAS.Companion.Automation
             if (coldRestoreSupervisor != null)
             {
                 coldRestoreSupervisor.ActivityChanged -= OnColdRestoreActivityChanged;
+                coldRestoreSupervisor.OperationChanged -= OnColdRestoreOperationChanged;
                 coldRestoreSupervisor.SlotRecoveryChanged -= OnSlotRecoveryChanged;
             }
             leases.Revoke();

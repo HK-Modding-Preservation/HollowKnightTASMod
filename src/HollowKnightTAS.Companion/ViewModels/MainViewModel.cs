@@ -118,6 +118,14 @@ namespace HollowKnightTAS.Companion.ViewModels
             this.capabilityBroker = capabilityBroker;
             this.nativeHostLauncher = nativeHostLauncher;
             this.automationBroker = automationBroker;
+            automationBroker.ColdRestoreChanged += (_, args) => Dispatch(() =>
+            {
+                var record = args.Snapshot.Latest;
+                var progress = "恢复 " + record.State + " · " + record.DetailCode + " · " + record.OperationId;
+                RestoreStatus = progress;
+                QuickSlotStatus = progress;
+                Status = progress;
+            });
             automationBroker.SlotRecoveryChanged += (_, _) => Dispatch(() =>
             {
                 var recovery = automationBroker.LatestSlotRecovery;
@@ -2005,6 +2013,10 @@ namespace HollowKnightTAS.Companion.ViewModels
                 Status = fields.TryGetValue("detail", out var detail)
                     ? detail
                     : messageType;
+                if (messageType == IpcMessageTypes.Fault
+                    && !string.IsNullOrEmpty(automationBroker.ActiveColdRestoreOperationId)
+                    && Status.StartsWith("EndOfStreamException:", StringComparison.Ordinal))
+                    Status = "恢复正在切换游戏进程；请查看存档恢复进度。";
             }
 
             if (string.Equals(

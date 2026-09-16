@@ -86,11 +86,11 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private async Task RefreshQuickSlotCatalogAsync()
         {
-            var session = SelectedSession;
+            var session = SelectedSession?.Client;
             var result = await ExecuteHumanResultAsync(AutomationCommandIds.GetReplaySaves,
                 AutomationScope.ObserveReplaySaves, expectedModeRequired: false);
             RequireAutomationSuccess(result);
-            if (session != SelectedSession) throw new InvalidOperationException("会话已切换，请刷新当前快捷槽目录。");
+            if (session != SelectedSession?.Client) throw new InvalidOperationException("会话已切换，请刷新当前快捷槽目录。");
             UpdateQuickSlotCatalog(RequireResultField(result, "entriesJson"));
         }
 
@@ -100,7 +100,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (quickSlots == null) throw new InvalidOperationException(QuickSlotStatus);
             var index = SelectedQuickSlot;
             if (index < 0 || index >= 10) return;
-            var session = SelectedSession;
+            var session = SelectedSession?.Client;
             quickSlotBusy = true;
             try
             {
@@ -127,7 +127,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                         throw new InvalidOperationException(result.ResultCode + ": " + result.Detail);
                     }
                     var deadline = DateTime.UtcNow.AddSeconds(20);
-                    while (DateTime.UtcNow < deadline && session == SelectedSession)
+                    while (DateTime.UtcNow < deadline && session == SelectedSession?.Client)
                     {
                         await RefreshQuickSlotCatalogAsync();
                         if (quickSlots.Slots[index].PendingLabel.Length == 0)

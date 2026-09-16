@@ -36,3 +36,7 @@ Settings → Hotkeys 可修改播放/暂停、逐帧按键并持久化；文本�
 开发版现场检查已确认默认布局、300 帧表格和双击轴编辑弹窗。旧 Studio 草稿备份在 `artifacts/d04-live/studio-before-d05.hktas`，未改变游戏帧号。computer-use 向 WPF 模态框输入时会激活主窗口，非零轴文本未输入成功；已固定弹窗选区并阻止模态期间主窗口快捷键，最后修改尚待重新打开窗口验证。最小窗口拖拽未改变窗口尺寸，不作为通过证据。
 
 下一步：中文迁移说明、签名 Companion 安装，然后一次短存读档与草稿分支应用 smoke，补最小窗口、缩放、改键与模态输入检查。核对 Runtime/Core 保持原哈希，再更新交付包。
+
+安装与短存读档已取得新证据：Companion manifest `2e7e5c8cff01aaa99e4383b5df5abe56c69e0660bce77fcbedf9a54563200d0e` 验签通过，Runtime/Core 哈希未变。Shift+F1 保存第 326 帧，槽引用跨启动保留；F1 操作 `cold-restore-afeaad67582f4db3b8d1d3123030edbc` 达到 Completed，目标进程回到 tick 326 / Paused / Idle。UI 截图确认重新连接并显示原生恢复校验成功。新增中文迁移说明 `docs/LIBTAS-MIGRATION.md`。
+
+本次发现快捷槽提示仍停在请求恢复，已在源码接入 Supervisor 进度事件并处理预期的换进程断连提示；IME/死键也统一映射到实际按键。后两项编译通过但未安装验证。V 在一次现场尝试中触发中文输入法而未前进，尚不能判定是文本焦点还是 IME 映射，需要针对性复核。不要重复完整存档矩阵；后续完成未验证交互和包更新即可。

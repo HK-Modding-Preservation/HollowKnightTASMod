@@ -2,7 +2,9 @@
 
 入口：`mydocs/specs/tasks/D05_libTAS界面.md`。菜单、输入表格、快捷槽/改键、模拟轴编辑和常用/高级界面分层已实现。快捷槽与快捷键 11 项、表格 11 项定向测试通过。开发版默认布局、300 帧表格与双击轴弹窗已现场查看；尚未安装新版。下一步中文迁移说明、签名 Companion 安装和一次短存读档/分支应用 smoke，补最小窗口、缩放及改键检查，再更新包。保留游戏语义和现有分支服务，只读取本 Spec 与相关 Companion 代码。
 
-当前开发版 Studio PID 21904（再次使用前核实），游戏 PID 30444 保留在 tick 326 / Paused。旧窗口草稿已备份 `artifacts/d04-live/studio-before-d05.hktas`；开发版打开的是该 300 帧草稿，测试编辑未提交游戏。窗口测试遇到 computer-use 将模态键盘输入发往主窗口的问题：已补主窗口模态快捷键保护和轴选区固定，但该最后改动还需新版窗口验证。不要据此声称轴文本输入和最小窗口检查通过。
+新版 Companion 已签名安装，manifest 为 `2e7e5c8cff01aaa99e4383b5df5abe56c69e0660bce77fcbedf9a54563200d0e`，Runtime/Core 保持下方冻结哈希。Shift+F1 实际保存 `save-20260916T0718081704739Z-00000001`，F1 跨启动恢复操作 `cold-restore-afeaad67582f4db3b8d1d3123030edbc` Completed，游戏 PID 25776 / tick 326 / Paused / Idle；UI 已重新连接。旧草稿备份 `artifacts/d04-live/studio-before-d05.hktas`。进度事件/断连提示与 IME 按键兼容的后续源码修正尚未重新安装，主目录旧 zip 也尚未更新。
+
+下一步先验证并安装这几项小修正，再检查表格提交、轴输入、改键和最小窗口；中文说明已有 `docs/LIBTAS-MIGRATION.md`。computer-use 可能返回旧 UIA 树：本次重新 get_window + activate + 截图后确认正常连接，勿据旧树重启流程。向 WPF 模态框发送文字仍会聚焦主窗口，轴文本输入未通过实测。V 曾触发中文输入法候选且没有推进，需确认焦点与 IME 修正后再验证，不视为通过。
 
 安装版 Runtime/Core 继续使用下方 MP4 冻结身份；不要默认重建/覆盖游戏 DLL。文档整理等小任务使用 Luna。下面是已完成 MP4 的交付快照，不是新待办。
 
