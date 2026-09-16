@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <limits.h>
+#include "startup_gate.h"
 
 #define HKTAS_CLOCK_BRIDGE_ABI 10u
 #define HKTAS_CLOCK_WAIT_ATTEMPTS 600u
@@ -66,6 +67,10 @@ static BOOL WINAPI virtual_query_performance_counter(
         return FALSE;
     }
 
+    /* The first Unity main-thread clock read is before the managed runtime
+     * control channel exists. Never arm this handshake for cold restores. */
+    if (GetCurrentThreadId() == g_virtual_clock_main_thread_id)
+        enter_boot_gate();
     result = g_query_performance_counter(&real_value);
     if (!result)
     {
@@ -387,6 +392,10 @@ static DWORD WINAPI clock_worker(LPVOID ignored)
 {
     (void)ignored;
     InterlockedExchange(&g_status, 1);
+
+    /* Time spent deliberately paused before initialization must not consume
+     * the subsequent payload initialization timeout. */
+    wait_boot_gate_release();
 
     if (g_startup_latch_enabled)
     {
@@ -975,6 +984,11 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
         if (!configure_startup_latch())
         {
             InterlockedExchange(&g_status, -9);
+            return FALSE;
+        }
+        if (!configure_boot_gate())
+        {
+            InterlockedExchange(&g_status, -12);
             return FALSE;
         }
         HANDLE worker = CreateThread(

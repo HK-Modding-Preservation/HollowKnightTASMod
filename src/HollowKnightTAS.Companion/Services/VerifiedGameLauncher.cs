@@ -484,7 +484,8 @@ namespace HollowKnightTAS.Companion.Services
         public async Task<VerifiedGameLaunchHandle> LaunchInteractiveAsync(
             string runId,
             TimeSpan timeout,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            StartupBootGate? bootGate = null)
         {
             if (!IpcIdentifier.IsValid(runId, 96))
             {
@@ -497,13 +498,14 @@ namespace HollowKnightTAS.Companion.Services
                 throw new ArgumentOutOfRangeException(nameof(timeout));
             }
 
-            return await LaunchRunAsync(runId, timeout, cancellationToken);
+            return await LaunchRunAsync(runId, timeout, cancellationToken, bootGate);
         }
 
         private async Task<VerifiedGameLaunchHandle> LaunchRunAsync(
             string runId,
             TimeSpan timeout,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            StartupBootGate? bootGate = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             using var launchGate = GameLaunchGate.Acquire();
@@ -537,6 +539,11 @@ namespace HollowKnightTAS.Companion.Services
                 "--launch-game=" + profile.GameExecutablePath);
             start.ArgumentList.Add(
                 "--launch-arguments-base64=" + launchArguments);
+            // A Studio auto-started by a game can inherit its gate variables.
+            // Only this explicit interactive launch may arm a fresh gate.
+            start.Environment.Remove("HKTAS_BOOT_GATE_TOKEN");
+            start.Environment.Remove("HKTAS_BOOT_GATE_OWNER");
+            bootGate?.ConfigureInjector(start);
 
             var job = new NativeHostJob();
             Process? injector = null;
