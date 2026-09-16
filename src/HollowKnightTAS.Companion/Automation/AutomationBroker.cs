@@ -1250,9 +1250,17 @@ namespace HollowKnightTAS.Companion.Automation
                         IpcMessageTypes.RuntimeStatus,
                         out var status))
                 {
+                    // Keep the complete Runtime payload in one field. Flattening every
+                    // diagnostic plus supervisor fields exceeds the IPC field budget.
+                    fields["runtimeStatusJson"] = Encoding.UTF8.GetString(IpcPayloadCodec.Serialize(status.Fields));
                     foreach (var pair in status.Fields)
                     {
-                        fields["runtime." + pair.Key] = pair.Value;
+                        if (pair.Key == "controlMode" || pair.Key == "movieTick"
+                            || pair.Key == "playbackMode" || pair.Key == "sceneEpoch"
+                            || pair.Key == "recordingOriginStatus" || pair.Key == "lastPlaybackStopReason"
+                            || pair.Key == "lastPlaybackFault" || pair.Key == "controlFault"
+                            || pair.Key.StartsWith("videoExport.", StringComparison.Ordinal))
+                            fields["runtime." + pair.Key] = pair.Value;
                     }
 
                     fields["ageMilliseconds"] =

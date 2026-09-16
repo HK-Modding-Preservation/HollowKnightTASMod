@@ -135,6 +135,14 @@ namespace HollowKnightTAS.Companion.Tests
                 Assert.IsTrue(human.Success, human.Detail);
                 Assert.AreEqual("false", human.Data["autoSaveEnabled"]);
                 Assert.IsFalse(human.Data.ContainsKey("stateJson"));
+                var aggregate = await broker.ExecuteHumanAsync(AutomationCommandIds.GetStatus,
+                    AutomationScope.ObserveStatus, new Dictionary<string, string>(),
+                    string.Empty, null, cancellation.Token);
+                Assert.IsTrue(aggregate.Success, aggregate.Detail);
+                Assert.IsTrue(aggregate.Data.Count < IpcPayloadCodec.MaximumFieldCount);
+                using var runtimeStatus = JsonDocument.Parse(aggregate.Data["runtimeStatusJson"]);
+                Assert.AreEqual("-1", runtimeStatus.RootElement.GetProperty("movieTick").GetString());
+                Assert.AreEqual("-1", aggregate.Data["runtime.movieTick"]);
                 await using var client = new AutomationClient();
                 await client.ConnectAsync(new AutomationConnectOptions
                 {
