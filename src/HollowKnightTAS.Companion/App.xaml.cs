@@ -20,6 +20,9 @@ namespace HollowKnightTAS.Companion
         private ColdRestoreSupervisor? coldRestoreSupervisor;
         private AutomationBroker? automationBroker;
         private bool shutdownWhenColdRestoreStops;
+        private StartupBootController? startupBoot;
+        private System.Windows.Threading.DispatcherTimer? startupBootTimer;
+        private System.Diagnostics.Process? startupGame;
 
         protected override async void OnStartup(StartupEventArgs e)
         {
@@ -118,6 +121,27 @@ namespace HollowKnightTAS.Companion
                     sessions,
                     coldRestoreSupervisor);
 
+                // Keep the pre-frame probe opt-in until real frame stepping and
+                // automatic ordinary-launch handoff are implemented and verified.
+                if (e.Args.Contains("--experimental-startup-gate", StringComparer.Ordinal))
+                {
+                    startupBoot = new StartupBootController();
+                    startupBootTimer = new System.Windows.Threading.DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromMilliseconds(100)
+                    };
+                    startupBootTimer.Tick += (_, _) =>
+                    {
+                        if (startupGame != null && (!startupBoot.IsPending || startupGame.HasExited))
+                        {
+                            startupGame.Dispose();
+                            startupGame = null;
+                            if (startupBoot.IsPending) startupBoot.Dispose();
+                        }
+                        startupBoot.Refresh();
+                    };
+                    startupBootTimer.Start();
+                }
                 var viewModel = new MainViewModel(
                     sessions,
                     new MovieEditorService(),
@@ -139,11 +163,33 @@ namespace HollowKnightTAS.Companion
                         var profile = await Task.Run(() => VerifiedStartupProfile.Load(
                             Path.Combine(AppContext.BaseDirectory, "ClockStartup"), gamePath), shutdown.Token);
                         var launcher = new VerifiedGameLauncher(profile, launchReceiptStore);
-                        using var handle = await launcher.LaunchInteractiveAsync(
-                            "interactive-" + Guid.NewGuid().ToString("N"),
-                            TimeSpan.FromSeconds(60), shutdown.Token);
-                        handle.ReleaseSupervision();
-                    });
+                        var gate = startupBoot?.Begin();
+                        try
+                        {
+                            using var handle = await launcher.LaunchInteractiveAsync(
+                                "interactive-" + Guid.NewGuid().ToString("N"),
+                                TimeSpan.FromSeconds(60), shutdown.Token, gate);
+                            if (gate != null)
+                            {
+                                var deadline = DateTime.UtcNow.AddSeconds(10);
+                                while (!gate.IsAcknowledged && DateTime.UtcNow < deadline)
+                                    await Task.Delay(50, shutdown.Token);
+                                if (!gate.IsAcknowledged)
+                                    throw new InvalidOperationException("原生启动暂停没有回执；当前 ClockBridge 可能不支持启动门闩。");
+                                if (startupBoot!.IsPending)
+                                    startupGame = System.Diagnostics.Process.GetProcessById(handle.ProcessId);
+                                startupBoot!.Refresh();
+                            }
+                            handle.ReleaseSupervision();
+                        }
+                        catch
+                        {
+                            startupBoot?.Dispose();
+                            startupGame?.Dispose();
+                            startupGame = null;
+                            throw;
+                        }
+                    }, startupBoot);
                 var window = new MainWindow
                 {
                     DataContext = viewModel
@@ -182,6 +228,9 @@ namespace HollowKnightTAS.Companion
         protected override void OnExit(ExitEventArgs e)
         {
             shutdown.Cancel();
+            startupBootTimer?.Stop();
+            startupBoot?.Dispose();
+            startupGame?.Dispose();
             if (controlServer != null)
             {
                 controlServer.ExitRequested -=

@@ -48,6 +48,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private readonly NativeHostLauncher nativeHostLauncher;
         private readonly AutomationBroker automationBroker;
         private readonly Func<string, Task>? launchGame;
+        private readonly StartupBootController? startupBoot;
         private readonly HashSet<string> warmedSessions =
             new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> readySessions =
@@ -111,7 +112,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             CapabilityBroker capabilityBroker,
             NativeHostLauncher nativeHostLauncher,
             AutomationBroker automationBroker,
-            Func<string, Task>? launchGame = null)
+            Func<string, Task>? launchGame = null,
+            StartupBootController? startupBoot = null)
         {
             this.registry = registry;
             this.movieEditor = movieEditor;
@@ -133,6 +135,17 @@ namespace HollowKnightTAS.Companion.ViewModels
                     RestoreStatus = "槽恢复 " + recovery.Status + " · " + recovery.OperationId + " · " + recovery.Detail;
             });
             this.launchGame = launchGame;
+            this.startupBoot = startupBoot;
+            if (startupBoot != null) startupBoot.Changed += (_, _) => Dispatch(() =>
+            {
+                OnPropertyChanged(nameof(FrameCounterText));
+                OnPropertyChanged(nameof(PlaybackStateText));
+                OnPropertyChanged(nameof(PlayPauseLabel));
+                foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
+                Status = startupBoot.IsWaiting
+                    ? "已停在原生启动门闩（窗口创建前，尚非帧边界）；可继续初始化，暂不支持启动单步。"
+                    : startupBoot.IsPending ? "等待原生启动暂停回执…" : "启动门闩已释放；等待 Runtime 连接。";
+            });
             InitializeInputGrid();
             InitializeQuickSlots();
             InitializeShortcutSettings();
@@ -168,11 +181,16 @@ namespace HollowKnightTAS.Companion.ViewModels
                         AutomationScope.ControlPlayback));
             TogglePauseCommand = Command(async () =>
             {
+                if (this.startupBoot?.IsWaiting == true)
+                {
+                    this.startupBoot.Continue();
+                    return;
+                }
                 if (currentControlMode != "Paused" && currentControlMode != "Running" && currentControlMode != "Stepping")
                     throw new InvalidOperationException("等待最新运行状态后再切换播放/暂停。");
                 await ExecuteHumanAsync(currentControlMode == "Paused"
                     ? AutomationCommandIds.Resume : AutomationCommandIds.Pause, AutomationScope.ControlPlayback);
-            });
+            }, allowStartupContinue: true);
             StepCommand =
                 Command(
                     () => ExecuteHumanAsync(
@@ -411,9 +429,9 @@ namespace HollowKnightTAS.Companion.ViewModels
             private set => Set(ref runtimeSummary, value);
         }
 
-        public string FrameCounterText => currentMovieTick < 0 ? "Frame: —" : "Frame: " + currentMovieTick.ToString(CultureInfo.InvariantCulture);
-        public string PlaybackStateText => string.IsNullOrEmpty(currentControlMode) ? "No runtime" : currentControlMode;
-        public string PlayPauseLabel => currentControlMode == "Paused" ? "Play 继续" : "Pause 暂停";
+        public string FrameCounterText => startupBoot?.IsPending == true ? "Frame: — (startup)" : currentMovieTick < 0 ? "Frame: —" : "Frame: " + currentMovieTick.ToString(CultureInfo.InvariantCulture);
+        public string PlaybackStateText => startupBoot?.IsPending == true ? startupBoot.IsWaiting ? "Startup gate paused" : "Awaiting startup gate" : string.IsNullOrEmpty(currentControlMode) ? "No runtime" : currentControlMode;
+        public string PlayPauseLabel => startupBoot?.IsWaiting == true || currentControlMode == "Paused" ? "Play 继续" : "Pause 暂停";
 
         public string LatestState
         {
@@ -739,7 +757,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             return null;
         }
 
-        private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true)
+        private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true, bool allowStartupContinue = false)
         {
             var command = new AsyncRelayCommand(
                 async () =>
@@ -753,7 +771,9 @@ namespace HollowKnightTAS.Companion.ViewModels
                         Status = exception.Message;
                     }
                 },
-                () => !requireConnected || SelectedSession?.Client.IsConnected == true);
+                () => startupBoot?.IsPending == true
+                    ? allowStartupContinue && startupBoot.IsWaiting
+                    : !requireConnected || SelectedSession?.Client.IsConnected == true);
             runtimeCommands.Add(command);
             return command;
         }
@@ -773,7 +793,9 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 Status = "正在校验组件并启动游戏…";
                 await launchGame(dialog.FileName);
-                Status = "游戏已启动；等待 Runtime 连接。回退可用性以启动与录制根校验为准。";
+                Status = startupBoot?.IsWaiting == true
+                    ? "已停在原生启动门闩；点击 Play 继续初始化。"
+                    : "游戏已启动；等待 Runtime 连接。回退可用性以启动与录制根校验为准。";
             }
             catch (Exception exception)
             {

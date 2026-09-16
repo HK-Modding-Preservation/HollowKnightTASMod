@@ -11,6 +11,7 @@ namespace HollowKnightTAS.Companion.Services
         private readonly EventWaitHandle ready;
         private readonly EventWaitHandle proceed;
         private bool disposed;
+        private bool acknowledged;
 
         public StartupBootGate()
         {
@@ -31,6 +32,7 @@ namespace HollowKnightTAS.Companion.Services
         }
 
         public string Token { get; }
+        public bool IsAcknowledged => disposed ? acknowledged : ready.WaitOne(0);
         public bool IsWaiting => !disposed && ready.WaitOne(0) && !proceed.WaitOne(0);
 
         public void ConfigureInjector(ProcessStartInfo start)
@@ -49,6 +51,7 @@ namespace HollowKnightTAS.Companion.Services
         public void Dispose()
         {
             if (disposed) return;
+            acknowledged = ready.WaitOne(0);
             disposed = true;
             proceed.Set();
             proceed.Dispose();
