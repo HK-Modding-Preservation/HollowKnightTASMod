@@ -82,6 +82,19 @@ namespace HollowKnightTAS.Companion.ViewModels
         private long GridIndex() => ParseCount(GridStart, 0, MovieProtocolV1.DefaultMaxExpandedTicks, "frame");
         private long GridLength() => ParseCount(GridCount, 1, MovieProtocolV1.DefaultMaxExpandedTicks, "selected frame count");
 
+        public bool TryEditGridAxes(string start, string count, bool enabled, int x, int y)
+        {
+            try
+            {
+                if (gridApplying) throw new InvalidOperationException("正在提交表格分支，请等待完成。");
+                EditGrid(InputGridEditor.SetAxes(GridMovie(),
+                    ParseCount(start, 0, MovieProtocolV1.DefaultMaxExpandedTicks, "frame"),
+                    ParseCount(count, 1, MovieProtocolV1.DefaultMaxExpandedTicks, "selected frame count"), enabled, x, y));
+                return true;
+            }
+            catch (Exception e) { GridStatus = e.Message; return false; }
+        }
+
         private void RefreshInputGrid(string? message = null)
         {
             var movie = GridMovie();

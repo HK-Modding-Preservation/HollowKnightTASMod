@@ -97,6 +97,91 @@ namespace HollowKnightTAS.Companion.Tests
         }
 
         [TestMethod]
+        public void SetAxesSelectionPreservesActionsAndFramesOutsideSelection()
+        {
+            var movie = Movie(
+                Run(2, TasAction.Right, 11, 22, true),
+                Run(2, TasAction.Attack),
+                Run(2, TasAction.Jump, -33, -44, true));
+
+            var edited = InputGridEditor.SetAxes(movie, 2, 2, true, 1000, -2000);
+            var frames = Expand(edited).ToArray();
+
+            Assert.AreEqual(6, frames.Length);
+            Assert.AreEqual(TasAction.Right, frames[0].HeldActions);
+            Assert.AreEqual(11, frames[0].AxisX);
+            Assert.AreEqual(22, frames[0].AxisY);
+            Assert.AreEqual(TasAction.Attack, frames[2].HeldActions);
+            Assert.AreEqual(1000, frames[2].AxisX);
+            Assert.AreEqual(-2000, frames[2].AxisY);
+            Assert.IsTrue(frames[2].HasAnalogAxes);
+            Assert.AreEqual(TasAction.Jump, frames[4].HeldActions);
+            Assert.AreEqual(-33, frames[4].AxisX);
+            Assert.AreEqual(-44, frames[4].AxisY);
+            Assert.IsTrue(frames[4].HasAnalogAxes);
+        }
+
+        [TestMethod]
+        public void SetAxesDisabledClearsAxesButPreservesActions()
+        {
+            var movie = Movie(
+                Run(1, TasAction.Attack, 300, -400, true),
+                Run(2, TasAction.Jump | TasAction.Dash, 500, 600, true),
+                Run(1, TasAction.Cast, -700, 800, true));
+
+            var edited = InputGridEditor.SetAxes(movie, 1, 2, false, 0, 0);
+            var frames = Expand(edited).ToArray();
+
+            Assert.AreEqual(TasAction.Attack, frames[0].HeldActions);
+            Assert.IsTrue(frames[0].HasAnalogAxes);
+            Assert.AreEqual(TasAction.Jump | TasAction.Dash, frames[1].HeldActions);
+            Assert.AreEqual(0, frames[1].AxisX);
+            Assert.AreEqual(0, frames[1].AxisY);
+            Assert.IsFalse(frames[1].HasAnalogAxes);
+            Assert.AreEqual(TasAction.Jump | TasAction.Dash, frames[2].HeldActions);
+            Assert.IsFalse(frames[2].HasAnalogAxes);
+            Assert.AreEqual(TasAction.Cast, frames[3].HeldActions);
+            Assert.AreEqual(-700, frames[3].AxisX);
+            Assert.IsTrue(frames[3].HasAnalogAxes);
+        }
+
+        [TestMethod]
+        public void SetAxesAcceptsInclusiveAxisBoundsAndRejectsInvalidSelectionOrAxes()
+        {
+            var movie = Movie(Run(3, TasAction.None));
+
+            var edited = InputGridEditor.SetAxes(movie, 0, 3, true, -10000, 10000);
+            var frames = Expand(edited).ToArray();
+            Assert.IsTrue(frames.All(frame =>
+                frame.HasAnalogAxes && frame.AxisX == -10000 && frame.AxisY == 10000));
+
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+                () => InputGridEditor.SetAxes(movie, 0, 3, true, -10001, 0));
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+                () => InputGridEditor.SetAxes(movie, 0, 3, true, 0, 10001));
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+                () => InputGridEditor.SetAxes(movie, 0, 0, true, 0, 0));
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(
+                () => InputGridEditor.SetAxes(movie, 3, 1, true, 0, 0));
+        }
+
+        [TestMethod]
+        public void SetAxesWithDirectionConflictRejectsWithoutClearingDirection()
+        {
+            var movie = Movie(Run(2, TasAction.Left | TasAction.Attack, 7, 8, true));
+
+            Assert.ThrowsExactly<ArgumentException>(
+                () => InputGridEditor.SetAxes(movie, 0, 2, true, 900, 901));
+
+            var original = Expand(movie).ToArray();
+            Assert.IsTrue(original.All(frame =>
+                frame.HeldActions == (TasAction.Left | TasAction.Attack)
+                && frame.AxisX == 7
+                && frame.AxisY == 8
+                && frame.HasAnalogAxes));
+        }
+
+        [TestMethod]
         public void PageToggleAndPasteRejectOutOfRangeSelections()
         {
             var movie = Movie(Run(3, TasAction.None));

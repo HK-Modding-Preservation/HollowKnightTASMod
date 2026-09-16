@@ -76,5 +76,18 @@ namespace HollowKnightTAS.Companion.Services
             if (runs.Length == 0) throw new ArgumentException("剪贴板没有输入帧。", nameof(clipboard));
             return MovieTimelineEditor.Replace(movie, start, deleteCount, runs).Movie;
         }
+
+        public static MovieDocument SetAxes(MovieDocument movie, long start, long count, bool enabled, int x, int y)
+        {
+            if (count < 1) throw new ArgumentOutOfRangeException(nameof(count));
+            if (x < -10000 || x > 10000 || y < -10000 || y > 10000)
+                throw new ArgumentOutOfRangeException(nameof(x), "模拟轴范围为 -10000…10000。");
+            var runs = MovieInputSlice.Extract(movie, start, count).Commands.OfType<FrameRunCommand>().ToArray();
+            var directions = TasAction.Left | TasAction.Right | TasAction.Up | TasAction.Down;
+            if (enabled && runs.Any(r => (r.HeldActions & directions) != 0))
+                throw new ArgumentException("模拟轴与方向键不能同时使用；请先清除选区方向键。");
+            return MovieTimelineEditor.Replace(movie, start, count, runs.Select(r => new FrameRunCommand(
+                r.FrameCount, r.HeldActions, enabled ? x : 0, enabled ? y : 0, enabled, r.Span))).Movie;
+        }
     }
 }

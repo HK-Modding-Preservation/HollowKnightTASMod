@@ -22,12 +22,20 @@ namespace HollowKnightTAS.Companion
         {
             if (sender is MenuItem { Tag: string name } && FindName(name) is TabItem tab)
             {
+                tab.Visibility = Visibility.Visible;
                 MainTabs.SelectedItem = tab;
                 if (name == "InputGridTab" && DataContext is MainViewModel vm) vm.RefreshGridCommand.Execute(null);
             }
         }
 
         private void OnCloseStudio(object sender, RoutedEventArgs e) => Close();
+
+        private void OnHideTools(object sender, RoutedEventArgs e)
+        {
+            MainTabs.SelectedItem = InputGridTab;
+            foreach (var tab in new[] { ControlTab, AuthoringTab, EventLogTab, DiffTab, CapabilitiesTab, ShortcutSettingsTab })
+                tab.Visibility = Visibility.Collapsed;
+        }
 
         private void OnInputGridSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -44,16 +52,33 @@ namespace HollowKnightTAS.Companion
             var element = e.OriginalSource as DependencyObject;
             while (element != null && element is not DataGridCell)
                 element = VisualTreeHelper.GetParent(element);
-            if (element is not DataGridCell cell || cell.DataContext is not InputGridRow row
-                || !Enum.TryParse<TasAction>(cell.Column.SortMemberPath, out var action)) return;
+            if (element is not DataGridCell cell || cell.DataContext is not InputGridRow row) return;
+            if (cell.Column.SortMemberPath == "Axes" && e.ClickCount == 2)
+            {
+                InputGrid.SelectedItem = row;
+                vm.GridStart = row.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                vm.GridCount = "1";
+                new AxisEditorWindow(vm, row.Input) { Owner = this }.ShowDialog();
+                e.Handled = true;
+                return;
+            }
+            if (!Enum.TryParse<TasAction>(cell.Column.SortMemberPath, out var action)) return;
             if (!InputGrid.SelectedItems.Contains(row)) InputGrid.SelectedItem = row;
             vm.GridAction = action;
             if (vm.ToggleGridCommand.CanExecute(null)) vm.ToggleGridCommand.Execute(null);
             e.Handled = true;
         }
 
+        private void OnEditGridAxes(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainViewModel vm) return;
+            var first = vm.InputRows.FirstOrDefault(r => r.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture) == vm.GridStart);
+            new AxisEditorWindow(vm, first?.Input) { Owner = this }.ShowDialog();
+        }
+
         private void OnInputGridKeyDown(object sender, KeyEventArgs e)
         {
+            if (OwnedWindows.Cast<Window>().Any(w => w.IsVisible)) { e.Handled = true; return; }
             if (DataContext is not MainViewModel vm) return;
             ICommand? command = Keyboard.Modifiers == ModifierKeys.Control ? e.Key switch
             {
@@ -70,6 +95,7 @@ namespace HollowKnightTAS.Companion
 
         private void OnStudioKeyDown(object sender, KeyEventArgs e)
         {
+            if (OwnedWindows.Cast<Window>().Any(w => w.IsVisible)) { e.Handled = true; return; }
             if (DataContext is not MainViewModel viewModel) return;
             var key = e.Key == Key.System ? e.SystemKey : e.Key;
             var quickSlot = StudioHotkeys.QuickSlotIndex(key, Keyboard.Modifiers);
