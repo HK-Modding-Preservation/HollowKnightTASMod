@@ -2,6 +2,11 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System;
+using System.Linq;
+using System.Windows.Media;
+using HollowKnightTAS.Companion.Services;
+using HollowKnightTAS.Core.Input;
 using HollowKnightTAS.Companion.ViewModels;
 
 namespace HollowKnightTAS.Companion
@@ -16,10 +21,52 @@ namespace HollowKnightTAS.Companion
         private void OnNavigate(object sender, RoutedEventArgs e)
         {
             if (sender is MenuItem { Tag: string name } && FindName(name) is TabItem tab)
+            {
                 MainTabs.SelectedItem = tab;
+                if (name == "InputGridTab" && DataContext is MainViewModel vm) vm.RefreshGridCommand.Execute(null);
+            }
         }
 
         private void OnCloseStudio(object sender, RoutedEventArgs e) => Close();
+
+        private void OnInputGridSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (DataContext is not MainViewModel vm || InputGrid.SelectedItems.Count == 0) return;
+            var rows = InputGrid.SelectedItems.Cast<InputGridRow>().OrderBy(r => r.Tick).ToArray();
+            // Selection gaps are not silently converted into edits of unselected rows.
+            vm.GridStart = rows[0].Tick.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            vm.GridCount = rows.Length == rows[^1].Tick - rows[0].Tick + 1 ? rows.Length.ToString() : "非连续选区";
+        }
+
+        private void OnInputGridClick(object sender, MouseButtonEventArgs e)
+        {
+            if (Keyboard.Modifiers != ModifierKeys.None || DataContext is not MainViewModel vm) return;
+            var element = e.OriginalSource as DependencyObject;
+            while (element != null && element is not DataGridCell)
+                element = VisualTreeHelper.GetParent(element);
+            if (element is not DataGridCell cell || cell.DataContext is not InputGridRow row
+                || !Enum.TryParse<TasAction>(cell.Column.SortMemberPath, out var action)) return;
+            if (!InputGrid.SelectedItems.Contains(row)) InputGrid.SelectedItem = row;
+            vm.GridAction = action;
+            if (vm.ToggleGridCommand.CanExecute(null)) vm.ToggleGridCommand.Execute(null);
+            e.Handled = true;
+        }
+
+        private void OnInputGridKeyDown(object sender, KeyEventArgs e)
+        {
+            if (DataContext is not MainViewModel vm) return;
+            ICommand? command = Keyboard.Modifiers == ModifierKeys.Control ? e.Key switch
+            {
+                Key.C => vm.CopyGridCommand, Key.V => vm.PasteGridCommand,
+                Key.Z => vm.UndoGridCommand, Key.Y => vm.RedoGridCommand, _ => null
+            } : Keyboard.Modifiers == ModifierKeys.None ? e.Key switch
+            {
+                Key.Insert => vm.InsertGridCommand, Key.Delete => vm.DeleteGridCommand, _ => null
+            } : null;
+            if (command == null) return;
+            e.Handled = true;
+            if (!e.IsRepeat && command.CanExecute(null)) command.Execute(null);
+        }
 
         private void OnStudioKeyDown(object sender, KeyEventArgs e)
         {

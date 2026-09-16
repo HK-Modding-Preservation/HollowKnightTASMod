@@ -23,7 +23,7 @@
         <MenuItem Header="Open Movie 打开…" InputGestureText="Ctrl+O" Command="{Binding OpenMovieCommand}" />
         <MenuItem Header="Save Movie 保存…" InputGestureText="Ctrl+S" Command="{Binding SaveMovieCommand}" />
         <Separator />
-        <MenuItem Header="Input Editor 输入编辑器" Tag="AuthoringTab" Click="OnNavigate" />
+        <MenuItem Header="Input Editor 输入编辑器" Tag="InputGridTab" Click="OnNavigate" />
         <MenuItem Header="Movie Text 文本脚本" Tag="MovieTextTab" Click="OnNavigate" />
         <MenuItem Header="Savestates 存档管理" Tag="SavesTab" Click="OnNavigate" />
         <Separator />
@@ -39,7 +39,7 @@
       <MenuItem Header="_Input 输入">
         <MenuItem Header="Play / Pause 播放与暂停" InputGestureText="Pause" Command="{Binding TogglePauseCommand}" />
         <MenuItem Header="Frame Advance 前进一帧" InputGestureText="V" Command="{Binding StepCommand}" />
-        <MenuItem Header="Input Editor 输入编辑器" Tag="AuthoringTab" Click="OnNavigate" />
+        <MenuItem Header="Input Editor 输入编辑器" Tag="InputGridTab" Click="OnNavigate" />
       </MenuItem>
     </Menu>
     <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
@@ -102,6 +102,65 @@
     </Border>
 
     <TabControl x:Name="MainTabs" AutomationProperties.AutomationId="HktasStudio.MainTabs">
+      <TabItem x:Name="InputGridTab" Header="Input Editor" AutomationProperties.AutomationId="HktasStudio.InputGridTab">
+        <Grid Margin="6">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+            <RowDefinition Height="*" /><RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <WrapPanel>
+            <Button Content="刷新表格" Command="{Binding RefreshGridCommand}" />
+            <Button Content="◀" ToolTip="上一页" Command="{Binding PreviousGridPageCommand}" />
+            <Button Content="▶" ToolTip="下一页" Command="{Binding NextGridPageCommand}" />
+            <TextBlock Text="Frame" VerticalAlignment="Center" Margin="8,0,4,0" />
+            <TextBox Text="{Binding GridStart, UpdateSourceTrigger=PropertyChanged}" Width="75" VerticalContentAlignment="Center" />
+            <TextBlock Text="Count" VerticalAlignment="Center" Margin="8,0,4,0" />
+            <TextBox Text="{Binding GridCount, UpdateSourceTrigger=PropertyChanged}" Width="65" VerticalContentAlignment="Center" />
+            <Button Content="定位" Command="{Binding GoToGridFrameCommand}" />
+            <Button Content="当前帧" Command="{Binding FollowGridFrameCommand}" />
+            <Button Content="应用分支" Command="{Binding ApplyGridCommand}" />
+            <Button Content="应用并重放到 Frame" Command="{Binding ApplyGridAndSeekCommand}" />
+          </WrapPanel>
+          <WrapPanel Grid.Row="1" Margin="0,0,0,6">
+            <Button Content="Undo 撤销" Command="{Binding UndoGridCommand}" />
+            <Button Content="Redo 重做" Command="{Binding RedoGridCommand}" />
+            <Button Content="Copy 复制" Command="{Binding CopyGridCommand}" />
+            <Button Content="Paste 替换选区" Command="{Binding PasteGridCommand}" />
+            <Button Content="Insert 插入空帧" Command="{Binding InsertGridCommand}" />
+            <Button Content="Delete 删除帧" Command="{Binding DeleteGridCommand}" />
+            <ComboBox ItemsSource="{Binding GridActions}" SelectedItem="{Binding GridAction}" Width="100" Margin="6,3" />
+            <Button Content="切换选区按键" Command="{Binding ToggleGridCommand}" />
+          </WrapPanel>
+          <DataGrid x:Name="InputGrid" Grid.Row="2" ItemsSource="{Binding InputRows}"
+                    AutomationProperties.AutomationId="HktasStudio.InputGrid" AutoGenerateColumns="False"
+                    IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                    SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column"
+                    EnableRowVirtualization="True" EnableColumnVirtualization="True" RowHeight="25"
+                    Background="#0D131B" Foreground="#E6EDF5" RowBackground="#18202B" AlternatingRowBackground="#202A38"
+                    HorizontalGridLinesBrush="#344256" VerticalGridLinesBrush="#344256"
+                    PreviewMouseLeftButtonDown="OnInputGridClick" SelectionChanged="OnInputGridSelectionChanged"
+                    PreviewKeyDown="OnInputGridKeyDown">
+            <DataGrid.Resources><Style TargetType="DataGridColumnHeader"><Setter Property="Foreground" Value="#202020" /><Setter Property="Padding" Value="6,4" /></Style></DataGrid.Resources>
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="" Binding="{Binding Current}" Width="28" />
+              <DataGridTextColumn Header="Frame" Binding="{Binding Tick}" Width="75" />
+              <DataGridCheckBoxColumn Header="Left" Binding="{Binding Left, Mode=OneWay}" SortMemberPath="Left" Width="55" />
+              <DataGridCheckBoxColumn Header="Right" Binding="{Binding Right, Mode=OneWay}" SortMemberPath="Right" Width="55" />
+              <DataGridCheckBoxColumn Header="Up" Binding="{Binding Up, Mode=OneWay}" SortMemberPath="Up" Width="45" />
+              <DataGridCheckBoxColumn Header="Down" Binding="{Binding Down, Mode=OneWay}" SortMemberPath="Down" Width="55" />
+              <DataGridCheckBoxColumn Header="Jump" Binding="{Binding Jump, Mode=OneWay}" SortMemberPath="Jump" Width="55" />
+              <DataGridCheckBoxColumn Header="Attack" Binding="{Binding Attack, Mode=OneWay}" SortMemberPath="Attack" Width="60" />
+              <DataGridCheckBoxColumn Header="Dash" Binding="{Binding Dash, Mode=OneWay}" SortMemberPath="Dash" Width="55" />
+              <DataGridCheckBoxColumn Header="Cast" Binding="{Binding Cast, Mode=OneWay}" SortMemberPath="Cast" Width="50" />
+              <DataGridCheckBoxColumn Header="QuickCast" Binding="{Binding QuickCast, Mode=OneWay}" SortMemberPath="QuickCast" Width="80" />
+              <DataGridCheckBoxColumn Header="SuperDash" Binding="{Binding SuperDash, Mode=OneWay}" SortMemberPath="SuperDash" Width="85" />
+              <DataGridCheckBoxColumn Header="DreamNail" Binding="{Binding DreamNail, Mode=OneWay}" SortMemberPath="DreamNail" Width="85" />
+              <DataGridTextColumn Header="Axes (X,Y)" Binding="{Binding Axes}" Width="110" />
+            </DataGrid.Columns>
+          </DataGrid>
+          <TextBlock Grid.Row="3" Text="{Binding GridStatus}" TextWrapping="Wrap" Margin="4,6" />
+        </Grid>
+      </TabItem>
       <TabItem x:Name="MovieTextTab" Header="Movie Text"
                AutomationProperties.AutomationId="HktasStudio.MovieEditorTab">
         <Grid Margin="8">
@@ -208,7 +267,7 @@
         </Grid>
       </TabItem>
 
-      <TabItem x:Name="AuthoringTab" Header="Input Editor" AutomationProperties.AutomationId="HktasStudio.FrameAuthoringTab">
+      <TabItem x:Name="AuthoringTab" Header="Advanced Authoring" AutomationProperties.AutomationId="HktasStudio.FrameAuthoringTab">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="10">
             <TextBlock Text="Live frame input"

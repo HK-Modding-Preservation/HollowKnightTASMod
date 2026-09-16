@@ -39,7 +39,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 Math.Min(12, Client.SessionId.Length));
     }
 
-    public sealed class MainViewModel : INotifyPropertyChanged
+    public sealed partial class MainViewModel : INotifyPropertyChanged
     {
         private const int MaximumTimelineItems = 5000;
         private readonly SessionRegistry registry;
@@ -125,6 +125,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     RestoreStatus = "槽恢复 " + recovery.Status + " · " + recovery.OperationId + " · " + recovery.Detail;
             });
             this.launchGame = launchGame;
+            InitializeInputGrid();
             LaunchGameCommand = new AsyncRelayCommand(LaunchGameAsync, () => this.launchGame != null);
             OpenMovieCommand = new AsyncRelayCommand(OpenMovieAsync);
             SaveMovieCommand = new AsyncRelayCommand(SaveMovieAsync);
@@ -343,7 +344,16 @@ namespace HollowKnightTAS.Companion.ViewModels
         public string MovieText
         {
             get => movieText;
-            set => Set(ref movieText, value);
+            set
+            {
+                if (movieText == value) return;
+                Set(ref movieText, value);
+                if (gridSource != value)
+                {
+                    InputRows.Clear();
+                    GridStatus = "文本已改变；刷新表格后继续编辑。";
+                }
+            }
         }
 
         public string ValidationOutput
@@ -783,6 +793,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 dialog.FileName,
                 new UTF8Encoding(false, true));
             ValidateMovie(false);
+            RefreshGridCommand.Execute(null);
         }
 
         private async Task SaveMovieAsync()
@@ -1876,6 +1887,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 currentMovieTick = movieTick;
                 OnPropertyChanged(nameof(FrameCounterText));
+                foreach (var row in InputRows) row.UpdateCurrent(currentMovieTick);
             }
 
             if (fields.TryGetValue("sceneEpoch", out var epochText)
