@@ -10,15 +10,20 @@ namespace HollowKnightTAS.Runtime.Media
     {
         private readonly VideoExportFormat format;
         private readonly VideoExportTimeline timeline;
+        private readonly AudioBlockReframer audioBlocks;
         private bool recordingAudio;
         public int LastAudioSampleFrames { get; private set; }
         public float MaximumAudioPeak { get; private set; }
+        public int DspBlockSampleFrames { get; }
 
         public UnityFrameCapture(VideoExportFormat format)
         {
             this.format = format;
             timeline = new VideoExportTimeline(format);
             ValidateConfiguration();
+            AudioSettings.GetDSPBufferSize(out var blockSize, out _);
+            DspBlockSampleFrames = blockSize;
+            audioBlocks = new AudioBlockReframer(blockSize, format.Channels);
             if (!AudioRenderer.Start()) throw new InvalidOperationException("Unity offline audio capture could not start.");
             recordingAudio = true;
         }
@@ -29,15 +34,15 @@ namespace HollowKnightTAS.Runtime.Media
             ValidateConfiguration();
             LastAudioSampleFrames = AudioRenderer.GetSampleCountForCaptureFrame();
             var expectedValues = timeline.AudioValueCountForFrame(frameIndex);
-            // The installed player currently reports zero and rendering an explicit buffer
-            // produced only zeros in the short probe. Fail closed until an audio source is verified.
-            if (LastAudioSampleFrames != expectedValues / format.Channels)
-                throw new InvalidOperationException("Offline audio sample mismatch: Unity=" + LastAudioSampleFrames
-                    + ", expected=" + expectedValues / format.Channels + ", frame=" + frameIndex + ".");
-            using (var buffer = new NativeArray<float>(expectedValues, Allocator.Temp))
+            // Unity renders only complete DSP blocks, not arbitrary video-frame-sized buffers.
+            // GetSampleCountForCaptureFrame rounds its accumulator down to whole blocks and
+            // can legitimately return zero. Prefetch at most one block, retain the remainder,
+            // and call Render once per game frame (including a zero-length drain).
+            var renderValues = audioBlocks.RequiredRenderValues(expectedValues);
+            using (var buffer = new NativeArray<float>(renderValues, Allocator.Temp))
             {
                 if (!AudioRenderer.Render(buffer)) throw new InvalidOperationException("Unity offline audio render failed.");
-                var floats = buffer.ToArray();
+                var floats = audioBlocks.Consume(buffer.ToArray(), expectedValues);
                 foreach (var sample in floats) MaximumAudioPeak = Math.Max(MaximumAudioPeak, Math.Abs(sample));
                 pcm = new byte[checked(floats.Length * sizeof(float))];
                 Buffer.BlockCopy(floats, 0, pcm, 0, pcm.Length);

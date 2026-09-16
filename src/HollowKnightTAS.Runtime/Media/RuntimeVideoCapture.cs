@@ -56,6 +56,7 @@ namespace HollowKnightTAS.Runtime.Media
             fields["videoExport.fps"] = framesPerSecond.ToString(CultureInfo.InvariantCulture);
             fields["videoExport.lastAudioSampleFrames"] = capture.LastAudioSampleFrames.ToString(CultureInfo.InvariantCulture);
             fields["videoExport.maximumAudioPeak"] = capture.MaximumAudioPeak.ToString("R", CultureInfo.InvariantCulture);
+            fields["videoExport.dspBlockSampleFrames"] = capture.DspBlockSampleFrames.ToString(CultureInfo.InvariantCulture);
         }
 
         public void Finish()

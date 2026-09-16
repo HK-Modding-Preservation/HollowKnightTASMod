@@ -1,10 +1,10 @@
 # 当前任务：序列导出 MP4
 
-实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。格式、时间轴、流式编码器、游戏采集适配层及 CLI/SDK 通用命令已实现；Studio/MCP 专用入口和完整序列协调尚未完成。实机音频探针失败，当前不能可靠导出游戏序列。
+实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。游戏画面和真实音频已经流式导出为 MP4；60 帧短探针通过。Studio/MCP 专用入口、一键序列协调与完整假骑士导出尚未完成。
 
-下一步：解决安装版 Unity AudioRenderer 返回 0 样本的问题。API Start/Render 返回成功，但按帧直接 Render 的短探针也只有零样本；不能当成有效音频。查明原生实现/初始化要求，必要时实现其他按模拟帧驱动的音频采集。视频管道在实机第 24 帧停滞，已加 zerolatency 并通过 720p 合成测试，实机修复仍待确认。完整证据摘要在 D04，只做定向探针，不重跑旧战斗矩阵。
+下一步：接入 Studio/SDK/MCP 的产品入口与序列重放协调，复用本次成功的采集模块。Unity 音频按 1024 样本 DSP 块渲染，已用完整块采集加缓冲重分帧解决零音频；zerolatency 后实机 60 帧无停滞。只做相关定向检查，不重跑旧矩阵。
 
-本次新增 startVideoExport / finishVideoExport / cancelVideoExport（control.playback），状态在 getState 的 videoExport.* 字段。CLI 已在游戏中成功执行；导出开始要求 Paused，结束和取消校验 operationId。当前时钟实测为 50 fps，不能写死 60 fps。最终源码恢复音频样本不匹配即失败的检查；游戏与 Studio 已正常关闭，最终 Runtime 构建安装后未再启动。
+startVideoExport / finishVideoExport / cancelVideoExport（control.playback）已可经通用接口调用，状态在 getState 的 videoExport.* 字段。开始要求 Paused，结束和取消校验 operationId。实际时钟为 50 fps。`artifacts/d04-live/probe-dsp-60.mp4` 为 800×450、H.264 + AAC 双声道，音画各 1.2 秒、189630 字节；暂停未增加帧数，取消未留下文件。当前游戏 PID 17000、tick 259 暂停；进程是否仍在需读实时状态。构建后 Core/Runtime 身份已改变，旧假骑士示范不得改哈希冒充兼容。
 
 以下为此前 TAS 交付快照；其中进程状态和安装身份不是当前实时检测结果。编译 Core 后的新二进制不可冒充旧身份，旧包和示范保持原样。
 
