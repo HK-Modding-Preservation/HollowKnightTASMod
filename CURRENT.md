@@ -1,14 +1,22 @@
 # 当前任务：序列导出 MP4
 
-实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。新版已安装，180 帧序列自动结束和暂停续录已通过实机 CLI 检查。Studio/SDK/MCP 入口已实现，Studio 按钮尚未人工路径实测；完整假骑士导出仍待完成。
+实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。新版已安装，完整假骑士视频、180 帧暂停续录和 Studio 按钮 300 帧自动导出均已实测。使用说明见 `docs/MP4-DELIVERY.md`。
 
-下一步：安装仅修改 Companion 的汇总状态修复，核对 Runtime/Core 哈希不变，完成 Studio 操作与交付包/文档收尾。完整假骑士视频已完成，不重跑战斗矩阵。还需补充分段音画同步检查，不以总时长相等替代动作同步。首次短导出曾出现开始回执超时，但查询确认 Completed；第二次和完整导出正常返回。超时只查询同一操作，不重复提交。
+下一步仅需完成动作音效同步检查与最终范围复核，不重跑战斗矩阵。分段音视频 packet 时间戳未见累计漂移，但不等于动作音效逐项同步。首次短导出曾出现开始回执超时，但查询确认 Completed；后续正常返回。超时只查询同一操作，不重复提交。
+
+MP4 配套包：`artifacts/releases/HollowKnightTAS-MP4-ca23.zip`，209314805 字节，SHA-256 `e9f86f7a5e0e176b85c6e766bbc52b6e1e4bd87734f22eec56601d31e0e95122`。包内 8 个文件及哈希已流式校验，不含 FFmpeg。说明保留了动作音效同步检查尚未完成的限定。旧 3042 包保留，不与新版混用。
+
+Studio 实测：`artifacts/d04-live/studio-300.mp4`，操作 `video-02b4378cd65641a8821e43ec84042517`，Completed，300 帧 / 50 fps，H.264 800×450 + AAC 48 kHz 双声道，音画各 6 秒。SHA-256 `c0c9e87a7524f181e3fbd47d81905637fd75479c12ca4c500b7a142cab9b7002`。界面与外部状态均确认完成。
 
 完整视频：`artifacts/d04-live/false-knight-ca23.mp4`，43285613 字节，SHA-256 `cd00fb873222eab989b7f461adf0bad7163b900c63e868e9d10323853f8b695c`；H.264 800×450 / 50 fps / 3282 帧，AAC 48 kHz 双声道，音画各 65.64 秒。3043 个输入帧外含场景切换画面。开头、中段、结尾抽帧已检查；两个原生 Boss 死亡回调标志均 true，调谐 / GG_False_Knight / 剩 2 血。primaryBoss 的存活投影仍为 false-dead/260，不用这个投影否定原生终态事件。
 
-当前进程 PID 21892，session `20260916T052243.3334584Z-b782192a769e4255b696fa3df32cf3e1`，tick 3043 / Paused / Idle。最终存档 `save-20260916T0526048550472Z-00000001` Ready；电影 `artifacts/d04-live/false-knight-ca23-3043.hktas`，SHA-256 `5de22816d2d96f70af9de46a7a98c5003fb10243df06e67cd6e6074ef891c080`。导出操作 `video-fe66b646c44f4fb08432729420602f8a` Completed。安装 Runtime SHA-256 `ec1ca3a3f95fc00ec7fc6c393911e086a5a5eeefb6e1ce8684954e595499c32a`，Core `8d9ebdc958971aa16f3b5b9da769c3963d752b9e968f2eb94f727dca86b4f276`。
+完整战斗所在进程 PID 21892 已正常退出。最终存档 `save-20260916T0526048550472Z-00000001` Ready；电影 `artifacts/d04-live/false-knight-ca23-3043.hktas`，SHA-256 `5de22816d2d96f70af9de46a7a98c5003fb10243df06e67cd6e6074ef891c080`。导出操作 `video-fe66b646c44f4fb08432729420602f8a` Completed。安装 Runtime SHA-256 `ec1ca3a3f95fc00ec7fc6c393911e086a5a5eeefb6e1ce8684954e595499c32a`，Core `8d9ebdc958971aa16f3b5b9da769c3963d752b9e968f2eb94f727dca86b4f276`。
 
-`getStatus` 汇总 Runtime 诊断与冷恢复字段会超过 128 字段上限；修复已通过定向管道测试，尚未安装。新结构保留 `runtime.controlMode/movieTick/playbackMode/...` 及视频字段，完整诊断放在 `runtimeStatusJson`。实际恢复已通过持久事件确认 Completed，没有重复启动。
+`getStatus` 字段数量修复已安装并实机查询成功，完整诊断放在 `runtimeStatusJson`。最近游戏 PID 30444、session `20260916T053436.9231640Z-2368bcb4f9324d8eb084c78a6c2b5169`，Studio 短导出结束时 tick 326 / Paused / Idle；再次操作前查询实时状态。
+
+当前已安装包保持上述 Runtime/Core 身份。普通构建会把 Git HEAD 写入程序集和 SourceLink，可能改变指纹；不要仅为文档或打包再次默认构建。准确重建需同时固定 `SourceRevisionId=5e61ae587bf6da3c6c46e0152fa5fdd6aa5beac9`、`EnableSourceLink=false` 与 `SourceLink=artifacts/d04-live/frozen-sourcelink.json` 的绝对路径，再核对二进制哈希。该 JSON 无末尾换行。不要改 movie 哈希冒充兼容。
+
+以下短探针和 D01–D03 段落是历史快照，不代表当前进程或安装版本：
 
 当前实测：PID 2064，runId `interactive-1a84db9cb67147e2b0bb593affb8b7f0`，tick 448 / Paused / Idle，场景 GG_Workshop；需实时复查。执行 manifest `ca2351361eca60de168e5380e2ca934c89113352172ba163cc0258c48823a6e5`。`artifacts/d04-live/sequence-pause-180.mp4`：180 帧 / 50 fps / 音视频各 3.6 秒，暂停时两次查询均为 6 帧；空中攻击抽帧已检查，无 TAS 叠加层。旧段落的 PID 17000 已退出。
 
