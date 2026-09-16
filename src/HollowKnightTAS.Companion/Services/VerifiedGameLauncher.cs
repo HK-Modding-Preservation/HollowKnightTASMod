@@ -61,6 +61,14 @@ namespace HollowKnightTAS.Companion.Services
         public string UnityPlayerSha256 { get; }
         public string AssemblyCSharpSha256 { get; }
 
+        public void RequireStartupFrameGate()
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(ManifestPath));
+            if (!document.RootElement.TryGetProperty("startupFrameGateAbi", out var version)
+                || !version.TryGetInt32(out var abi) || abi != 1)
+                throw new InvalidOperationException("当前 ClockStartup 包不支持启动帧接管；原游戏不会因此被自动关闭。");
+        }
+
         public static VerifiedStartupProfile Load(
             string bundleRoot,
             string gameExecutablePath)
@@ -328,6 +336,7 @@ namespace HollowKnightTAS.Companion.Services
             public string? CapabilityId { get; set; }
             public string? Profile { get; set; }
             public int BridgeAbi { get; set; }
+            public int StartupFrameGateAbi { get; set; }
             public string? StartupPolicy { get; set; }
             public string? RandomSynchronizationPolicy { get; set; }
             public int RandomSynchronizationSeed { get; set; }
@@ -487,6 +496,7 @@ namespace HollowKnightTAS.Companion.Services
             CancellationToken cancellationToken,
             StartupBootGate? bootGate = null)
         {
+            if (bootGate?.IsFrameBased == true) profile.RequireStartupFrameGate();
             if (!IpcIdentifier.IsValid(runId, 96))
             {
                 throw new ArgumentException(

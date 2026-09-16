@@ -23,6 +23,7 @@ namespace HollowKnightTAS.Companion
         private StartupBootController? startupBoot;
         private System.Windows.Threading.DispatcherTimer? startupBootTimer;
         private System.Diagnostics.Process? startupGame;
+        private AutomaticStartupHandoff? automaticStartup;
 
         protected override async void OnStartup(StartupEventArgs e)
         {
@@ -98,8 +99,8 @@ namespace HollowKnightTAS.Companion
                 controlServer = new ControlPipeServer(
                     singleInstance.ControlPipeName,
                     sessions,
-                    () => coldRestoreSupervisor == null
-                          || !coldRestoreSupervisor.IsActive);
+                    () => (coldRestoreSupervisor == null || !coldRestoreSupervisor.IsActive)
+                          && automaticStartup?.IsActive != true);
                 controlServer.ExitRequested +=
                     OnControlExitRequested;
                 controlServer.Start();
@@ -121,9 +122,6 @@ namespace HollowKnightTAS.Companion
                     sessions,
                     coldRestoreSupervisor);
 
-                // Keep the pre-frame probe opt-in until real frame stepping and
-                // automatic ordinary-launch handoff are implemented and verified.
-                if (e.Args.Contains("--experimental-startup-gate", StringComparer.Ordinal))
                 {
                     startupBoot = new StartupBootController();
                     startupBootTimer = new System.Windows.Threading.DispatcherTimer
@@ -142,13 +140,7 @@ namespace HollowKnightTAS.Companion
                     };
                     startupBootTimer.Start();
                 }
-                var viewModel = new MainViewModel(
-                    sessions,
-                    new MovieEditorService(),
-                    new CapabilityBroker(),
-                    new NativeHostLauncher(),
-                    automationBroker,
-                    async gamePath =>
+                Func<string, Task> launchGameAsync = async gamePath =>
                     {
                         var existingGames = System.Diagnostics.Process.GetProcessesByName("hollow_knight");
                         try
@@ -189,7 +181,15 @@ namespace HollowKnightTAS.Companion
                             startupGame = null;
                             throw;
                         }
-                    }, startupBoot);
+                    };
+                var viewModel = new MainViewModel(sessions, new MovieEditorService(),
+                    new CapabilityBroker(), new NativeHostLauncher(), automationBroker, launchGameAsync, startupBoot);
+                automaticStartup = new AutomaticStartupHandoff(sessions, Dispatcher,
+                    gamePath => Task.Run(() => VerifiedStartupProfile.Load(
+                        Path.Combine(AppContext.BaseDirectory, "ClockStartup"), gamePath).RequireStartupFrameGate(), shutdown.Token),
+                    launchGameAsync,
+                    () => coldRestoreSupervisor.IsActive || startupBoot!.IsPending,
+                    viewModel.ReportStartupStatus);
                 var window = new MainWindow
                 {
                     DataContext = viewModel
@@ -204,6 +204,7 @@ namespace HollowKnightTAS.Companion
                 {
                     window.Show();
                 }
+                automaticStartup.Check();
 
                 var exitSeconds = ReadPositiveIntArgument(
                     e.Args,
@@ -228,6 +229,7 @@ namespace HollowKnightTAS.Companion
         protected override void OnExit(ExitEventArgs e)
         {
             shutdown.Cancel();
+            automaticStartup?.Dispose();
             startupBootTimer?.Stop();
             startupBoot?.Dispose();
             startupGame?.Dispose();

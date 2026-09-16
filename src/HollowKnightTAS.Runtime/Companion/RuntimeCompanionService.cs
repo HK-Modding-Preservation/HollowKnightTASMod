@@ -281,6 +281,7 @@ namespace HollowKnightTAS.Runtime.Companion
             GameManager self)
         {
             original(self);
+            dispatcher.ObserveStartupGameplay(self != null && self.gameState == GlobalEnums.GameState.PLAYING);
             var scene = UnityEngine.SceneManagement.SceneManager
                 .GetActiveScene().name ?? string.Empty;
             startupAttestor.TrySignalPayloadReady(scene);

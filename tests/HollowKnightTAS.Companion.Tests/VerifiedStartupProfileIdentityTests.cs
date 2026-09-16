@@ -33,6 +33,7 @@ namespace HollowKnightTAS.Companion.Tests
                         : StartupProfileContract.ProfileId,
                     startupPolicy = VerifiedStartupProfile.StartupPolicy,
                     bridgeAbi = StartupProfileContract.BridgeAbi,
+                    startupFrameGateAbi = 1,
                     randomSynchronizationPolicy = variant == "policy"
                         ? "unity-init-state-at-root-post-root-request-first-and-activation-finish-aligned-scene-boundaries-v18"
                         : StartupProfileContract.RandomSynchronizationPolicyId,

@@ -90,6 +90,32 @@ namespace HollowKnightTAS.Runtime.Ipc
         private bool coldSourceQuiesced;
         private bool coldSourceExitRequested;
         private bool gameExitRequested;
+        private readonly StartupHandoffGuard startupHandoff = new StartupHandoffGuard();
+
+        public void ObserveStartupGameplay(bool active) => startupHandoff.ObserveGameplay(active);
+
+        private string HandleStartupHandoff(IReadOnlyDictionary<string, string> fields)
+        {
+            RequireFields(fields, "requestId", "phase", "operationId", "processId", "processStartTimeUtcTicks");
+            using (var process = Process.GetCurrentProcess())
+            {
+                if (fields["processId"] != process.Id.ToString(CultureInfo.InvariantCulture)
+                    || fields["processStartTimeUtcTicks"] != process.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture))
+                    throw new InvalidOperationException("Startup handoff process identity mismatch.");
+            }
+            var manager = GameManager.instance;
+            startupHandoff.ObserveGameplay(manager != null && manager.gameState == GameState.PLAYING);
+            var controlled = Environment.GetEnvironmentVariable("HKTAS_CLOCK_STARTUP_LATCH") == "1";
+            var title = manager != null && !manager.IsInSceneTransition
+                && UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Menu_Title"
+                && HeroController.SilentInstance == null;
+            if (fields["phase"] == "prepare")
+                return startupHandoff.Prepare(fields["operationId"], controlled, title);
+            if (fields["phase"] != "commit") throw new InvalidDataException("Unknown startup handoff phase.");
+            startupHandoff.Commit(fields["operationId"], controlled, title);
+            gameExitRequested = true;
+            return "startup-handoff-exiting";
+        }
         private bool pausedWindowExitPending;
         private bool disposed;
         private Media.RuntimeVideoCapture? videoCapture;
@@ -778,6 +804,8 @@ namespace HollowKnightTAS.Runtime.Ipc
                 case IpcMessageTypes.QuitGame:
                     RequireFields(command.Fields, "requestId");
                     return RequestPausedGameExit();
+                case IpcMessageTypes.StartupHandoff:
+                    return HandleStartupHandoff(command.Fields);
                 case IpcMessageTypes.LoadGameSlot:
                     RequireFields(command.Fields, "requestId", "slot");
                     return LoadExistingGameSlot(command.Fields["slot"]);

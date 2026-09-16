@@ -413,6 +413,13 @@ namespace HollowKnightTAS.Companion.ViewModels
             private set => Set(ref firstDifference, value);
         }
 
+        internal void ReportStartupStatus(string detail)
+        {
+            Status = detail;
+            AddTimeline("Startup: " + detail);
+            Console.Error.WriteLine("Startup: " + detail);
+        }
+
         public string Status
         {
             get => status;

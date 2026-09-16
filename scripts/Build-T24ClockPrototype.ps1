@@ -193,6 +193,7 @@ $manifest = [ordered]@{
     capabilityId = 'native.clock-rng-pause.override.experimental.v31'
     profile = 'external-unity-startup-continuous-clock-v40-native-scene-lifecycle'
     bridgeAbi = 10
+    startupFrameGateAbi = 1
     startupPolicy = 'create-suspended-early-apc-unity-then-bridge-v1'
     randomSynchronizationPolicy =
         'unity-init-state-at-root-only-native-scene-lifecycle-v19'

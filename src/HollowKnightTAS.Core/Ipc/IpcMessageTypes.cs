@@ -25,6 +25,7 @@ namespace HollowKnightTAS.Core.Ipc
         public const string RunInputBatch = "runInputBatch";
         public const string Resume = "resume";
         public const string QuitGame = "quitGame";
+        public const string StartupHandoff = "startupHandoff";
         public const string LoadGameSlot = "loadGameSlot";
         public const string ReloadGameSlot = "reloadGameSlot";
         public const string Subscribe = "subscribe";
@@ -115,6 +116,7 @@ namespace HollowKnightTAS.Core.Ipc
                     RunInputBatch,
                     Resume,
                     QuitGame,
+                    StartupHandoff,
                     LoadGameSlot,
                     ReloadGameSlot,
                     Subscribe,
