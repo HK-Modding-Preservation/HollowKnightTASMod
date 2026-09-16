@@ -10,22 +10,47 @@ static void (__cdecl *g_boot_original_player_loop)(void);
 static HANDLE g_boot_step;
 static HANDLE g_boot_state_mapping;
 static volatile LONG *g_boot_frame_state; /* completed, waiting, thread, hooked */
+static BOOL g_boot_loop_active;
+
+static void wait_boot_frame_command(void)
+{
+    HANDLE handles[3] = {g_boot_continue, g_boot_owner, g_boot_step};
+    for (;;) {
+        DWORD result = MsgWaitForMultipleObjectsEx(3, handles, INFINITE,
+            QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+        if (result != WAIT_OBJECT_0 + 3) return;
+        MSG message;
+        /* Keep the native window responsive without executing PlayerLoop.
+         * Reentrant loop requests during DispatchMessage are suppressed by
+         * g_boot_loop_active below. Bound the batch to avoid input starvation. */
+        for (int i = 0; i < 128 && PeekMessageW(&message, NULL, 0, 0, PM_REMOVE); ++i) {
+            if (message.message == WM_QUIT) {
+                PostQuitMessage((int)message.wParam);
+                return;
+            }
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+    }
+}
 
 static void __cdecl boot_player_loop(void)
 {
+    if (g_boot_loop_active) return;
+    g_boot_loop_active = TRUE;
     if (g_boot_frame_state && WaitForSingleObject(g_boot_continue, 0) != WAIT_OBJECT_0)
     {
         InterlockedExchange(&g_boot_frame_state[2], (LONG)GetCurrentThreadId());
         InterlockedExchange(&g_boot_frame_state[1], 1);
         SetEvent(g_boot_ready);
-        HANDLE handles[3] = {g_boot_continue, g_boot_owner, g_boot_step};
-        WaitForMultipleObjects(3, handles, FALSE, INFINITE);
+        wait_boot_frame_command();
         ResetEvent(g_boot_ready);
         InterlockedExchange(&g_boot_frame_state[1], 0);
     }
     advance_boot_frame_clock();
     g_boot_original_player_loop();
     if (g_boot_frame_state) InterlockedIncrement(&g_boot_frame_state[0]);
+    g_boot_loop_active = FALSE;
 }
 
 static BOOL install_boot_frame_hook(void)

@@ -143,8 +143,8 @@ namespace HollowKnightTAS.Companion.ViewModels
                 OnPropertyChanged(nameof(PlayPauseLabel));
                 foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
                 Status = startupBoot.IsWaiting
-                    ? "已停在原生启动门闩（窗口创建前，尚非帧边界）；可继续初始化，暂不支持启动单步。"
-                    : startupBoot.IsPending ? "等待原生启动暂停回执…" : "启动门闩已释放；等待 Runtime 连接。";
+                    ? "启动帧已暂停；可逐帧推进，或点击 Play 继续初始化。"
+                    : startupBoot.IsPending ? "等待下一启动帧边界…" : "启动门闩已释放；等待 Runtime 连接。";
             });
             InitializeInputGrid();
             InitializeQuickSlots();
@@ -193,12 +193,20 @@ namespace HollowKnightTAS.Companion.ViewModels
             }, allowStartupContinue: true);
             StepCommand =
                 Command(
-                    () => ExecuteHumanAsync(
+                    async () =>
+                    {
+                        if (this.startupBoot?.IsPending == true)
+                        {
+                            this.startupBoot.Step();
+                            return;
+                        }
+                        await ExecuteHumanAsync(
                         AutomationCommandIds.Step,
                         AutomationScope.ControlStep,
                         Fields(
                             "count",
-                            "1")));
+                            "1"));
+                    }, allowStartupStep: true);
             ResumeCommand =
                 Command(
                     () => ExecuteHumanAsync(
@@ -429,7 +437,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             private set => Set(ref runtimeSummary, value);
         }
 
-        public string FrameCounterText => startupBoot?.IsPending == true ? "Frame: — (startup)" : currentMovieTick < 0 ? "Frame: —" : "Frame: " + currentMovieTick.ToString(CultureInfo.InvariantCulture);
+        public string FrameCounterText => startupBoot?.IsPending == true ? "Startup frame: " + (startupBoot.CompletedFrames < 0 ? "—" : startupBoot.CompletedFrames.ToString(CultureInfo.InvariantCulture)) : currentMovieTick < 0 ? "Frame: —" : "Frame: " + currentMovieTick.ToString(CultureInfo.InvariantCulture);
         public string PlaybackStateText => startupBoot?.IsPending == true ? startupBoot.IsWaiting ? "Startup gate paused" : "Awaiting startup gate" : string.IsNullOrEmpty(currentControlMode) ? "No runtime" : currentControlMode;
         public string PlayPauseLabel => startupBoot?.IsWaiting == true || currentControlMode == "Paused" ? "Play 继续" : "Pause 暂停";
 
@@ -757,7 +765,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             return null;
         }
 
-        private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true, bool allowStartupContinue = false)
+        private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true, bool allowStartupContinue = false, bool allowStartupStep = false)
         {
             var command = new AsyncRelayCommand(
                 async () =>
@@ -772,7 +780,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     }
                 },
                 () => startupBoot?.IsPending == true
-                    ? allowStartupContinue && startupBoot.IsWaiting
+                    ? (allowStartupContinue && startupBoot.IsWaiting) || (allowStartupStep && startupBoot.CanStep)
                     : !requireConnected || SelectedSession?.Client.IsConnected == true);
             runtimeCommands.Add(command);
             return command;
