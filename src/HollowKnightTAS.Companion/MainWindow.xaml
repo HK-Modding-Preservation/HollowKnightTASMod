@@ -16,6 +16,7 @@
         <MenuItem Header="Exit 关闭 Studio" Click="OnCloseStudio" />
       </MenuItem>
       <MenuItem Header="_Settings 设置">
+        <MenuItem Header="Hotkeys 快捷键…" Tag="ShortcutSettingsTab" Click="OnNavigate" />
         <MenuItem Header="Runtime 运行控制…" Tag="ControlTab" Click="OnNavigate" />
         <MenuItem Header="Autosave 自动存档…" Tag="SavesTab" Click="OnNavigate" />
       </MenuItem>
@@ -37,8 +38,8 @@
         <MenuItem Header="External Control 外部控制" Tag="CapabilitiesTab" Click="OnNavigate" />
       </MenuItem>
       <MenuItem Header="_Input 输入">
-        <MenuItem Header="Play / Pause 播放与暂停" InputGestureText="Pause" Command="{Binding TogglePauseCommand}" />
-        <MenuItem Header="Frame Advance 前进一帧" InputGestureText="V" Command="{Binding StepCommand}" />
+        <MenuItem Header="Play / Pause 播放与暂停" InputGestureText="{Binding ConfiguredPause}" Command="{Binding TogglePauseCommand}" />
+        <MenuItem Header="Frame Advance 前进一帧" InputGestureText="{Binding ConfiguredAdvance}" Command="{Binding StepCommand}" />
         <MenuItem Header="Input Editor 输入编辑器" Tag="InputGridTab" Click="OnNavigate" />
       </MenuItem>
     </Menu>
@@ -46,9 +47,9 @@
       <Button Content="Start 启动" AutomationProperties.AutomationId="HktasStudio.LaunchGameButton"
               ToolTip="已有游戏时请先正常保存退出，再从这里启动。" Command="{Binding LaunchGameCommand}" />
       <Button Content="{Binding PlayPauseLabel}" Command="{Binding TogglePauseCommand}"
-              AutomationProperties.AutomationId="HktasStudio.PlayPauseButton" ToolTip="Pause：播放/暂停" />
+              AutomationProperties.AutomationId="HktasStudio.PlayPauseButton" ToolTip="{Binding ConfiguredPause}" />
       <Button Content="Frame Advance 逐帧" Command="{Binding StepCommand}"
-              AutomationProperties.AutomationId="HktasStudio.FrameAdvanceButton" ToolTip="V：前进一个输入帧；输入文本时不触发。" />
+              AutomationProperties.AutomationId="HktasStudio.FrameAdvanceButton" ToolTip="{Binding ConfiguredAdvance}" />
       <Button Content="Stop 停止序列" Command="{Binding StopReplayCommand}" />
       <TextBlock Text="{Binding FrameCounterText}" Margin="14,0,8,0" VerticalAlignment="Center"
                  FontFamily="Consolas" AutomationProperties.AutomationId="HktasStudio.FrameCounter" />
@@ -460,6 +461,15 @@
           </Grid.RowDefinitions>
           <StackPanel>
           <WrapPanel>
+            <TextBlock Text="TAS 快捷槽 " VerticalAlignment="Center" />
+            <ComboBox Width="320" ItemsSource="{Binding QuickSlotLabels}" SelectedIndex="{Binding SelectedQuickSlot}" />
+            <Button Content="Save 保存（Shift+Fn）" Command="{Binding SaveQuickSlotCommand}" />
+            <Button Content="Load 恢复（Fn）" Command="{Binding LoadQuickSlotCommand}" />
+            <Button Content="Refresh 快捷槽" Command="{Binding RefreshQuickSlotsCommand}" />
+            <Button Content="解除待确认关联…" Command="{Binding ForgetPendingQuickSlotCommand}" />
+          </WrapPanel>
+          <TextBlock Text="{Binding QuickSlotStatus}" TextWrapping="Wrap" Margin="0,4,0,6" />
+          <WrapPanel>
             <Button Content="Refresh" Command="{Binding RefreshReplaySavesCommand}" />
             <Button Content="Create Manual Save" Command="{Binding CreateReplaySaveCommand}" />
             <Button Content="Restore Selected" Command="{Binding RestoreReplaySaveCommand}" />
@@ -492,6 +502,21 @@
         </Grid>
       </TabItem>
 
+      <TabItem x:Name="ShortcutSettingsTab" Header="Hotkeys">
+        <StackPanel Margin="12">
+          <TextBlock Text="Studio 快捷键" FontSize="18" Margin="0,0,0,12" />
+          <WrapPanel>
+            <TextBlock Text="播放/暂停 " VerticalAlignment="Center" />
+            <ComboBox Width="120" ItemsSource="{Binding ShortcutKeys}" SelectedItem="{Binding PauseShortcut}" />
+            <TextBlock Text=" 前进一帧 " VerticalAlignment="Center" />
+            <ComboBox Width="120" ItemsSource="{Binding ShortcutKeys}" SelectedItem="{Binding AdvanceShortcut}" />
+            <Button Content="应用并保存" Command="{Binding SaveShortcutSettingsCommand}" />
+            <Button Content="恢复 libTAS 默认键位" Command="{Binding ResetShortcutSettingsCommand}" />
+          </WrapPanel>
+          <TextBlock Text="{Binding ShortcutSettingsStatus}" TextWrapping="Wrap" Margin="0,12" />
+          <TextBlock Text="固定快捷键：Ctrl+O 打开、Ctrl+S 保存；F1…F10 恢复，Shift+F1…F10 存档。&#10;输入表格：Ctrl+C/V 复制/粘贴、Ctrl+Z/Y 撤销/重做、Insert/Delete 插入/删除。&#10;按住按键不会重复提交。焦点在游戏或其他窗口时，这些 Studio 快捷键不生效。&#10;当前没有可用的加速播放命令，Tab 保留界面焦点导航，不冒充快进。" TextWrapping="Wrap" />
+        </StackPanel>
+      </TabItem>
       <TabItem x:Name="CapabilitiesTab" Header="External Control">
         <Grid Margin="8">
           <Grid.RowDefinitions>

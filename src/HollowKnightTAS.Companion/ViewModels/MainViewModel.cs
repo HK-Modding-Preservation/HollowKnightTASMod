@@ -126,6 +126,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             });
             this.launchGame = launchGame;
             InitializeInputGrid();
+            InitializeQuickSlots();
+            InitializeShortcutSettings();
             LaunchGameCommand = new AsyncRelayCommand(LaunchGameAsync, () => this.launchGame != null);
             OpenMovieCommand = new AsyncRelayCommand(OpenMovieAsync);
             SaveMovieCommand = new AsyncRelayCommand(SaveMovieAsync);
@@ -333,6 +335,9 @@ namespace HollowKnightTAS.Companion.ViewModels
                 currentMovieTick = -1;
                 currentControlMode = string.Empty;
                 currentSceneEpoch = -1;
+                quickSlotCatalog = "[]";
+                RenderQuickSlots();
+                foreach (var row in InputRows) row.UpdateCurrent(-1);
                 OnPropertyChanged(nameof(FrameCounterText));
                 OnPropertyChanged(nameof(PlaybackStateText));
                 OnPropertyChanged(nameof(PlayPauseLabel));
@@ -1826,9 +1831,10 @@ namespace HollowKnightTAS.Companion.ViewModels
                         + eventArgs.Envelope.MessageType
                         + " "
                         + summary);
-                    HandleTypedEvent(
-                        eventArgs.Envelope.MessageType,
-                        payload.Fields);
+                    if (ReferenceEquals(SelectedSession?.Client, eventArgs.Session))
+                        HandleTypedEvent(
+                            eventArgs.Envelope.MessageType,
+                            payload.Fields);
                 });
         }
 
@@ -1946,6 +1952,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 && fields.TryGetValue("entries", out var entries))
             {
                 ReplaySaves.Clear();
+                if (fields.TryGetValue("entriesJson", out var quickCatalog)) UpdateQuickSlotCatalog(quickCatalog);
                 foreach (var line in entries.Split(
                              new[] { '\n' },
                              StringSplitOptions.RemoveEmptyEntries))

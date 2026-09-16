@@ -1,0 +1,79 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Text.Json;
+using System.Windows.Input;
+
+namespace HollowKnightTAS.Companion.ViewModels
+{
+    public sealed partial class MainViewModel
+    {
+        private Key pauseShortcut = Key.Pause;
+        private Key advanceShortcut = Key.V;
+        private Key configuredPause = Key.Pause;
+        private Key configuredAdvance = Key.V;
+        private bool shortcutSettingsValid = true;
+        private string shortcutSettingsStatus = "仅 Studio 获得焦点时生效；文本框内字母与空格留给文本输入。";
+        private static string ShortcutSettingsPath => Path.Combine(Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData), "HollowKnightTAS", "studio-shortcuts.json");
+        public Key[] ShortcutKeys { get; } = new[] { Key.Pause, Key.Space, Key.OemPeriod }
+            .Concat(Enumerable.Range((int)Key.A, (int)Key.Z - (int)Key.A + 1).Select(v => (Key)v)).ToArray();
+        public Key PauseShortcut { get => pauseShortcut; set => Set(ref pauseShortcut, value); }
+        public Key AdvanceShortcut { get => advanceShortcut; set => Set(ref advanceShortcut, value); }
+        public Key ConfiguredPause => configuredPause;
+        public Key ConfiguredAdvance => configuredAdvance;
+        public string ShortcutSettingsStatus { get => shortcutSettingsStatus; private set => Set(ref shortcutSettingsStatus, value); }
+        public ICommand SaveShortcutSettingsCommand { get; private set; } = null!;
+        public ICommand ResetShortcutSettingsCommand { get; private set; } = null!;
+
+        private void InitializeShortcutSettings()
+        {
+            try
+            {
+                if (File.Exists(ShortcutSettingsPath))
+                {
+                    if (new FileInfo(ShortcutSettingsPath).Length > 4096) throw new InvalidDataException("配置过大");
+                    var keys = JsonSerializer.Deserialize<Key[]>(File.ReadAllText(ShortcutSettingsPath));
+                    if (keys == null || keys.Length != 2 || keys[0] == keys[1] || keys.Any(k => !ShortcutKeys.Contains(k)))
+                        throw new InvalidDataException("快捷键配置无效");
+                    configuredPause = PauseShortcut = keys[0];
+                    configuredAdvance = AdvanceShortcut = keys[1];
+                }
+            }
+            catch (Exception e)
+            {
+                shortcutSettingsValid = false;
+                ShortcutSettingsStatus = "使用默认键位，未覆盖损坏配置：" + e.Message;
+            }
+            SaveShortcutSettingsCommand = new RelayCommand(() =>
+            {
+                try
+                {
+                    if (!shortcutSettingsValid) throw new InvalidOperationException("原配置无法读取，拒绝覆盖：" + ShortcutSettingsPath);
+                    if (PauseShortcut == AdvanceShortcut || !ShortcutKeys.Contains(PauseShortcut) || !ShortcutKeys.Contains(AdvanceShortcut))
+                        throw new InvalidOperationException("播放/暂停与逐帧必须选择不同按键。");
+                    Directory.CreateDirectory(Path.GetDirectoryName(ShortcutSettingsPath)!);
+                    var temp = ShortcutSettingsPath + ".tmp";
+                    try
+                    {
+                        File.WriteAllText(temp, JsonSerializer.Serialize(new[] { PauseShortcut, AdvanceShortcut }));
+                        File.Move(temp, ShortcutSettingsPath, true);
+                    }
+                    finally { if (File.Exists(temp)) File.Delete(temp); }
+                    configuredPause = PauseShortcut;
+                    configuredAdvance = AdvanceShortcut;
+                    OnPropertyChanged(nameof(ConfiguredPause));
+                    OnPropertyChanged(nameof(ConfiguredAdvance));
+                    ShortcutSettingsStatus = "已应用并保存。仅 Studio 窗口内生效；Ctrl+O/S 与 F1…F10 固定。";
+                }
+                catch (Exception e) { ShortcutSettingsStatus = e.Message; }
+            });
+            ResetShortcutSettingsCommand = new RelayCommand(() =>
+            {
+                PauseShortcut = Key.Pause;
+                AdvanceShortcut = Key.V;
+                SaveShortcutSettingsCommand.Execute(null);
+            });
+        }
+    }
+}

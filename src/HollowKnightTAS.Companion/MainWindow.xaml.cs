@@ -72,9 +72,22 @@ namespace HollowKnightTAS.Companion
         {
             if (DataContext is not MainViewModel viewModel) return;
             var key = e.Key == Key.System ? e.SystemKey : e.Key;
+            var quickSlot = StudioHotkeys.QuickSlotIndex(key, Keyboard.Modifiers);
+            if (quickSlot >= 0)
+            {
+                e.Handled = true;
+                if (e.IsRepeat) return;
+                viewModel.SelectedQuickSlot = quickSlot;
+                MainTabs.SelectedItem = SavesTab;
+                var slotCommand = Keyboard.Modifiers == ModifierKeys.Shift
+                    ? viewModel.SaveQuickSlotCommand : viewModel.LoadQuickSlotCommand;
+                if (slotCommand.CanExecute(null)) slotCommand.Execute(null);
+                return;
+            }
             var editingText = Keyboard.FocusedElement is TextBoxBase or PasswordBox
-                || Keyboard.FocusedElement is ComboBox { IsEditable: true };
-            ICommand? command = StudioHotkeys.Resolve(key, Keyboard.Modifiers, editingText) switch
+                || Keyboard.FocusedElement is ComboBox;
+            ICommand? command = StudioHotkeys.Resolve(key, Keyboard.Modifiers, editingText,
+                viewModel.ConfiguredPause, viewModel.ConfiguredAdvance) switch
             {
                 StudioShortcut.OpenMovie => viewModel.OpenMovieCommand,
                 StudioShortcut.SaveMovie => viewModel.SaveMovieCommand,
