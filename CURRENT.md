@@ -1,10 +1,10 @@
-# 当前任务：序列导出 MP4
+# 已交付：序列导出 MP4
 
-实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。新版已安装，完整假骑士视频、180 帧暂停续录和 Studio 按钮 300 帧自动导出均已实测。使用说明见 `docs/MP4-DELIVERY.md`。
+实现入口：`mydocs/specs/tasks/D04_MP4导出.md`。新版已安装，完整假骑士视频、180 帧暂停续录和 Studio 按钮 300 帧自动导出均已实测。使用说明见 `docs/MP4-DELIVERY.md`，验收范围见 `docs/MP4-VERIFICATION.md`。
 
-下一步仅需完成动作音效同步检查与最终范围复核，不重跑战斗矩阵。分段音视频 packet 时间戳未见累计漂移，但不等于动作音效逐项同步。首次短导出曾出现开始回执超时，但查询确认 Completed；后续正常返回。超时只查询同一操作，不重复提交。
+本轮功能与范围复核完成，无继续跑矩阵或重新构建的待办。完整 MP4 解码无错误；开头、中段、末段的动作画面与音频瞬态已对照，未见明显累计错位。检查基于逐帧画面和音频 RMS，不宣称逐音效精确延迟或主观听感通过。编码器异常退出新增定向测试 1/1 通过，未改生产代码。首次短导出曾出现开始回执超时，但查询确认 Completed；后续正常返回。超时只查询同一操作，不重复提交。
 
-MP4 配套包：`artifacts/releases/HollowKnightTAS-MP4-ca23.zip`，209314805 字节，SHA-256 `e9f86f7a5e0e176b85c6e766bbc52b6e1e4bd87734f22eec56601d31e0e95122`。包内 8 个文件及哈希已流式校验，不含 FFmpeg。说明保留了动作音效同步检查尚未完成的限定。旧 3042 包保留，不与新版混用。
+最终配套包：`artifacts/releases/HollowKnightTAS-MP4-final.zip`，209317461 字节，SHA-256 `ab8e036c5afbdbfffb574b3bbc5e26d5bb3a3939be2c52590238aa30e47914c7`。包内 9 个文件及哈希已流式校验，含最新使用说明和验收范围，不含 FFmpeg。上一阶段 ca23 包的二进制、视频不变，说明已由 final 包更新；旧 3042 包保留，不与新版混用。
 
 Studio 实测：`artifacts/d04-live/studio-300.mp4`，操作 `video-02b4378cd65641a8821e43ec84042517`，Completed，300 帧 / 50 fps，H.264 800×450 + AAC 48 kHz 双声道，音画各 6 秒。SHA-256 `c0c9e87a7524f181e3fbd47d81905637fd75479c12ca4c500b7a142cab9b7002`。界面与外部状态均确认完成。
 

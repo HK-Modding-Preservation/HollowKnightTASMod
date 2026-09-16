@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using HollowKnightTAS.Core.Media;
 using HollowKnightTAS.Runtime.Media;
@@ -101,6 +102,42 @@ namespace HollowKnightTAS.Core.Tests.Media
                 File.WriteAllText(output, "protected");
                 Assert.ThrowsExactly<IOException>(() => new FfmpegVideoEncoder(ffmpeg, output, new VideoExportFormat(64, 64)));
                 Assert.AreEqual("protected", File.ReadAllText(output));
+            });
+        }
+
+        [TestMethod]
+        public void KilledFfmpegFailsEncodingAndDisposeRemovesTemporaryArtifacts()
+        {
+            WithEncoderTools((ffmpeg, _, directory) =>
+            {
+                var output = Path.Combine(directory, "killed.mp4");
+                var format = new VideoExportFormat(64, 64);
+                var encoder = new FfmpegVideoEncoder(ffmpeg, output, format);
+                string temporaryDirectory;
+                try
+                {
+                    var temporaryDirectories = Directory.GetDirectories(directory, ".hktas-export-*");
+                    Assert.AreEqual(1, temporaryDirectories.Length);
+                    temporaryDirectory = temporaryDirectories[0];
+
+                    var processField = typeof(FfmpegVideoEncoder).GetField(
+                        "process", BindingFlags.Instance | BindingFlags.NonPublic);
+                    Assert.IsNotNull(processField);
+                    var process = (Process)processField!.GetValue(encoder)!;
+                    process.Kill();
+                    Assert.IsTrue(process.WaitForExit(10000));
+
+                    Assert.ThrowsExactly<InvalidOperationException>(() =>
+                        encoder.WriteFrame(new byte[format.VideoFrameBytes], new byte[1600 * sizeof(float)]));
+                    Assert.IsFalse(encoder.IsCompleted);
+                }
+                finally
+                {
+                    encoder.Dispose();
+                }
+
+                Assert.IsFalse(File.Exists(output));
+                Assert.IsFalse(Directory.Exists(temporaryDirectory));
             });
         }
 

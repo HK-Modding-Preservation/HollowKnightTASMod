@@ -42,6 +42,7 @@ $files = [ordered]@{
     'demo/false-knight.hktas-save' = Resolve-InputFile $SaveArchivePath 'demo/false-knight.hktas-save'
     'video/false-knight.mp4' = Resolve-InputFile $VideoPath 'video/false-knight.mp4'
     'START-HERE.md' = Resolve-InputFile $GuidePath 'START-HERE.md'
+    'VERIFICATION.md' = Resolve-InputFile (Join-Path $repo 'docs/MP4-VERIFICATION.md') 'VERIFICATION.md'
     'scripts/Transfer-ReplaySave.ps1' = Resolve-InputFile (Join-Path $repo 'scripts/Transfer-ReplaySave.ps1') 'scripts/Transfer-ReplaySave.ps1'
     'scripts/Start-TasGame.ps1' = Resolve-InputFile (Join-Path $repo 'scripts/Start-TasGame.ps1') 'scripts/Start-TasGame.ps1'
 }
