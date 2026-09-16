@@ -42,3 +42,5 @@ Settings → Hotkeys 可修改播放/暂停、逐帧按键并持久化；文本�
 本次发现快捷槽提示仍停在请求恢复，已在源码接入 Supervisor 进度事件并处理预期的换进程断连提示；IME/死键也统一映射到实际按键。后两项编译通过但未安装验证。V 在一次现场尝试中触发中文输入法而未前进，尚不能判定是文本焦点还是 IME 映射，需要针对性复核。不要重复完整存档矩阵；后续完成未验证交互和包更新即可。
 
 后续修正已安装，manifest `63eda8467bc01aab0eec617f9eb972efdfe10cdd5ceb2f5dc8cd9002c3cb989b` 验签通过，冻结 Runtime/Core 未变。表格点击预览事件现在明确转移焦点，刷新移除单元格后仍把焦点留在表格；表格禁用 IME 组合输入，文本区保留输入法。实机确认文本区 V 不步进、表格 V 从 326 到 327 后暂停。恢复操作 `cold-restore-47949c6f9e18483aa09d7b268b42fd66` 的 Launching 和 Completed 均已在 UI 查看。第 0 帧 Attack 的表格修改提交后，getMovie 返回首行 `frames 1 hold=attack`、327 帧分支 `0a2fb0318b663aa5ee636c704e478459577f1107fb46e6633aaafda449699018`，游戏未回退。5 项快捷键和 1 项最小内容区布局测试通过；尚不证明真实 DPI 缩放、非零轴输入、改键和分支 seek。剩余工作以 CURRENT.md 首段为准。
+
+分支 seek 与改键后续实测通过：通过 UI 应用并重放到第 10 帧，操作 `cold-restore-64643a5c055740c7b4801322be75b67d` Completed，接口和界面均显示第 10 帧暂停。Settings 中将逐帧键改为 N 并保存，按 N 到第 11 帧暂停；已恢复默认 V。非零轴和真实缩放尚未完成，不重复已经完成的分支回退。新增 `scripts/Package-StudioUpdate.ps1` 用白名单和指定哈希打包现有安装、流式校验 zip，避免默认构建改变 Runtime/Core 身份。
