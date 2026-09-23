@@ -4,6 +4,8 @@
 
 定向检查：Core 5/5、Companion 14/14；安装签名验真，正式更新包 `artifacts/releases/HollowKnightTAS-Studio-startup-frame-final.zip`，490 项，166067256 字节，SHA-256 `1fc7677153906523e161833a43b5b41445bcc20dec38f58d8fafb860487a0c95`。安装 Runtime `3aaa230901d2d6fb66de1275a34a42e3fe0e89af7eff91d9017bc07c89883391`、Core `8aa4a71370d74e72cb3ca463e6fdf1eac1a9f1f5fc18e1f3e7a680617b76a5a2`、Companion manifest `eaaafdc7a8f80a09aede40ee71386a923d7094356c3faa47c8ad7261bf11298e`。旧组件备份在 `artifacts/d06-startup/pre-handoff-backup`，旧包与旧示范保留；以下历史哈希不代表当前安装身份。启动帧下的 V 快捷键尚未做实机按键验证，按钮路径和快捷键解析定向测试已通过。下一项由新的用户需求决定，不重跑旧矩阵。
 
+2026-09-23 假骑士旧序列复查：3042 帧 `fixtures/t16/false-knight-ea42-3042.hktas` 与 3043 帧 `artifacts/d04-live/false-knight-ca23-3043.hktas` 的归档均用当前 Core 验证通过；但当前运行环境 manifest 为 `f2c508c4eb98ac77cf2641a7ee383204bde1696a3cb5b5f8f13d561555c9496f`，两份 movie 的 manifest 分别为 `391ad9b41f15cae7c58166ba1a871a83de6bb71142783a76f08c062c33aaf30d` 和 `ca2351361eca60de168e5380e2ca934c89113352172ba163cc0258c48823a6e5`。`movie validate` 均报 HKTAS220；Studio 的两个对应 Replay Save 均为 `Incompatible`，详情 `manifest-mismatch`。因此当前安装版在战斗回放前即拒绝旧示范，本轮未做战斗通过声明，也未改写标识或恢复旧存档。测试游戏正常退出，第 4 槽哈希仍为 `1acd6214b8dacaf112a2fbae0e5e7aeb3d487c9365f5f955e4aef8e51459dade`；若要在新版复现，须重新生成匹配身份的录制并完整验证。
+
 ## 已交付：libTAS 风格 Studio
 
 入口：`mydocs/specs/tasks/D05_libTAS界面.md`；普通用户手册：`docs/USER-MANUAL.md`；迁移说明：`docs/LIBTAS-MIGRATION.md`。菜单、常驻播放/单步控制、输入表格、快捷槽/改键、模拟轴编辑和常用/高级界面分层已实现、安装并打包。后续处理用户新需求或具体缺陷，不重启旧测试矩阵。
