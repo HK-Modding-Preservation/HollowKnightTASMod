@@ -1,10 +1,14 @@
 # HollowKnightTAS Studio 操作手册
 
-Studio 用来在《空洞骑士》中逐帧播放、编辑和回退 TAS 输入。正常启动游戏后，Mod 会自动打开 Studio；如果先打开 Studio，也可以点击 `Start 启动` 拉起游戏。
+Studio 用来在《空洞骑士》中逐帧播放、编辑和回退 TAS 输入。直接启动游戏时，Mod 会自动打开 Studio，并把受控游戏停在 `Startup frame: 0`；如果先打开 Studio，也可以点击 `Start 启动` 拉起游戏。
 
 ## 开始前
 
-进入可控制小骑士的游戏场景，等右上角显示 `READY` 和 `CONNECTED · IPC v1`。如果底部出现 `An active HeroController is unavailable`，说明游戏仍在标题画面、加载过程或没有可控制的小骑士。进入存档并等待场景加载完成即可。
+`Startup frame: 0` 表示游戏的第一个原生 PlayerLoop 尚未执行，此时可以点击 `Frame Advance` 逐帧推进，或点击 `Play` 继续启动。启动帧与下面的 TAS 输入帧分开计数；启动阶段尚未连接 Runtime，其他局内命令需等待初始化完成。
+
+直接启动时，最初的标题进程会在进入存档前退出，Studio 随后启动受控游戏。这个短暂的重新启动是首帧暂停流程的一部分。
+
+在标题画面正常选择存档，进入可控制小骑士的场景后，等右上角显示 `READY` 和 `CONNECTED · IPC v1`。如果底部出现 `An active HeroController is unavailable`，说明游戏仍在标题画面、加载过程或没有可控制的小骑士。进入存档并等待场景加载完成即可。
 
 顶部四个控件是最常用的运行控制：
 

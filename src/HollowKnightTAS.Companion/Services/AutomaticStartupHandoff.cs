@@ -89,8 +89,32 @@ namespace HollowKnightTAS.Companion.Services
                 timeout.CancelAfter(TimeSpan.FromSeconds(15));
                 await source.WaitForExitAsync(timeout.Token);
             }
+            await WaitForGameProcessCleanupAsync(cancellation);
             report("普通启动已退出，正在以首帧暂停模式重新启动…");
             await launch(gamePath);
+        }
+
+        private static async Task WaitForGameProcessCleanupAsync(CancellationToken cancellation)
+        {
+            // Steam and Windows may briefly retain the exiting image after
+            // WaitForExitAsync. Never launch beside a remaining game process.
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            var emptySamples = 0;
+            do
+            {
+                var games = Process.GetProcessesByName("hollow_knight");
+                try
+                {
+                    emptySamples = games.Length == 0 ? emptySamples + 1 : 0;
+                    if (emptySamples >= 2) return;
+                }
+                finally
+                {
+                    foreach (var game in games) game.Dispose();
+                }
+                await Task.Delay(150, cancellation);
+            } while (DateTime.UtcNow < deadline);
+            throw new TimeoutException("原游戏退出后仍检测到 Hollow Knight 进程；未启动第二个游戏。");
         }
 
         private static async Task<string> RequestAsync(RuntimeSessionClient session, string operation,

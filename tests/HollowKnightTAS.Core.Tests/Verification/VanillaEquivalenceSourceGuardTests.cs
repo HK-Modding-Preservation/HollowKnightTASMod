@@ -71,9 +71,8 @@ namespace HollowKnightTAS.Core.Tests.Verification
             var shortcut = ExtractMethod(source, "private bool TryExitFromPausedWindowShortcut()",
                 "private string RequestPausedGameExit()");
             Assert.IsTrue(shortcut.IndexOf("RequestPausedGameExit();", StringComparison.Ordinal)
-                < shortcut.IndexOf("Application.Quit();", StringComparison.Ordinal));
-            Assert.IsTrue(shortcut.IndexOf("Application.Quit();", StringComparison.Ordinal)
-                < shortcut.IndexOf("ReleaseBoundaryForApplicationQuit();", StringComparison.Ordinal));
+                < shortcut.IndexOf("ExitApprovedGameProcess();", StringComparison.Ordinal));
+            Assert.IsFalse(shortcut.Contains("ReleaseBoundaryForApplicationQuit();"));
             Assert.IsFalse(shortcut.Contains(".Resume("));
             Assert.IsFalse(shortcut.Contains(".Step("));
             var native = ReadRuntimeSource("Ipc", "PausedWindowExitShortcut.cs");
@@ -167,7 +166,7 @@ namespace HollowKnightTAS.Core.Tests.Verification
         {
             var dispatcher = ReadRuntimeSource("Ipc", "RuntimeCommandDispatcher.cs");
             var quit = ExtractMethod(dispatcher, "private string RequestPausedGameExit()",
-                "private string QuiesceColdRestoreSource(");
+                "private string BeginSourceLifecycleReload(");
             StringAssert.Contains(quit, "controls.ControlMode != SimulationControlMode.Paused");
             StringAssert.Contains(quit, "controls.PlaybackMode != PlaybackMode.Idle");
             StringAssert.Contains(quit, "saves.PendingCount != 0 || saves.IsRestoreActive");
@@ -177,10 +176,17 @@ namespace HollowKnightTAS.Core.Tests.Verification
             Assert.IsFalse(quit.Contains(".Step("));
             var pump = ExtractMethod(dispatcher, "private void PumpPausedBoundaryCommands()",
                 "private void PumpColdRestoreBoundaryCommands()");
-            StringAssert.Contains(pump, "coldSourceExitRequested || gameExitRequested");
-            Assert.IsTrue(pump.IndexOf("Dispatch(command)", StringComparison.Ordinal)
-                < pump.IndexOf("Application.Quit()", StringComparison.Ordinal));
+            StringAssert.Contains(pump, "if (coldSourceExitRequested)");
+            StringAssert.Contains(pump, "if (gameExitRequested)");
+            Assert.IsTrue(pump.IndexOf("Dispatch(command, atCompletedFrameBoundary: true)", StringComparison.Ordinal)
+                < pump.IndexOf("ExitApprovedGameProcess();", StringComparison.Ordinal));
             StringAssert.Contains(pump, "controls.ReleaseBoundaryForApplicationQuit()");
+            var exit = ExtractMethod(dispatcher, "private void ExitApprovedGameProcess()",
+                "private bool pausedWindowExitPending;");
+            StringAssert.Contains(exit, "if (!startupHandoffExitRequested)");
+            StringAssert.Contains(exit, "shutdownCompanionForExit?.Invoke()");
+            Assert.IsTrue(exit.IndexOf("shutdownCompanionForExit?.Invoke()", StringComparison.Ordinal)
+                < exit.IndexOf("ExitProcess(0);", StringComparison.Ordinal));
         }
 
         [TestMethod]

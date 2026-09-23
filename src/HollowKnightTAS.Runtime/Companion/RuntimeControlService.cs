@@ -207,9 +207,10 @@ namespace HollowKnightTAS.Runtime.Companion
         internal void ReleaseBoundaryForApplicationQuit()
         {
             ThrowIfDisposed();
-            if (pause == null)
-                throw new InvalidOperationException("Paused source controller is unavailable.");
-            pause.ReleaseBoundaryForApplicationQuit();
+            // Startup handoff exits from the title before any pause controller
+            // exists. A paused game still needs its completed-frame gate
+            // released so Unity can finish the quit request.
+            pause?.ReleaseBoundaryForApplicationQuit();
         }
 
         public void SetMovie(MovieDocument value)

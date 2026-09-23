@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using GlobalEnums;
 using HollowKnightTAS.Core.Capabilities;
@@ -36,6 +37,9 @@ namespace HollowKnightTAS.Runtime.Ipc
 {
     public sealed class RuntimeCommandDispatcher : IDisposable
     {
+        [DllImport("kernel32.dll", ExactSpelling = true)]
+        private static extern void ExitProcess(uint exitCode);
+
         private const int MaximumMovieBytes = 32 * 1024 * 1024;
         private const int MaximumMovieChunks = 1024;
         private static readonly long MutationCommitTimeoutTicks =
@@ -90,6 +94,8 @@ namespace HollowKnightTAS.Runtime.Ipc
         private bool coldSourceQuiesced;
         private bool coldSourceExitRequested;
         private bool gameExitRequested;
+        private bool startupHandoffExitRequested;
+        private Func<bool>? shutdownCompanionForExit;
         private readonly StartupHandoffGuard startupHandoff = new StartupHandoffGuard();
 
         public void ObserveStartupGameplay(bool active) => startupHandoff.ObserveGameplay(active);
@@ -113,8 +119,44 @@ namespace HollowKnightTAS.Runtime.Ipc
                 return startupHandoff.Prepare(fields["operationId"], controlled, title);
             if (fields["phase"] != "commit") throw new InvalidDataException("Unknown startup handoff phase.");
             startupHandoff.Commit(fields["operationId"], controlled, title);
+            // This source is still at the title and has never entered a save.
+            // End it after Dispatch has published the accepted IPC reply.
+            // Application.Quit crashes during native shutdown on this build;
+            // Mono's Environment.Exit stalls while unloading the domain.
+            startupHandoffExitRequested = true;
             gameExitRequested = true;
             return "startup-handoff-exiting";
+        }
+
+        internal void ConfigureCompanionShutdownForExit(Func<bool> shutdown)
+        {
+            shutdownCompanionForExit = shutdown ?? throw new ArgumentNullException(nameof(shutdown));
+        }
+
+        private void ExitApprovedGameProcess()
+        {
+            // The title source must keep Studio alive for the replacement.
+            // An ordinary user quit removes its authenticated session and
+            // honors ExitCompanionWithGame before bypassing Unity shutdown.
+            if (!startupHandoffExitRequested)
+            {
+                try
+                {
+                    var acknowledged = shutdownCompanionForExit?.Invoke() == true;
+                    emit("companion-shutdown-before-exit", new Dictionary<string, string>
+                    {
+                        ["acknowledged"] = acknowledged ? "true" : "false"
+                    });
+                }
+                catch (Exception error)
+                {
+                    emit("companion-shutdown-before-exit-failed", new Dictionary<string, string>
+                    {
+                        ["reason"] = error.Message
+                    });
+                }
+            }
+            ExitProcess(0);
         }
         private bool pausedWindowExitPending;
         private bool disposed;
@@ -368,8 +410,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                 processed++;
                 if (gameExitRequested)
                 {
-                    Application.Quit();
-                    controls.ReleaseBoundaryForApplicationQuit();
+                    ExitApprovedGameProcess();
                     return;
                 }
                 if (pendingStateMutation != null)
@@ -514,10 +555,15 @@ namespace HollowKnightTAS.Runtime.Ipc
                 Dispatch(command, atCompletedFrameBoundary: true);
                 if (controls.ControlMode != SimulationControlMode.Paused)
                     pausedWindowExitPending = false;
-                if (coldSourceExitRequested || gameExitRequested)
+                if (coldSourceExitRequested)
                 {
                     Application.Quit();
                     controls.ReleaseBoundaryForApplicationQuit();
+                    return;
+                }
+                if (gameExitRequested)
+                {
+                    ExitApprovedGameProcess();
                     return;
                 }
 
@@ -2604,8 +2650,7 @@ namespace HollowKnightTAS.Runtime.Ipc
             {
                 ["source"] = "foreground-alt-f4"
             });
-            Application.Quit();
-            controls.ReleaseBoundaryForApplicationQuit();
+            ExitApprovedGameProcess();
             return true;
         }
 

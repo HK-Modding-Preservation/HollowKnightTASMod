@@ -158,6 +158,17 @@ namespace HollowKnightTAS.Runtime.Companion
                 logInfo,
                 logWarning,
                 emit);
+            dispatcher.ConfigureCompanionShutdownForExit(() =>
+            {
+                using (var timeout = new CancellationTokenSource(
+                           TimeSpan.FromSeconds(1)))
+                {
+                    return launcher.RequestSessionShutdownAsync(
+                            this.settings.ExitCompanionWithGame,
+                            timeout.Token)
+                        .GetAwaiter().GetResult();
+                }
+            });
         }
 
         public CompanionLaunchSnapshot Status =>
