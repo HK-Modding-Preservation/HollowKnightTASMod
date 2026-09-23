@@ -6,6 +6,8 @@ Studio 用来在《空洞骑士》中逐帧播放、编辑和回退 TAS 输入�
 
 `Startup frame: 0` 表示游戏的第一个原生 PlayerLoop 尚未执行，此时可以点击 `Frame Advance` 逐帧推进，或点击 `Play` 继续启动。启动帧与下面的 TAS 输入帧分开计数；启动阶段尚未连接 Runtime，其他局内命令需等待初始化完成。
 
+在第 0 帧可以用 `Movie → Open Movie` 先打开并查看 `.hktas` 草稿。此时 Studio 显示 `NOT READY / DISCONNECTED`，`Upload` 和 `Start Replay` 尚不能执行；启动帧的 `Play` / `Frame Advance` 控制的是游戏初始化，不会消耗 Movie 输入。当前 Studio 没有独立的“新建 Movie”命令，也不能从启动第 0 帧直接录制一段涵盖标题菜单的 Movie。
+
 直接启动时，最初的标题进程会在进入存档前退出，Studio 随后启动受控游戏。这个短暂的重新启动是首帧暂停流程的一部分。
 
 在标题画面正常选择存档，进入可控制小骑士的场景后，等右上角显示 `READY` 和 `CONNECTED · IPC v1`。如果底部出现 `An active HeroController is unavailable`，说明游戏仍在标题画面、加载过程或没有可控制的小骑士。进入存档并等待场景加载完成即可。
@@ -21,13 +23,13 @@ Studio 用来在《空洞骑士》中逐帧播放、编辑和回退 TAS 输入�
 
 ## 播放已有 TAS
 
-1. 在 `Movie → Open Movie` 选择 `.hktas` 文件。
-2. 打开 `Savestates`，选择与该序列起点匹配、状态为 `Compatible` 或 `Ready` 的存档，点击 `Restore Selected`。
-3. 等恢复状态显示 `Completed`。如果要求覆盖原版存档，核对提示后点击 `Approve Overwrite`；不想覆盖则点击 `Deny Overwrite`。
-4. 打开 `Movie Text`，依次点击 `Validate`、`Upload`、`Start Replay`。
-5. 使用 `Pause` 暂停，使用 `V` 逐帧查看。
+1. 从 Steam 启动游戏，等待 Studio 自动打开并显示 `Startup frame: 0`。此时可在 `Movie → Open Movie` 选择 `.hktas` 文件。
+2. 点击顶部 `Play` 继续初始化。在游戏标题画面选择序列所需的存档槽；进入起点场景后，等待 Studio 显示 `READY` 和 `CONNECTED · IPC v1`。
+3. 如果序列配有需要恢复的状态，打开 `Savestates`，选择匹配且显示 `Compatible` 或 `Ready` 的项，点击 `Restore Selected` 并等待 `Completed`；如提示覆盖，先核对再决定是否批准。已经从匹配存档槽进入正确起点时，可直接继续。
+4. 在 Studio 点击 `Pause`，打开 `Movie Text`，依次点击 `Validate`、`Upload`、`Start Replay`。开始回放后仍处于暂停状态；点击 `Frame Advance` 可执行 Movie 第 0 帧，再次点击逐帧推进，点击 `Play` 则连续播放。
+5. 回放结束后查看 Runtime 状态中的 `reason=Completed` 与 `mismatchCount`。回放完成后游戏可能继续运行，需要查看终点时及时点击 `Pause`。
 
-存档显示 `Incompatible` 时不要强行使用。通常是游戏版本、Mod manifest、基准存档或序列身份与当前环境不一致，应换用该序列配套的存档。
+存档显示 `Incompatible` 或 `Upload` 报 `HKTAS220` 时不要强行使用。通常是游戏版本、Mod manifest、画面分辨率/窗口模式、基准存档或序列身份与当前环境不一致，应换用该序列配套的环境和存档。
 
 ## 编辑输入
 
