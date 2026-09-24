@@ -12,6 +12,30 @@ namespace HollowKnightTAS.Companion.Tests
     public sealed class InputGridEditorTests
     {
         [TestMethod]
+        public void V2PageAndEdit_IncludeStartupEmptyAndMenuFrames()
+        {
+            var header = new MovieV2Header("game", "api", "mod", "profile",
+                MovieProtocolV2.ActionSchemaId, false, new string('a', 64), 800, 450);
+            var menu = new GameInputSample(GameInputChannel.PreMenu, new short[6], null);
+            var movie = new MovieV2Document("grid-v2.hktas", header, new[]
+            {
+                new NativeFrameRun(3, Array.Empty<GameInputSample>(), Span),
+                new NativeFrameRun(1, new[] { menu }, Span)
+            });
+            var page = InputGridEditor.Page(movie, 0, 0);
+            Assert.AreEqual(4, page.Count);
+            Assert.AreEqual(0L, page[0].NativeFrame);
+            Assert.IsTrue(page[0].IsEmpty);
+            Assert.AreEqual("▶", page[0].Current);
+            Assert.AreEqual("preMenu", page[3].Channels);
+
+            var edited = InputGridEditor.ReplaceFrame(movie, 0, new[] { menu });
+            Assert.IsTrue(edited.Success);
+            Assert.AreEqual("preMenu", InputGridEditor.Page(edited.Movie, 0, 0)[0].Channels);
+            Assert.IsTrue(InputGridEditor.Page(movie, 0, 0)[0].IsEmpty);
+        }
+
+        [TestMethod]
         public void PageIsBoundedAndUsesInputTicksFromCanonicalFixture()
         {
             var movie = ParseFixture();

@@ -14,7 +14,7 @@ namespace HollowKnightTAS.Companion.Tests
     {
         [TestMethod]
         [Timeout(15000)]
-        public async Task RealOwnerExitAllowsRecoveryAndConflictBlocksLaunch()
+        public async Task PendingRecoveryNeverWritesOriginalSlotDuringLaunch()
         {
             var root = Path.Combine(Path.GetTempPath(), "hktas-owner-exit-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
@@ -41,13 +41,13 @@ namespace HollowKnightTAS.Companion.Tests
                     TimeSpan.FromSeconds(5), CancellationToken.None);
                 File.WriteAllBytes(save, new byte[] { 9 });
                 var conflict = Assert.ThrowsExactly<InvalidOperationException>(() => PendingSlotRecovery.RecoverBeforeLaunch(root));
-                StringAssert.Contains(conflict.Message, "changed");
+                StringAssert.Contains(conflict.Message, "cold-process-test");
                 CollectionAssert.AreEqual(new byte[] { 9 }, File.ReadAllBytes(save));
                 Assert.AreEqual(1, new SlotRecoveryStore(records).FindPendingOwners().Count);
                 File.WriteAllBytes(save, new byte[] { 2 });
-                Assert.AreEqual(1, PendingSlotRecovery.RecoverBeforeLaunch(root));
-                CollectionAssert.AreEqual(new byte[] { 1 }, File.ReadAllBytes(save));
-                Assert.AreEqual(0, new SlotRecoveryStore(records).FindPendingOwners().Count);
+                Assert.ThrowsExactly<InvalidOperationException>(() => PendingSlotRecovery.RecoverBeforeLaunch(root));
+                CollectionAssert.AreEqual(new byte[] { 2 }, File.ReadAllBytes(save));
+                Assert.AreEqual(1, new SlotRecoveryStore(records).FindPendingOwners().Count);
             }
             finally
             {

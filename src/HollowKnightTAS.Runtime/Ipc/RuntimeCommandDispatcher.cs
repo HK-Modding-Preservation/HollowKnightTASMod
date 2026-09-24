@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using GlobalEnums;
 using HollowKnightTAS.Core.Capabilities;
 using HollowKnightTAS.Core.Automation;
@@ -25,6 +26,7 @@ using HollowKnightTAS.Runtime.Control;
 using HollowKnightTAS.Runtime.Automation.Mutation;
 using HollowKnightTAS.Runtime.Inspector;
 using HollowKnightTAS.Runtime.Input;
+using HollowKnightTAS.Runtime.FullRun;
 using HollowKnightTAS.Runtime.Keyframes;
 using HollowKnightTAS.Runtime.Playback;
 using HollowKnightTAS.Runtime.ReplaySave;
@@ -48,6 +50,8 @@ namespace HollowKnightTAS.Runtime.Ipc
         private readonly RuntimeCommandQueue commands;
         private readonly NamedPipeRuntimeServer server;
         private readonly RuntimeReplayJournal journal;
+        private readonly RuntimeFullRunSession? fullRunSession;
+        private readonly Thread? fullRunWorker;
         private readonly RuntimeReplaySaveManager? replaySaves;
         private readonly RuntimeInspector? inspector;
         private readonly RuntimeStartupProfileAttestor startupAttestor;
@@ -183,7 +187,8 @@ namespace HollowKnightTAS.Runtime.Ipc
             string apiVersion,
             KeyframeTierResolution keyframeResolution,
             double mainThreadBudgetMilliseconds,
-            Action<string, IReadOnlyDictionary<string, string>> emit)
+            Action<string, IReadOnlyDictionary<string, string>> emit,
+            RuntimeFullRunSession? fullRunSession = null)
         {
             this.commands = commands;
             this.server = server;
@@ -211,6 +216,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                                       ?? throw new ArgumentNullException(
                                           nameof(keyframeResolution));
             this.emit = emit;
+            this.fullRunSession = fullRunSession;
             budgetTicks = Math.Max(
                 1,
                 (long)Math.Round(
@@ -242,8 +248,20 @@ namespace HollowKnightTAS.Runtime.Ipc
             // perturb the vanilla seated-bench Rigidbody baseline. Title
             // commands are drained from the existing GameManager update
             // boundary until the normal LateUpdate pump can be created.
-            On.GameManager.Update += OnGameManagerUpdate;
-            gameManagerUpdateHookRegistered = true;
+            if (fullRunSession == null)
+            {
+                On.GameManager.Update += OnGameManagerUpdate;
+                gameManagerUpdateHookRegistered = true;
+            }
+            else
+            {
+                fullRunWorker = new Thread(FullRunWorkerLoop)
+                {
+                    IsBackground = true,
+                    Name = "HKTAS full-run IPC"
+                };
+                fullRunWorker.Start();
+            }
         }
 
         public RuntimeControlService Controls => controls;
@@ -256,6 +274,9 @@ namespace HollowKnightTAS.Runtime.Ipc
             }
 
             disposed = true;
+            commands.Clear();
+            if (fullRunWorker != null && Thread.CurrentThread != fullRunWorker)
+                fullRunWorker.Join(TimeSpan.FromSeconds(2));
             videoCapture?.Dispose();
             lifecycleExport = null;
             stagedLifecyclePlan = null;
@@ -699,6 +720,8 @@ namespace HollowKnightTAS.Runtime.Ipc
 
         private string Handle(ValidatedRuntimeCommand command, bool allowBaselineCapture, bool atCompletedFrameBoundary)
         {
+            if (fullRunSession != null)
+                return HandleFullRun(command);
             if (videoCapture?.IsActive == true && !IsAllowedDuringVideoExport(command.MessageType))
                 throw new RuntimeCommandRejectionException("Busy", "Finish or cancel video export before changing the replay or restoring state.");
             if (sourceLifecycleReload != null && command.MessageType != IpcMessageTypes.RequestSnapshot
@@ -1177,6 +1200,100 @@ namespace HollowKnightTAS.Runtime.Ipc
                     throw new InvalidDataException(
                         "Command is not implemented.");
             }
+        }
+
+        private void FullRunWorkerLoop()
+        {
+            while (!disposed)
+            {
+                if (!commands.WaitForActivity(TimeSpan.FromMilliseconds(50))) continue;
+                while (!disposed && commands.TryDequeue(out var command))
+                {
+                    Dispatch(command);
+                    if (gameExitRequested) ExitApprovedGameProcess();
+                }
+            }
+        }
+
+        private string HandleFullRun(ValidatedRuntimeCommand command)
+        {
+            var session = fullRunSession ?? throw new InvalidOperationException("Full-run session is unavailable.");
+            switch (command.MessageType)
+            {
+                case IpcMessageTypes.FullRunStatus:
+                    RequireFields(command.Fields, "requestId");
+                    PublishFullRunState(command.Fields["requestId"]);
+                    return "Full-run state published.";
+                case IpcMessageTypes.FullRunStop:
+                    RequireFields(command.Fields, "requestId", "expectedNativeFrame");
+                    if (!long.TryParse(command.Fields["expectedNativeFrame"], NumberStyles.None,
+                            CultureInfo.InvariantCulture, out var expectedFrame))
+                        throw new InvalidDataException("expectedNativeFrame is invalid.");
+                    var stopped = session.Stop(expectedFrame);
+                    if (!stopped.Success) throw new InvalidOperationException(stopped.Error);
+                    PublishFullRunState(command.Fields["requestId"]);
+                    PublishFullRunMovie(command.Fields["requestId"]);
+                    return "Full-run session stopped at native frame " + expectedFrame + ".";
+                case IpcMessageTypes.FullRunMovie:
+                    RequireFields(command.Fields, "requestId");
+                    PublishFullRunMovie(command.Fields["requestId"]);
+                    return "Full-run movie location published.";
+                case IpcMessageTypes.QuitGame:
+                    RequireFields(command.Fields, "requestId");
+                    gameExitRequested = true;
+                    return "Protected game exit requested.";
+                case IpcMessageTypes.Ping:
+                    RequireFields(command.Fields, "requestId");
+                    Publish(IpcMessageTypes.Pong, new Dictionary<string, string>
+                    {
+                        ["requestId"] = command.Fields["requestId"]
+                    });
+                    return "pong";
+                default:
+                    throw new InvalidOperationException("v1 Runtime command is disabled during a full-run v2 session.");
+            }
+        }
+
+        private void PublishFullRunState(string requestId)
+        {
+            var status = fullRunSession!.GetStatus();
+            Publish(IpcMessageTypes.FullRunState, new Dictionary<string, string>
+            {
+                ["requestId"] = requestId,
+                ["mode"] = status.Mode,
+                ["nativeFrame"] = status.NativeFrame.ToString(CultureInfo.InvariantCulture),
+                ["movieFrame"] = status.MovieFrame.ToString(CultureInfo.InvariantCulture),
+                ["skippedLoadFrames"] = status.SkippedLoadFrames.ToString(CultureInfo.InvariantCulture),
+                ["frameBoundary"] = status.FrameBoundary,
+                ["runtimeInputReady"] = status.RuntimeInputReady ? "true" : "false",
+                ["mismatchCount"] = status.MismatchCount.ToString(CultureInfo.InvariantCulture),
+                ["error"] = status.Error,
+                ["sceneName"] = status.SceneName,
+                ["saveSlot"] = status.SaveSlot.ToString(CultureInfo.InvariantCulture),
+                ["heroX"] = status.HeroX,
+                ["heroY"] = status.HeroY,
+                ["respawnScene"] = status.RespawnScene,
+                ["heroHealth"] = status.HeroHealth.ToString(CultureInfo.InvariantCulture),
+                ["bossSceneEntered"] = status.BossSceneEntered ? "true" : "false",
+                ["bossDeathObserved"] = status.BossDeathObserved ? "true" : "false",
+                ["bossesDeadObserved"] = status.BossesDeadObserved ? "true" : "false",
+                ["bossSceneCompleteObserved"] = status.BossSceneCompleteObserved ? "true" : "false",
+                ["bossDeathFrame"] = status.BossDeathFrame.ToString(CultureInfo.InvariantCulture),
+                ["bossSceneEntryMovieFrame"] = status.BossSceneEntryMovieFrame.ToString(CultureInfo.InvariantCulture)
+            });
+        }
+
+        private void PublishFullRunMovie(string requestId)
+        {
+            var path = fullRunSession!.RecordedMoviePath;
+            var movie = fullRunSession.RecordedMovie;
+            Publish(IpcMessageTypes.FullRunMovieDocument, new Dictionary<string, string>
+            {
+                ["requestId"] = requestId,
+                ["available"] = movie == null ? "false" : "true",
+                ["path"] = path,
+                ["movieId"] = movie == null ? string.Empty : new MovieV2Codec().ComputeMovieId(movie)
+            });
         }
 
         private void BeginUpload(
@@ -2698,12 +2815,12 @@ namespace HollowKnightTAS.Runtime.Ipc
             if (saves.PendingCount != 0 || saves.IsRestoreActive || preparedColdIntent != null
                 || pendingMovieSeek != null || pendingStateMutation != null || runUntilMovieTick.HasValue || gameExitRequested)
                 throw new RuntimeCommandRejectionException("Busy", "Finish pending work before reloading.");
-            var path = Path.Combine(Application.persistentDataPath, "user" + slot.ToString(CultureInfo.InvariantCulture) + ".dat");
+            var path = SavePathResolver.Current.GetSlotPath(slot, ".dat");
             var size = new FileInfo(path).Length;
             if (size <= 0 || size > ReplayLifecycleLog.MaximumSlotBytes)
                 throw new InvalidDataException("Existing slot is empty or too large.");
             var bytes = File.ReadAllBytes(path);
-            var moddedPath = Path.Combine(Application.persistentDataPath, "user" + slot.ToString(CultureInfo.InvariantCulture) + ".modded.json");
+            var moddedPath = SavePathResolver.Current.GetSlotPath(slot, ".modded.json");
             byte[]? moddedBytes = null;
             if (File.Exists(moddedPath))
             {
@@ -2898,8 +3015,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                 throw new RuntimeCommandRejectionException("Busy", "Finish pending work before loading a game slot.");
             // This is the desktop slot convention shared by the baseline provider.
             // Do not create, copy, overwrite, or substitute another slot here.
-            var path = Path.Combine(Application.persistentDataPath,
-                "user" + slot.ToString(CultureInfo.InvariantCulture) + ".dat");
+            var path = SavePathResolver.Current.GetSlotPath(slot, ".dat");
             if (!File.Exists(path))
                 throw new RuntimeCommandRejectionException("SaveSlotUnavailable", "The selected existing save slot is unavailable.");
             gameSlotLoadRequested = true;

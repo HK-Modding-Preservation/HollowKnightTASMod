@@ -1,6 +1,14 @@
-# 当前进度：全流程 Movie 进入 SDD INNOVATE
+# 当前进度：全流程 Movie、加载省帧与新版假骑士示范已通过冷启动回放
 
-2026-09-24 新需求：Movie 应从受控游戏启动第 0 帧开始，覆盖标题菜单选槽／新建档、局内操作、Save&Load 和多槽切换，并按此规则重录一份假骑士示范。用户明确要求菜单与局内共用真实游戏输入录制逻辑、Movie 不绑定存档／槽位、Mod 不修改用户原始存档；示范从标题菜单加载现有诸神堂存档。新增鼠标要求：Studio 设置可启用／禁用游戏鼠标输入；禁用时游戏不响应鼠标，键盘选槽照常可用，Studio 自身鼠标不受影响。研究、代码地图及候选架构已持久化到 `mydocs/specs/2026-09-23_21-25_全流程Movie与假骑士重录.md`；现处 INNOVATE / LOCKED，推荐 v2 原生帧时间线、统一真实输入管线和私有存档副本，待用户 Selected 后进入 PLAN。下文 D06 与旧假骑士记录是已交付／历史基线，不代表新需求已实现。
+2026-09-24：旧实现基线为 d31bf86，用户已批准 Selected B 并要求继续全部执行。v2 协议、Runtime、Studio/CLI 控制、原生门闩、影子存档及原路径写入守卫已接通。正式示范为 `fixtures/full-run/false-knight-startup-v2.hktas`，10892 个逻辑 Movie 帧，SHA-256 `20c3182ad01e2929799c207b821fbae6fb8599498e9da37e353bee9b35bc70b1`。它从 Steam 启动原生第 0 帧开始，经真实标题菜单输入选择第 4 槽诸神堂存档，进入 `GG_False_Knight`，击败 Boss 后返回 `GG_Workshop`；战斗输入由 AI 生成并走与人工相同的真实输入路径。旧试验 Movie 和旧 v1 归档仍保留，不能与正式示范混称。
+
+2026-09-24 载入时长修订已验收：只给可接受游戏输入的 PlayerLoop 计 Movie 帧，加载循环仍执行但不消耗输入序列；Step 持续至一个 Movie 帧完成。每个新场景首个输入边界由外部 ClockPayload 同步 Unity 随机种子，渲染 FastNoise 使用独立随机流；v2 profile 为 `hktas-unity-input-playerloop-load-elision-scene-rng-2026-v3`。同一正式示范两次普通冷启动与一次单核、BelowNormal 压力启动均 `Completed`，样本偏差 0、原生 Boss 死亡事件成立、返回 `GG_Workshop`；跳过的加载／不可输入循环分别为 1060、1077、24457，战场入口同为 Movie 帧 8063。三次的 2828 个战斗 Movie 帧上，场景、角色坐标／血量、Boss 坐标／血量及 Unity RNG 状态逐帧相同。Studio 可见流程另实测在原生第 0 帧 Open Movie，单步后原生帧 46／Movie 帧 1，再点击 Play 至完成。原始四槽受保护文件 20 项与会话起始描述符的文件集、SHA-256 均一致；第 4 槽三个主文件哈希也与历史基线相同。证据入口为 `artifacts/full-run-false-knight/verification-v3.json`。该证明覆盖本机游戏版本、此存档和此序列；其他场景／Mod 组合尚无同等级压力证据。下文历史 VERIFIED 仅指各自冻结构建与旧协议。
+
+2026-09-24 Studio 新建录制补充实测：Steam 从原生 0 帧启动，Studio 设置关闭游戏鼠标后 New full-run Movie，Step 跨启动加载到首个标题输入帧；游戏窗口左键点击未推进菜单，Return 键进入真实选档。Stop → Save 的 `artifacts/full-run-false-knight/manual-record-disabled-mouse.hktas` 静态校验通过（22875 Movie 帧），头部 `mouseEnabled=false`，没有鼠标样本。另一次冷启动开启游戏鼠标，新建录制的 `artifacts/full-run-false-knight/manual-record-enabled-mouse.hktas` 静态校验通过（18609 Movie 帧），含鼠标位置和左键按下样本；标题点击本身未触发游戏菜单跳转，不据此宣称游戏 UI 接受点击。该鼠标 Movie 从 Steam 第 0 帧在 Studio Open → Play 冷启动回放到 `Completed`，18609/18609 Movie 帧、输入偏差 0，证据 `artifacts/full-run-false-knight/manual-record-enabled-mouse-replay.json`。三次正常退出后各自会话描述符所跟踪的原始四槽 20 个文件均无文件集／SHA-256 差异。
+
+探针两轮各从原生第 0 帧逐帧放行，Runtime 首次启动在第 2／24 帧，Hero 更新同帧，标题 UI Process 在第 3／25 帧；第二轮主菜单第 50 帧可交互。另两个预菜单动作集和 InControlInputModule 在现有配置的 200 帧中未激活，其他配置仍须定向核验。两轮原始顶层 userN 文件集、长度与 SHA-256 不变，临时 Runtime 安装文件已恢复；原始日志、注入回执与源码保留在 `artifacts/full-run-boundary-20260924/`。
+
+2026-09-24 新需求：Movie 应从受控游戏启动第 0 帧开始，覆盖标题菜单选槽／新建档、局内操作、Save&Load 和多槽切换，并按此规则重录一份假骑士示范。用户明确要求菜单与局内共用真实游戏输入录制逻辑、Movie 不绑定存档／槽位、Mod 不修改用户原始存档；示范从标题菜单加载现有诸神堂存档。新增鼠标要求：Studio 设置可启用／禁用游戏鼠标输入；禁用时游戏不响应鼠标，键盘选槽照常可用，Studio 自身鼠标不受影响。研究、代码地图及已批准方案持久化到 `mydocs/specs/2026-09-23_21-25_全流程Movie与假骑士重录.md`。下文 D06 与旧假骑士记录是已交付／历史基线，不代表新需求已实现。
 
 # D06 启动首帧暂停已交付
 

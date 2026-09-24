@@ -7,6 +7,7 @@ using System.Windows;
 using HollowKnightTAS.Companion.Services;
 using HollowKnightTAS.Companion.Automation;
 using HollowKnightTAS.Companion.ViewModels;
+using HollowKnightTAS.Core.Automation;
 
 namespace HollowKnightTAS.Companion
 {
@@ -21,6 +22,7 @@ namespace HollowKnightTAS.Companion
         private AutomationBroker? automationBroker;
         private bool shutdownWhenColdRestoreStops;
         private StartupBootController? startupBoot;
+        private FullRunMovieCoordinator? fullRunMovies;
         private System.Windows.Threading.DispatcherTimer? startupBootTimer;
         private System.Diagnostics.Process? startupGame;
         private AutomaticStartupHandoff? automaticStartup;
@@ -118,12 +120,13 @@ namespace HollowKnightTAS.Companion
                     }
                 }
 
+                startupBoot = new StartupBootController();
+                fullRunMovies = new FullRunMovieCoordinator(startupBoot);
                 automationBroker = new AutomationBroker(
                     sessions,
-                    coldRestoreSupervisor);
-
+                    coldRestoreSupervisor,
+                    fullRunMovies: fullRunMovies);
                 {
-                    startupBoot = new StartupBootController();
                     startupBootTimer = new System.Windows.Threading.DispatcherTimer
                     {
                         Interval = TimeSpan.FromMilliseconds(100)
@@ -132,9 +135,22 @@ namespace HollowKnightTAS.Companion
                     {
                         if (startupGame != null && (!startupBoot.IsPending || startupGame.HasExited))
                         {
+                            var gameExited = startupGame.HasExited;
                             startupGame.Dispose();
                             startupGame = null;
                             if (startupBoot.IsPending) startupBoot.Dispose();
+                            if (gameExited && fullRunMovies != null)
+                            {
+                                try { fullRunMovies.VerifyOriginalSavesUnchanged(); }
+                                catch (Exception auditFault)
+                                {
+                                    MainWindow?.Dispatcher.BeginInvoke(new Action(() =>
+                                        (MainWindow?.DataContext as MainViewModel)?.ReportStartupStatus(
+                                            "原始存档审计失败：" + auditFault.Message)));
+                                }
+                                fullRunMovies.ClearAfterExit();
+                                automationBroker?.EndFullRunEndpoint();
+                            }
                         }
                         startupBoot.Refresh();
                     };
@@ -155,7 +171,7 @@ namespace HollowKnightTAS.Companion
                         var profile = await Task.Run(() => VerifiedStartupProfile.Load(
                             Path.Combine(AppContext.BaseDirectory, "ClockStartup"), gamePath), shutdown.Token);
                         var launcher = new VerifiedGameLauncher(profile, launchReceiptStore);
-                        var gate = startupBoot?.Begin();
+                        var gate = fullRunMovies?.PrepareLaunch();
                         try
                         {
                             using var handle = await launcher.LaunchInteractiveAsync(
@@ -168,6 +184,9 @@ namespace HollowKnightTAS.Companion
                                     await Task.Delay(50, shutdown.Token);
                                 if (!gate.IsAcknowledged)
                                     throw new InvalidOperationException("原生启动暂停没有回执；当前 ClockBridge 可能不支持启动门闩。");
+                                automationBroker?.BindFullRunEndpoint(gate.Token,
+                                    profile.StartupProfileSha256,
+                                    ReadExternalAutomationMode());
                                 if (startupBoot!.IsPending)
                                     startupGame = System.Diagnostics.Process.GetProcessById(handle.ProcessId);
                                 startupBoot!.Refresh();
@@ -176,6 +195,7 @@ namespace HollowKnightTAS.Companion
                         }
                         catch
                         {
+                            automationBroker?.EndFullRunEndpoint();
                             startupBoot?.Dispose();
                             startupGame?.Dispose();
                             startupGame = null;
@@ -183,7 +203,8 @@ namespace HollowKnightTAS.Companion
                         }
                     };
                 var viewModel = new MainViewModel(sessions, new MovieEditorService(),
-                    new CapabilityBroker(), new NativeHostLauncher(), automationBroker, launchGameAsync, startupBoot);
+                    new CapabilityBroker(), new NativeHostLauncher(), automationBroker, launchGameAsync,
+                    startupBoot, fullRunMovies);
                 automaticStartup = new AutomaticStartupHandoff(sessions, Dispatcher,
                     gamePath => Task.Run(() => VerifiedStartupProfile.Load(
                         Path.Combine(AppContext.BaseDirectory, "ClockStartup"), gamePath).RequireStartupFrameGate(), shutdown.Token),
@@ -331,6 +352,26 @@ namespace HollowKnightTAS.Companion
                    && parsed > 0
                 ? parsed
                 : 0;
+        }
+
+        private static AutomationMode ReadExternalAutomationMode()
+        {
+            try
+            {
+                var path = Path.Combine(Environment.GetFolderPath(
+                    Environment.SpecialFolder.UserProfile), "AppData", "LocalLow",
+                    "Team Cherry", "Hollow Knight",
+                    "HollowKnightTASMod.GlobalSettings.json");
+                var file = new FileInfo(path);
+                if (!file.Exists || file.Length <= 0 || file.Length > 64 * 1024)
+                    return AutomationMode.ReadOnly;
+                using var settings = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(path));
+                return settings.RootElement.TryGetProperty("ExternalAutomationMode",
+                        out var mode) && mode.ValueKind == System.Text.Json.JsonValueKind.String
+                    ? AutomationModeCodec.Normalize(mode.GetString())
+                    : AutomationMode.ReadOnly;
+            }
+            catch { return AutomationMode.ReadOnly; }
         }
     }
 }

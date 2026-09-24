@@ -49,6 +49,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private readonly AutomationBroker automationBroker;
         private readonly Func<string, Task>? launchGame;
         private readonly StartupBootController? startupBoot;
+        private readonly FullRunMovieCoordinator? fullRunMovies;
         private readonly HashSet<string> warmedSessions =
             new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> readySessions =
@@ -113,7 +114,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             NativeHostLauncher nativeHostLauncher,
             AutomationBroker automationBroker,
             Func<string, Task>? launchGame = null,
-            StartupBootController? startupBoot = null)
+            StartupBootController? startupBoot = null,
+            FullRunMovieCoordinator? fullRunMovies = null)
         {
             this.registry = registry;
             this.movieEditor = movieEditor;
@@ -136,6 +138,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             });
             this.launchGame = launchGame;
             this.startupBoot = startupBoot;
+            this.fullRunMovies = fullRunMovies;
             if (startupBoot != null) startupBoot.Changed += (_, _) => Dispatch(() =>
             {
                 OnPropertyChanged(nameof(FrameCounterText));
@@ -143,13 +146,23 @@ namespace HollowKnightTAS.Companion.ViewModels
                 OnPropertyChanged(nameof(PlayPauseLabel));
                 foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
                 Status = startupBoot.IsWaiting
-                    ? "启动帧已暂停；可逐帧推进，或点击 Play 继续初始化。"
+                    ? fullRunMovies?.IsArmed == true
+                        ? "全流程 Movie 已就绪；可按原生帧步进或播放。"
+                        : fullRunMovies?.Mode == "Completed"
+                            ? "全流程 Movie 已在第 " + startupBoot.NativeCompletedFrames
+                                + " 帧完成。"
+                            : startupBoot.NativeCompletedFrames == 0
+                                ? "已停在第 0 帧；请选择 New Movie 或打开 v2 Movie。"
+                                : "全流程 Movie 已在第 " + startupBoot.NativeCompletedFrames
+                                    + " 帧停止。"
                     : startupBoot.IsPending ? "等待下一启动帧边界…" : "启动门闩已释放；等待 Runtime 连接。";
             });
             InitializeInputGrid();
             InitializeQuickSlots();
             InitializeShortcutSettings();
+            InitializeFullRunSettings();
             LaunchGameCommand = new AsyncRelayCommand(LaunchGameAsync, () => this.launchGame != null);
+            NewFullRunMovieCommand = new RelayCommand(NewFullRunMovie);
             OpenMovieCommand = new AsyncRelayCommand(OpenMovieAsync);
             SaveMovieCommand = new AsyncRelayCommand(SaveMovieAsync);
             ValidateMovieCommand =
@@ -166,10 +179,50 @@ namespace HollowKnightTAS.Companion.ViewModels
                         AutomationCommandIds.StartReplay,
                         AutomationScope.ControlPlayback));
             StopReplayCommand =
-                Command(
-                    () => ExecuteHumanAsync(
-                        AutomationCommandIds.StopReplay,
-                        AutomationScope.ControlPlayback));
+                Command(async () =>
+                {
+                    if (fullRunMovies?.IsPending == true)
+                    {
+                        if (!fullRunMovies.IsArmed)
+                            throw new InvalidOperationException("第 0 帧尚未选择 Movie。");
+                        if (startupBoot?.IsWaiting != true)
+                        {
+                            var paused = await fullRunMovies.PauseAsync(CancellationToken.None);
+                            if (paused.Mode == "Fault")
+                                throw new InvalidOperationException(paused.Error);
+                        }
+                        var frame = startupBoot!.NativeCompletedFrames;
+                        var result = await automationBroker.ExecuteHumanAsync(
+                            AutomationCommandIds.FullRunStop,
+                            AutomationScope.ControlPlayback,
+                            new Dictionary<string, string>(StringComparer.Ordinal)
+                            {
+                                ["expectedNativeFrame"] = frame.ToString(CultureInfo.InvariantCulture)
+                            },
+                            "Paused", null, CancellationToken.None);
+                        RequireAutomationSuccess(result);
+                        fullRunMovies.MarkStopped();
+                        OnPropertyChanged(nameof(PlaybackStateText));
+                        foreach (var runtimeCommand in runtimeCommands)
+                            runtimeCommand.RaiseCanExecuteChanged();
+                        if (result.Data.TryGetValue("available", out var available)
+                            && available == "true" && result.Data.TryGetValue("path", out var path))
+                        {
+                            var absolute = Path.GetFullPath(path);
+                            var shadow = Path.GetFullPath(fullRunMovies.ShadowRoot);
+                            if (!absolute.StartsWith(shadow + Path.DirectorySeparatorChar,
+                                    StringComparison.OrdinalIgnoreCase))
+                                throw new InvalidDataException("Recorded movie path escaped the protected session.");
+                            MovieText = await File.ReadAllTextAsync(absolute, new UTF8Encoding(false, true));
+                            ValidateMovie(false);
+                            Status = "全流程 Movie 已停止并读入 Studio。";
+                        }
+                        else Status = "全流程回放已停止。";
+                        return;
+                    }
+                    await ExecuteHumanAsync(AutomationCommandIds.StopReplay,
+                        AutomationScope.ControlPlayback);
+                }, allowStartupContinue: true);
             StartVideoExportCommand = Command(StartVideoExportAsync);
             CancelVideoExportCommand = Command(
                 CancelVideoExportAsync,
@@ -183,7 +236,20 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 if (this.startupBoot?.IsWaiting == true)
                 {
-                    this.startupBoot.Continue();
+                    if (fullRunMovies?.IsPending == true)
+                    {
+                        if (!fullRunMovies.IsArmed)
+                            throw new InvalidOperationException("先在第 0 帧选择 New Movie 或打开 v2 Movie。");
+                        fullRunMovies.Run(this.startupBoot.NativeCompletedFrames);
+                    }
+                    else this.startupBoot.Continue();
+                    return;
+                }
+                if (fullRunMovies?.IsPending == true)
+                {
+                    var boundary = await fullRunMovies.PauseAsync(CancellationToken.None);
+                    if (boundary.Mode == "Fault") throw new InvalidOperationException(boundary.Error);
+                    this.startupBoot?.Refresh();
                     return;
                 }
                 if (currentControlMode != "Paused" && currentControlMode != "Running" && currentControlMode != "Stepping")
@@ -197,7 +263,14 @@ namespace HollowKnightTAS.Companion.ViewModels
                     {
                         if (this.startupBoot?.IsPending == true)
                         {
-                            this.startupBoot.Step();
+                            if (fullRunMovies?.IsPending == true)
+                            {
+                                var boundary = await fullRunMovies.StepAsync(
+                                    this.startupBoot.NativeCompletedFrames, CancellationToken.None);
+                                if (boundary.Mode == "Fault") throw new InvalidOperationException(boundary.Error);
+                            }
+                            else this.startupBoot.Step();
+                            this.startupBoot.Refresh();
                             return;
                         }
                         await ExecuteHumanAsync(
@@ -444,9 +517,19 @@ namespace HollowKnightTAS.Companion.ViewModels
             private set => Set(ref runtimeSummary, value);
         }
 
-        public string FrameCounterText => startupBoot?.IsPending == true ? "Startup frame: " + (startupBoot.CompletedFrames < 0 ? "—" : startupBoot.CompletedFrames.ToString(CultureInfo.InvariantCulture)) : currentMovieTick < 0 ? "Frame: —" : "Frame: " + currentMovieTick.ToString(CultureInfo.InvariantCulture);
-        public string PlaybackStateText => startupBoot?.IsPending == true ? startupBoot.IsWaiting ? "Startup gate paused" : "Awaiting startup gate" : string.IsNullOrEmpty(currentControlMode) ? "No runtime" : currentControlMode;
-        public string PlayPauseLabel => startupBoot?.IsWaiting == true || currentControlMode == "Paused" ? "Play 继续" : "Pause 暂停";
+        public string FrameCounterText => startupBoot?.IsPending == true
+            ? "Native frame: " + (startupBoot.NativeCompletedFrames < 0 ? "—"
+                : startupBoot.NativeCompletedFrames.ToString(CultureInfo.InvariantCulture))
+            : currentMovieTick < 0 ? "Frame: —"
+                : "Frame: " + currentMovieTick.ToString(CultureInfo.InvariantCulture);
+        public string PlaybackStateText => startupBoot?.IsPending == true
+            ? startupBoot.FullRunFaultCode != 0 ? "Full-run fault " + startupBoot.FullRunFaultCode
+                : startupBoot.IsWaiting ? "Native frame paused · " + (fullRunMovies?.Mode ?? "Unarmed")
+                : "Native frame running"
+            : string.IsNullOrEmpty(currentControlMode) ? "No runtime" : currentControlMode;
+        public string PlayPauseLabel => startupBoot?.IsPending == true
+            ? startupBoot.IsWaiting ? "Play 继续" : "Pause 暂停"
+            : currentControlMode == "Paused" ? "Play 继续" : "Pause 暂停";
 
         public string LatestState
         {
@@ -609,6 +692,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         }
 
         public ICommand OpenMovieCommand { get; }
+        public ICommand NewFullRunMovieCommand { get; }
         public ICommand LaunchGameCommand { get; }
         public ICommand SaveMovieCommand { get; }
         public ICommand ValidateMovieCommand { get; }
@@ -787,7 +871,11 @@ namespace HollowKnightTAS.Companion.ViewModels
                     }
                 },
                 () => startupBoot?.IsPending == true
-                    ? (allowStartupContinue && startupBoot.IsWaiting) || (allowStartupStep && startupBoot.CanStep)
+                    ? fullRunMovies?.IsPending == true
+                        ? fullRunMovies.IsArmed && (allowStartupContinue
+                            || (allowStartupStep && startupBoot.CanStep))
+                        : (allowStartupContinue && startupBoot.IsWaiting)
+                            || (allowStartupStep && startupBoot.CanStep)
                     : !requireConnected || SelectedSession?.Client.IsConnected == true);
             runtimeCommands.Add(command);
             return command;
@@ -844,6 +932,16 @@ namespace HollowKnightTAS.Companion.ViewModels
                 new UTF8Encoding(false, true));
             ValidateMovie(false);
             RefreshGridCommand.Execute(null);
+            if (fullRunMovies?.IsPending == true)
+            {
+                var candidate = movieEditor.ValidateAny(MovieText, dialog.FileName);
+                if (!candidate.Success || candidate.V2Document == null)
+                    throw new InvalidDataException("第 0 帧只能预置有效的 v2 全流程 Movie；v1 文件仍可查看。 ");
+                fullRunMovies.ArmReplay(candidate.V2Document);
+                OnPropertyChanged(nameof(PlaybackStateText));
+                foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
+                Status = "v2 Movie 已在原生第 0 帧预置；可单步或播放。";
+            }
         }
 
         private async Task SaveMovieAsync()
@@ -868,7 +966,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private void ValidateMovie(bool applyFormat)
         {
-            var result = movieEditor.Validate(MovieText);
+            var result = movieEditor.ValidateAny(MovieText);
             if (!result.Success)
             {
                 ValidationOutput = string.Join(
@@ -895,7 +993,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 "VALID · movieId="
                 + result.MovieId
                 + " · expandedTicks="
-                + result.ExpandedTicks.ToString(
+                + result.ExpandedFrames.ToString(
                     CultureInfo.InvariantCulture);
             Status = applyFormat
                 ? "Movie formatted canonically."
@@ -1737,7 +1835,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             UpdateConnectionStatus();
             foreach (var item in Sessions)
             {
-                if (item.Client.IsConnected
+                if (fullRunMovies?.IsPending != true && item.Client.IsConnected
                     && item.Client.NativeCapabilitiesRequested)
                 {
                     _ = CaptureNativeObserveAsync(item.Client);
@@ -1758,6 +1856,19 @@ namespace HollowKnightTAS.Companion.ViewModels
         {
             try
             {
+                if (fullRunMovies?.IsPending == true)
+                {
+                    await session.SendCommandAsync(IpcMessageTypes.FullRunStatus,
+                        Fields("requestId", "studio-full-run-status-" + Guid.NewGuid().ToString("N")),
+                        CancellationToken.None);
+                    Dispatch(() =>
+                    {
+                        readySessions.Add(session.SessionId);
+                        UpdateConnectionStatus();
+                        Status = "全流程 Runtime 已连接。";
+                    });
+                    return;
+                }
                 var fieldsSent = 0;
                 foreach (var messageType in new[]
                          {
@@ -1958,6 +2069,22 @@ namespace HollowKnightTAS.Companion.ViewModels
                 currentControlMode = controlMode;
                 OnPropertyChanged(nameof(PlaybackStateText));
                 OnPropertyChanged(nameof(PlayPauseLabel));
+            }
+
+            if (string.Equals(messageType, IpcMessageTypes.FullRunState,
+                    StringComparison.Ordinal))
+            {
+                LatestState = string.Join(Environment.NewLine,
+                    fields.Select(pair => pair.Key + " = " + pair.Value));
+                RuntimeSummary = "全流程 · "
+                    + (fields.TryGetValue("mode", out var fullRunMode) ? fullRunMode : "unknown")
+                    + " · Movie 帧 "
+                    + (fields.TryGetValue("movieFrame", out var movieFrame) ? movieFrame : "?")
+                    + " · 原生帧 "
+                    + (fields.TryGetValue("nativeFrame", out var fullRunFrame) ? fullRunFrame : "?")
+                    + " · "
+                    + (fields.TryGetValue("frameBoundary", out var frameBoundary)
+                        ? frameBoundary : "等待 Runtime");
             }
 
             if (string.Equals(

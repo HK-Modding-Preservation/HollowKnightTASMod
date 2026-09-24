@@ -105,33 +105,37 @@ namespace HollowKnightTAS.Runtime.ReplaySave
     public sealed class DesktopSaveSlotBaselineProvider :
         IBaselineBundleProvider
     {
-        private readonly string persistentDataPath;
+        private readonly ISavePathResolver savePaths;
         private readonly string backupRoot;
 
         public DesktopSaveSlotBaselineProvider()
-            : this(
-                Application.persistentDataPath,
-                Path.Combine(
-                    Application.persistentDataPath,
-                    "HollowKnightTAS",
-                    "replay-saves",
-                    "v1",
-                    "slot-backups"))
+            : this(SavePathResolver.Current)
+        {
+        }
+
+        public DesktopSaveSlotBaselineProvider(ISavePathResolver savePaths)
+            : this(savePaths, savePaths.GetTasDataPath(
+                "replay-saves", "v1", "slot-backups"))
         {
         }
 
         public DesktopSaveSlotBaselineProvider(
             string persistentDataPath,
             string backupRoot)
+            : this(new DesktopSavePathResolver(persistentDataPath), backupRoot)
         {
-            if (string.IsNullOrWhiteSpace(persistentDataPath)
-                || string.IsNullOrWhiteSpace(backupRoot))
+        }
+
+        private DesktopSaveSlotBaselineProvider(ISavePathResolver savePaths,
+            string backupRoot)
+        {
+            if (savePaths == null || string.IsNullOrWhiteSpace(backupRoot))
             {
                 throw new ArgumentException(
                     "Persistent-data and backup roots are required.");
             }
 
-            this.persistentDataPath = Path.GetFullPath(persistentDataPath);
+            this.savePaths = savePaths;
             this.backupRoot = Path.GetFullPath(backupRoot);
             Directory.CreateDirectory(this.backupRoot);
         }
@@ -444,21 +448,13 @@ namespace HollowKnightTAS.Runtime.ReplaySave
         private string SavePath(int slot)
         {
             ValidateSlot(slot);
-            return Path.Combine(
-                persistentDataPath,
-                "user"
-                + slot.ToString(CultureInfo.InvariantCulture)
-                + ".dat");
+            return savePaths.GetSlotPath(slot, ".dat");
         }
 
         private string ModdedSavePath(int slot)
         {
             ValidateSlot(slot);
-            return Path.Combine(
-                persistentDataPath,
-                "user"
-                + slot.ToString(CultureInfo.InvariantCulture)
-                + ".modded.json");
+            return savePaths.GetSlotPath(slot, ".modded.json");
         }
 
         private static void ValidateSlot(int slot)

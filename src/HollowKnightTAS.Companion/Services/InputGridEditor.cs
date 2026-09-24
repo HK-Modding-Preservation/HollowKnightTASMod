@@ -11,8 +11,54 @@ namespace HollowKnightTAS.Companion.Services
     {
         public InputGridRow(long tick, FrameRunCommand input, long currentTick)
         { Tick = tick; Input = input; Current = tick == currentTick ? "▶" : ""; }
+        public InputGridRow(V2InputGridRow row)
+        {
+            Tick = row.NativeFrame;
+            Current = row.Current;
+            IsV2 = true;
+            Channels = row.Channels;
+            SampleCount = row.Samples.Count;
+            var held = TasAction.None;
+            foreach (var sample in row.Samples)
+            {
+                var values = sample.Values;
+                if (sample.Channel == GameInputChannel.Hero)
+                {
+                    if (values[0] > 0) held |= TasAction.Left;
+                    if (values[1] > 0) held |= TasAction.Right;
+                    if (values[2] > 0) held |= TasAction.Up;
+                    if (values[3] > 0) held |= TasAction.Down;
+                    if (values[10] > 0) held |= TasAction.Jump;
+                    if (values[15] > 0) held |= TasAction.Attack;
+                    if (values[12] > 0) held |= TasAction.Dash;
+                    if (values[16] > 0) held |= TasAction.Cast;
+                    if (values[19] > 0) held |= TasAction.QuickCast;
+                    if (values[13] > 0) held |= TasAction.SuperDash;
+                    if (values[14] > 0) held |= TasAction.DreamNail;
+                    if (values[8] > 0) Submit = true;
+                    if (values[9] > 0) Cancel = true;
+                }
+                else if (sample.Channel == GameInputChannel.PreMenu
+                    || sample.Channel == GameInputChannel.Binder)
+                {
+                    if (values[2] > 0) held |= TasAction.Left;
+                    if (values[3] > 0) held |= TasAction.Right;
+                    if (values[4] > 0) held |= TasAction.Up;
+                    if (values[5] > 0) held |= TasAction.Down;
+                    if (values[0] > 0) Submit = true;
+                    if (values[1] > 0) Cancel = true;
+                }
+            }
+            Input = new FrameRunCommand(1, held, 0, 0, false,
+                new MovieSourceSpan("<v2-grid>", 1, 1, 1));
+        }
         public long Tick { get; }
         public FrameRunCommand Input { get; }
+        public bool IsV2 { get; }
+        public string Channels { get; } = "—";
+        public int SampleCount { get; }
+        public bool Submit { get; }
+        public bool Cancel { get; }
         public string Current { get; private set; }
         public event PropertyChangedEventHandler? PropertyChanged;
         public void UpdateCurrent(long tick)
@@ -37,10 +83,64 @@ namespace HollowKnightTAS.Companion.Services
         private bool Has(TasAction action) => (Input.HeldActions & action) != 0;
     }
 
+    public sealed class V2InputGridRow
+    {
+        public V2InputGridRow(long nativeFrame, IReadOnlyList<GameInputSample> samples, long currentFrame)
+        {
+            NativeFrame = nativeFrame;
+            Samples = samples;
+            Current = nativeFrame == currentFrame ? "▶" : "";
+        }
+        public long NativeFrame { get; }
+        public IReadOnlyList<GameInputSample> Samples { get; }
+        public string Current { get; }
+        public bool IsEmpty => Samples.Count == 0;
+        public string Channels => Samples.Count == 0
+            ? "—"
+            : string.Join(", ", Samples.Select(sample => MovieProtocolV2.GetChannelName(sample.Channel)));
+    }
+
     // Only the visible page is expanded. Editing remains run-based and preserves analog data.
     public static class InputGridEditor
     {
         public const int PageSize = 500;
+        public static long Count(MovieV2Document movie)
+        {
+            if (movie == null) throw new ArgumentNullException(nameof(movie));
+            long count = 0;
+            foreach (var run in movie.Runs) count = checked(count + run.RepeatCount);
+            return count;
+        }
+
+        public static IReadOnlyList<V2InputGridRow> Page(MovieV2Document movie, long start, long currentFrame)
+        {
+            var total = Count(movie);
+            if (start < 0 || start > total) throw new ArgumentOutOfRangeException(nameof(start));
+            var end = Math.Min(total, start + PageSize);
+            var rows = new List<V2InputGridRow>((int)(end - start));
+            long position = 0;
+            foreach (var run in movie.Runs)
+            {
+                var runEnd = position + run.RepeatCount;
+                for (var frame = Math.Max(start, position); frame < Math.Min(end, runEnd); frame++)
+                    rows.Add(new V2InputGridRow(frame, run.Samples, currentFrame));
+                position = runEnd;
+                if (position >= end) break;
+            }
+            return rows;
+        }
+
+        public static MovieV2EditResult ReplaceFrame(MovieV2Document movie, long nativeFrame,
+            IReadOnlyList<GameInputSample> samples)
+            => new MovieV2TimelineEditor().ReplaceFrame(movie, nativeFrame, samples);
+
+        public static MovieV2EditResult InsertFrames(MovieV2Document movie, long nativeFrame,
+            IReadOnlyList<NativeFrameRun> runs)
+            => new MovieV2TimelineEditor().InsertFrames(movie, nativeFrame, runs);
+
+        public static MovieV2EditResult DeleteFrames(MovieV2Document movie, long nativeFrame, long count)
+            => new MovieV2TimelineEditor().DeleteFrames(movie, nativeFrame, count);
+
         public static long Count(MovieDocument movie) => movie.Commands.OfType<FrameRunCommand>().Sum(r => r.FrameCount);
 
         public static IReadOnlyList<InputGridRow> Page(MovieDocument movie, long start, long currentTick)

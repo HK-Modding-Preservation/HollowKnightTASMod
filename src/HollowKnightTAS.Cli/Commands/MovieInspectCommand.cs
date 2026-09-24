@@ -21,11 +21,33 @@ namespace HollowKnightTAS.Cli.Commands
                 return 2;
             }
 
-            var loaded = MovieCommandUtilities.LoadAndValidate(
+            var loaded = MovieCommandUtilities.LoadAndValidateAny(
                 args[0],
                 MovieValidationContext.CreateDefault(),
+                MovieV2ValidationContext.CreateDefault(),
                 standardError);
-            var document = loaded.Document;
+            if (loaded.V2Document != null)
+            {
+                var v2 = loaded.V2Document;
+                standardOutput.WriteLine("movie-id=" + new MovieV2Codec().ComputeMovieId(v2));
+                standardOutput.WriteLine("protocol=2");
+                standardOutput.WriteLine("frame-origin=startup0");
+                standardOutput.WriteLine("tick-unit=input-playerloop");
+                standardOutput.WriteLine("game=" + v2.Header.GameVersion);
+                standardOutput.WriteLine("api=" + v2.Header.ApiVersion);
+                standardOutput.WriteLine("mod=" + v2.Header.ModVersion);
+                standardOutput.WriteLine("native-profile=" + v2.Header.NativeProfileId);
+                standardOutput.WriteLine("action-schema=" + v2.Header.ActionSchemaId);
+                standardOutput.WriteLine("mouse-enabled=" + (v2.Header.MouseEnabled ? "true" : "false"));
+                standardOutput.WriteLine("environment-sha256=" + v2.Header.EnvironmentSha256);
+                standardOutput.WriteLine("viewport=" + v2.Header.ViewportWidth
+                    + "x" + v2.Header.ViewportHeight);
+                standardOutput.WriteLine("native-frames=" + loaded.ExpandedFrames.ToString(CultureInfo.InvariantCulture));
+                standardOutput.WriteLine("runs=" + v2.Runs.Count.ToString(CultureInfo.InvariantCulture));
+                standardOutput.WriteLine("save-binding=none");
+                return 0;
+            }
+            var document = loaded.V1Document!;
             var writer = new MovieCanonicalWriter();
 
             standardOutput.WriteLine("movie-id=" + writer.ComputeMovieId(document));
@@ -41,7 +63,7 @@ namespace HollowKnightTAS.Cli.Commands
                 + document.Header.BaselineSha256);
             standardOutput.WriteLine("tick-unit=" + document.Header.TickUnit);
             standardOutput.WriteLine(
-                "input-ticks=" + loaded.Report.ExpandedTickCount.ToString(
+                "input-ticks=" + loaded.ExpandedFrames.ToString(
                     CultureInfo.InvariantCulture));
             standardOutput.WriteLine(
                 "commands=" + document.Commands.Count.ToString(

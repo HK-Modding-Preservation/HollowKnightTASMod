@@ -7,9 +7,11 @@ using System.Threading;
 using HollowKnightTAS.Core.Diagnostics;
 using HollowKnightTAS.Core.Keyframes;
 using HollowKnightTAS.Core.Manifest;
+using HollowKnightTAS.Core.Movie;
 using HollowKnightTAS.Core.ReplaySave;
 using HollowKnightTAS.Runtime.Automation;
 using HollowKnightTAS.Runtime.Companion;
+using HollowKnightTAS.Runtime.FullRun;
 using HollowKnightTAS.Runtime.Control;
 using HollowKnightTAS.Runtime.Input;
 using HollowKnightTAS.Runtime.Inspector;
@@ -34,6 +36,7 @@ namespace HollowKnightTAS.Runtime.Runtime
         private readonly Action<string> logDebug;
         private readonly Action<string> logWarning;
         private readonly Action<string> logError;
+        private readonly RuntimeFullRunSession? fullRunSession;
         private JsonLinesEventSink? eventSink;
         private RuntimeAutomationReadyProbe? automationReadyProbe;
         private RuntimeFinalTasReadyProbe? finalTasReadyProbe;
@@ -65,7 +68,8 @@ namespace HollowKnightTAS.Runtime.Runtime
             Action<string> logInfo,
             Action<string> logDebug,
             Action<string> logWarning,
-            Action<string> logError)
+            Action<string> logError,
+            RuntimeFullRunSession? fullRunSession = null)
         {
             persistentSettings = settings ?? throw new ArgumentNullException(nameof(settings));
             this.settings = persistentSettings.CloneNormalized();
@@ -73,6 +77,7 @@ namespace HollowKnightTAS.Runtime.Runtime
             this.logDebug = logDebug ?? throw new ArgumentNullException(nameof(logDebug));
             this.logWarning = logWarning ?? throw new ArgumentNullException(nameof(logWarning));
             this.logError = logError ?? throw new ArgumentNullException(nameof(logError));
+            this.fullRunSession = fullRunSession;
         }
 
         public string? SessionId => sessionId;
@@ -88,11 +93,8 @@ namespace HollowKnightTAS.Runtime.Runtime
             }
 
             sessionId = CreateSessionId();
-            sessionDirectory = Path.Combine(
-                Application.persistentDataPath,
-                "HollowKnightTAS",
-                "sessions",
-                sessionId);
+            sessionDirectory = SavePathResolver.Current.GetTasDataPath(
+                "sessions", sessionId);
             Directory.CreateDirectory(sessionDirectory);
 
             var flushTimeout = TimeSpan.FromMilliseconds(settings.ExitFlushTimeoutMilliseconds);
@@ -153,6 +155,37 @@ namespace HollowKnightTAS.Runtime.Runtime
                     ["manifestSha256"] = manifestHash,
                     ["schemaVersion"] = manifest.SchemaVersion.ToString(CultureInfo.InvariantCulture)
                 });
+
+            if (fullRunSession != null)
+            {
+                if (!settings.CompanionEnabled)
+                    throw new InvalidOperationException("Full-run Studio IPC is disabled.");
+                if (fullRunSession.Mode == "Recording")
+                    fullRunSession.SetRecordingHeader(new MovieV2Header(
+                        manifest.GameVersion, manifest.ModdingApiVersion,
+                        HollowKnightTASMod.Version, MovieProtocolV2.NativeProfileId,
+                        MovieProtocolV2.ActionSchemaId, fullRunSession.MouseEnabled,
+                        manifestHash, Screen.width, Screen.height));
+                replayJournal = new RuntimeReplayJournal(sessionDirectory,
+                    manifestHash, logDebug, logWarning, logError,
+                    new DesktopSaveSlotBaselineProvider(), ReplaySaveSnapshotCapture.Create());
+                var inactiveKeyframes = KeyframeEligibilityProbe.Resolve(false,
+                    rngCoverage, Verification.UnexpectedMods);
+                var modRoot = Path.GetDirectoryName(typeof(HollowKnightTASMod).Assembly.Location)
+                    ?? throw new InvalidOperationException("Runtime assembly directory is unavailable.");
+                companionService = new RuntimeCompanionService(settings, modRoot, sessionId,
+                    manifestHash, manifest.GameVersion, manifest.ModdingApiVersion,
+                    replayJournal, null, null, inactiveKeyframes,
+                    logInfo, logWarning, logError, Emit, fullRunSession);
+                companionService.Start();
+                Emit("full-run-runtime-ready", new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["mode"] = fullRunSession.Mode,
+                    ["nativeFrame"] = fullRunSession.GetStatus().NativeFrame
+                        .ToString(CultureInfo.InvariantCulture)
+                });
+                return;
+            }
 
             var keyframeResolution =
                 KeyframeEligibilityProbe.Resolve(
@@ -290,11 +323,8 @@ namespace HollowKnightTAS.Runtime.Runtime
                     new DesktopSaveSlotBaselineProvider();
                 var replaySaveStore =
                     new ContentAddressedReplaySaveStore(
-                        Path.Combine(
-                            Application.persistentDataPath,
-                            "HollowKnightTAS",
-                            "replay-saves",
-                            "v1"),
+                        SavePathResolver.Current.GetTasDataPath(
+                            "replay-saves", "v1"),
                         manifestHash);
                 var restoreCoordinator =
                     new RuntimeReplayRestoreCoordinator(

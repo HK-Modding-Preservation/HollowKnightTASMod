@@ -17,10 +17,11 @@ namespace HollowKnightTAS.ClockPayload
     /// <summary>
     /// Fixed-build T24 environment payload. The external injector loads this
     /// exact assembly into both the reference and TAS processes. It changes
-    /// Unity clock configuration and, only after the external harness arms
-    /// the synchronized-input boundary, initializes Unity RNG at the root and
-    /// recording boundary. Scene transitions retain their native lifecycle
-    /// and continue the RNG stream without reseeding. It never writes Hero, FSM, Animator,
+    /// Unity clock configuration. The T24 path seeds RNG only at its root and
+    /// recording boundary. The separate full-run v2 path seeds at each scene's
+    /// first input boundary and isolates rendering RNG so variable loading and
+    /// rendering work cannot shift gameplay RNG. Scene transitions retain their
+    /// native lifecycle. It never writes Hero, FSM, Animator,
     /// Rigidbody2D, enemy, or resource state; it only identifies the Hero
     /// action-set update boundary and never writes input state.
     /// </summary>
@@ -115,6 +116,12 @@ namespace HollowKnightTAS.ClockPayload
         private static string calibratedScene = string.Empty;
         private static EventWaitHandle? randomSynchronizationRequest;
         private static EventWaitHandle? randomSynchronizationAcknowledged;
+        private static EventWaitHandle? fullRunRandomRequest;
+        private static EventWaitHandle? fullRunRandomAcknowledged;
+        private static bool fullRunRenderIsolationEnabled;
+        private static bool fullRunRenderInitialized;
+        private static bool fullRunRenderEntered;
+        private static UnityEngine.Random.State fullRunRenderState;
         private static EventWaitHandle?
             recordingRandomSynchronizationRequest;
         private static EventWaitHandle?
@@ -446,6 +453,12 @@ namespace HollowKnightTAS.ClockPayload
             }
 
             InitializeRandomSynchronization();
+            fullRunRenderIsolationEnabled = string.Equals(
+                Environment.GetEnvironmentVariable("HKTAS_FULL_RUN_V2"),
+                "1", StringComparison.Ordinal);
+            if (fullRunRenderIsolationEnabled)
+                On.UnityStandardAssets.ImageEffects.FastNoise.DrawNoiseQuadGrid +=
+                    OnFullRunDrawNoise;
             TryInstallTimeUpdateResumeBoundary();
             On.GameManager.Update += OnGameManagerUpdate;
             On.InControl.PlayerActionSet.Update +=
@@ -616,6 +629,8 @@ namespace HollowKnightTAS.ClockPayload
             ulong updateTick,
             float deltaTime)
         {
+            if (self is HeroActions)
+                TrySynchronizeFullRunRandom();
             if (ReferenceEquals(InputHandler.Instance?.inputActions, self))
             {
                 TrySynchronizeRandom();
@@ -669,6 +684,59 @@ namespace HollowKnightTAS.ClockPayload
                     false,
                     EventResetMode.ManualReset,
                     prefix + ".recording-applied");
+            if (string.Equals(Environment.GetEnvironmentVariable("HKTAS_FULL_RUN_V2"),
+                    "1", StringComparison.Ordinal))
+            {
+                var fullRunPrefix = "HollowKnightTAS.V2.RngSync." + runId;
+                fullRunRandomRequest = new EventWaitHandle(false,
+                    EventResetMode.AutoReset, fullRunPrefix + ".request");
+                fullRunRandomAcknowledged = new EventWaitHandle(false,
+                    EventResetMode.ManualReset, fullRunPrefix + ".applied");
+            }
+        }
+
+        private static void TrySynchronizeFullRunRandom()
+        {
+            if (fullRunRandomRequest?.WaitOne(0) != true)
+                return;
+            ApplyRandomSynchronization(RandomSynchronizationSeed,
+                "full-run-scene", USceneManager.GetActiveScene().name ?? string.Empty,
+                randomSynchronizationResetCount);
+            fullRunRandomAcknowledged?.Set();
+        }
+
+        private static void OnFullRunDrawNoise(
+            On.UnityStandardAssets.ImageEffects.FastNoise.orig_DrawNoiseQuadGrid original,
+            RenderTexture source, RenderTexture destination, Material material,
+            Texture2D noise, int pass, int frameMultiple)
+        {
+            if (!fullRunRenderIsolationEnabled || randomSynchronizationResetCount == 0
+                || fullRunRenderEntered)
+            {
+                original(source, destination, material, noise, pass, frameMultiple);
+                return;
+            }
+            var gameplayState = UnityEngine.Random.state;
+            if (!fullRunRenderInitialized)
+            {
+                fullRunRenderState = gameplayState;
+                fullRunRenderInitialized = true;
+            }
+            fullRunRenderEntered = true;
+            try
+            {
+                UnityEngine.Random.state = fullRunRenderState;
+                original(source, destination, material, noise, pass, frameMultiple);
+            }
+            finally
+            {
+                try { fullRunRenderState = UnityEngine.Random.state; }
+                finally
+                {
+                    try { UnityEngine.Random.state = gameplayState; }
+                    finally { fullRunRenderEntered = false; }
+                }
+            }
         }
 
         private static void TryRegisterRuntimeVirtualClockBoundary()
@@ -1577,6 +1645,12 @@ namespace HollowKnightTAS.ClockPayload
 
         public static void Restore()
         {
+            if (fullRunRenderIsolationEnabled)
+                On.UnityStandardAssets.ImageEffects.FastNoise.DrawNoiseQuadGrid -=
+                    OnFullRunDrawNoise;
+            fullRunRenderIsolationEnabled = false;
+            fullRunRenderInitialized = false;
+            fullRunRenderEntered = false;
             if (runtimeVirtualClockRegistered
                 && runtimeVirtualClockBoundaryType != null)
             {
@@ -1681,6 +1755,10 @@ namespace HollowKnightTAS.ClockPayload
             randomSynchronizationRequest = null;
             randomSynchronizationAcknowledged?.Dispose();
             randomSynchronizationAcknowledged = null;
+            fullRunRandomRequest?.Dispose();
+            fullRunRandomRequest = null;
+            fullRunRandomAcknowledged?.Dispose();
+            fullRunRandomAcknowledged = null;
             recordingRandomSynchronizationRequest?.Dispose();
             recordingRandomSynchronizationRequest = null;
             recordingRandomSynchronizationAcknowledged?.Dispose();

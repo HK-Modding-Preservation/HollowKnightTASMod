@@ -5,6 +5,7 @@ using System.Text;
 using HollowKnightTAS.Core.Input;
 using HollowKnightTAS.Core.Ledger;
 using HollowKnightTAS.Runtime.Playback;
+using HollowKnightTAS.Runtime.ReplaySave;
 using HutongGames.PlayMaker;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -25,7 +26,7 @@ namespace HollowKnightTAS.Runtime.Rng
 
         public static RuntimeRandomTrace? TryStart(string sessionId, RuntimeReplayJournal journal)
         {
-            var directory = Path.Combine(Application.persistentDataPath, "HollowKnightTAS", "diagnostics");
+            var directory = SavePathResolver.Current.GetTasDataPath("diagnostics");
             if (!File.Exists(Path.Combine(directory, "rng-trace.enabled"))) return null;
             var resolution = UnityRandomStateCodec_1_5_78_11833.Resolve();
             if (!resolution.Ready) throw new InvalidOperationException(resolution.Detail);

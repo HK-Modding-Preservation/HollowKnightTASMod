@@ -35,6 +35,11 @@ namespace HollowKnightTAS.Core.Ipc
         public const string RunUntil = "runUntil";
         public const string StartRecording = "startRecording";
         public const string StopRecording = "stopRecording";
+        public const string FullRunStatus = "fullRunStatus";
+        public const string FullRunStop = "fullRunStop";
+        public const string FullRunMovie = "fullRunMovie";
+        public const string FullRunState = "fullRunState";
+        public const string FullRunMovieDocument = "fullRunMovieDocument";
         public const string SetHeroPose = "setHeroPose";
         public const string SetPlayerResources =
             "setPlayerResources";
@@ -126,6 +131,9 @@ namespace HollowKnightTAS.Core.Ipc
                     RunUntil,
                     StartRecording,
                     StopRecording,
+                    FullRunStatus,
+                    FullRunStop,
+                    FullRunMovie,
                     SetHeroPose,
                     SetPlayerResources,
                     CommitStateMutation,
@@ -174,6 +182,8 @@ namespace HollowKnightTAS.Core.Ipc
                     Pong,
                     RuntimeStatus,
                     MovieDocument,
+                    FullRunState,
+                    FullRunMovieDocument,
                     StateMutationResult,
                     ColdRestoreIntentPrepared,
                     ColdRestoreSourceQuiesced,

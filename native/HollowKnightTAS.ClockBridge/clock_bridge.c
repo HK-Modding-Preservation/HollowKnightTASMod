@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include "startup_gate.h"
+#include "save_write_guard.h"
 
 #define HKTAS_CLOCK_BRIDGE_ABI 10u
 #define HKTAS_CLOCK_WAIT_ATTEMPTS 600u
@@ -54,20 +55,47 @@ static DWORD g_startup_hook_thread_id;
 static volatile LONG g_startup_virtual_qpc_call_count;
 static volatile LONG g_startup_handoff_adopt_count;
 static volatile LONG g_startup_fault_code;
+static BOOL g_guard_required;
+static BOOL g_v2_gate_enabled;
+static volatile LONG *g_boot_frame_state; /* completed, waiting, thread, hooked */
 
 static void advance_boot_frame_clock(void)
 {
     AcquireSRWLockExclusive(&g_clock_lock);
     /* The managed payload adopts this same anchor later. Once adopted,
      * only its existing completed-frame clock path may advance it. */
-    if (g_startup_handoff_adopt_count == 0 && g_deterministic_clock_enabled
+    if ((g_v2_gate_enabled || g_startup_handoff_adopt_count == 0)
+        && g_deterministic_clock_enabled
         && g_deterministic_clock_step_ticks > 0
         && g_deterministic_clock_anchor.QuadPart <= LLONG_MAX - g_deterministic_clock_step_ticks)
         g_deterministic_clock_anchor.QuadPart += g_deterministic_clock_step_ticks;
     ReleaseSRWLockExclusive(&g_clock_lock);
 }
 
+#include "full_run_frame_gate.h"
 #include "startup_frame_hook.h"
+
+static BOOL configure_save_guard_intent(void)
+{
+    wchar_t mode[4];
+    DWORD length = GetEnvironmentVariableW(L"HKTAS_FULL_RUN_SAVE_GUARD", mode, 4);
+    if (length == 0u) return TRUE;
+    if (length != 1u || mode[0] != L'1') return FALSE;
+    g_guard_required = TRUE;
+    return TRUE;
+}
+
+static BOOL install_save_guard_from_environment(void)
+{
+    wchar_t root[HKTAS_GUARD_PATH_CHARS];
+    wchar_t token[65];
+    DWORD root_length = GetEnvironmentVariableW(L"HKTAS_SAVE_GUARD_ORIGINAL_ROOT",
+        root, HKTAS_GUARD_PATH_CHARS);
+    DWORD token_length = GetEnvironmentVariableW(L"HKTAS_SAVE_GUARD_TOKEN", token, 65);
+    if (root_length == 0u || root_length >= HKTAS_GUARD_PATH_CHARS
+        || token_length != 64u) return FALSE;
+    return install_save_write_guard(root, token);
+}
 
 static BOOL WINAPI virtual_query_performance_counter(
     LARGE_INTEGER *value)
@@ -406,6 +434,17 @@ static DWORD WINAPI clock_worker(LPVOID ignored)
 {
     (void)ignored;
     InterlockedExchange(&g_status, 1);
+
+    if (g_guard_required)
+    {
+        if (!install_save_guard_from_environment())
+        {
+            InterlockedExchange(&g_guard_install_status, -1);
+            InterlockedExchange(&g_status, -14);
+            return 14u;
+        }
+        InterlockedExchange(&g_guard_install_status, 1);
+    }
 
     /* Time spent deliberately paused before initialization must not consume
      * the subsequent payload initialization timeout. */
@@ -988,6 +1027,107 @@ HktasClockBridge_GetStartupFaultCode(void)
     return InterlockedCompareExchange(&g_startup_fault_code, 0, 0);
 }
 
+__declspec(dllexport) LONG __cdecl HktasClockBridge_GetSaveGuardArmed(void)
+{
+    return save_write_guard_is_armed() ? 1 : 0;
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_GetSaveGuardInstallStatus(void)
+{
+    return InterlockedCompareExchange(&g_guard_install_status, 0, 0);
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_GetSaveGuardRejectedCount(void)
+{
+    return InterlockedCompareExchange(&g_guard_rejected_count, 0, 0);
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_ConfirmSaveGuardIdentity(
+    const wchar_t *original_root, const wchar_t *session_token)
+{
+    return save_write_guard_matches(original_root, session_token) ? 1 : 0;
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_GetFullRunCapability(void)
+{
+    return g_v2_gate_enabled && hktas_v2_identity_valid() ? 2 : 0;
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_CopyFullRunDescriptorHash(
+    BYTE *output, DWORD capacity)
+{
+    if (!g_v2_gate_enabled || !hktas_v2_identity_valid() || output == NULL
+        || capacity != 32u || g_v2_state->bootstrap_armed != 1)
+        return 0;
+    memcpy(output, g_v2_state->descriptor_sha256, 32u);
+    return 1;
+}
+
+__declspec(dllexport) uint64_t __cdecl HktasClockBridge_GetCompletedPlayerLoops(void)
+{
+    return hktas_get_completed_player_loops();
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_GetFullRunMode(void)
+{
+    return g_v2_state == NULL ? -1 : InterlockedCompareExchange(
+        &g_v2_state->mode, 0, 0);
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_RequestFramePause(void)
+{
+    if (!g_v2_gate_enabled || g_v2_state == NULL) return 0;
+    if (g_v2_state->mode == HKTAS_V2_MODE_FAULT
+        || g_v2_state->mode == HKTAS_V2_MODE_FINISHED) return 0;
+    InterlockedExchange(&g_v2_state->mode, HKTAS_V2_MODE_PAUSED);
+    return 1;
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_FinishFullRun(void)
+{
+    if (!g_v2_gate_enabled || g_v2_state == NULL
+        || g_v2_state->mode == HKTAS_V2_MODE_FAULT
+        || InterlockedCompareExchange(&g_v2_state->runtime_input_ready, 0, 0) != 1)
+        return 0;
+    InterlockedExchange(&g_v2_state->mode, HKTAS_V2_MODE_FINISHED);
+    return 1;
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_SetFrameCompletedCallback(
+    void (__cdecl *callback)(uint64_t completed))
+{
+    if (!g_v2_gate_enabled || callback == NULL || g_v2_completed_callback != NULL)
+        return 0;
+    g_v2_completed_callback = callback;
+    InterlockedExchange(&g_v2_state->runtime_input_ready, 1);
+    return 1;
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_SetBeforeFrameCallback(
+    void (__cdecl *callback)(uint64_t completed))
+{
+    if (!g_v2_gate_enabled || callback == NULL || g_v2_before_callback != NULL)
+        return 0;
+    g_v2_before_callback = callback;
+    return 1;
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_ReportMovieFrameCompleted(void)
+{
+    if (!g_v2_gate_enabled || g_v2_state == NULL
+        || g_v2_completed_callback == NULL) return 0;
+    if (InterlockedCompareExchange(&g_v2_state->mode, 0, 0) == HKTAS_V2_MODE_STEP)
+        InterlockedExchange(&g_v2_step_movie_frame_complete, 1);
+    return 1;
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_FaultFullRun(LONG code)
+{
+    if (!g_v2_gate_enabled || code <= 0) return 0;
+    hktas_v2_fault(code);
+    return 1;
+}
+
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 {
     (void)reserved;
@@ -1003,6 +1143,11 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
         if (!configure_boot_gate())
         {
             InterlockedExchange(&g_status, -12);
+            return FALSE;
+        }
+        if (!configure_save_guard_intent())
+        {
+            InterlockedExchange(&g_status, -14);
             return FALSE;
         }
         if (!install_boot_frame_hook())

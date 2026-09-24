@@ -24,12 +24,18 @@ namespace HollowKnightTAS.Cli.Commands
                 return 2;
             }
 
-            var loaded = MovieCommandUtilities.LoadAndValidate(
+            var loaded = MovieCommandUtilities.LoadAndValidateAny(
                 args[0],
                 MovieValidationContext.CreateDefault(),
+                MovieV2ValidationContext.CreateDefault(),
                 standardError);
-            var writer = new MovieCanonicalWriter();
-            var canonicalBytes = writer.WriteUtf8(loaded.Document);
+            var canonicalText = loaded.V2Document != null
+                ? new MovieV2Codec().WriteCanonical(loaded.V2Document)
+                : new MovieCanonicalWriter().WriteToString(loaded.V1Document!);
+            var canonicalBytes = new System.Text.UTF8Encoding(false).GetBytes(canonicalText);
+            var movieId = loaded.V2Document != null
+                ? new MovieV2Codec().ComputeMovieId(loaded.V2Document)
+                : new MovieCanonicalWriter().ComputeMovieId(loaded.V1Document!);
             if (args.Length == 2)
             {
                 if (!loaded.Bytes.SequenceEqual(canonicalBytes))
@@ -42,11 +48,11 @@ namespace HollowKnightTAS.Cli.Commands
                 }
 
                 standardOutput.WriteLine(
-                    "FORMATTED " + writer.ComputeMovieId(loaded.Document));
+                    "FORMATTED " + movieId);
                 return 0;
             }
 
-            standardOutput.Write(writer.WriteToString(loaded.Document));
+            standardOutput.Write(canonicalText);
             return 0;
         }
     }

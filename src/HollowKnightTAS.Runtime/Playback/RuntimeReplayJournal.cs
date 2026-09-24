@@ -993,8 +993,7 @@ namespace HollowKnightTAS.Runtime.Playback
             if (request.Kind != ReplayLifecycleKind.LoadSlot) return;
             if (request.ModdedSlotObjectSha256 == null)
                 throw new InvalidDataException("Legacy lifecycle did not capture modded slot settings.");
-            var path = Path.Combine(Application.persistentDataPath,
-                "user" + request.Slot.ToString(CultureInfo.InvariantCulture) + ".modded.json");
+            var path = SavePathResolver.Current.GetSlotPath(request.Slot, ".modded.json");
             if (request.ModdedSlotObjectSha256.Length == 0)
             {
                 if (File.Exists(path)) throw new InvalidDataException("Modded slot was absent at capture but now exists.");
@@ -1081,8 +1080,7 @@ namespace HollowKnightTAS.Runtime.Playback
                     if (request?.Kind != ReplayLifecycleKind.LoadSlot || request.Slot != slot
                         || replayLifecycleLoad == null || replayLifecycleWindow.Failure.Length != 0)
                         throw new InvalidDataException("Unexpected or repeated native load during lifecycle replay.");
-                    var path = Path.Combine(Application.persistentDataPath,
-                        "user" + slot.ToString(CultureInfo.InvariantCulture) + ".dat");
+                    var path = SavePathResolver.Current.GetSlotPath(slot, ".dat");
                     var length = new FileInfo(path).Length;
                     if (length <= 0 || length > ReplayLifecycleLog.MaximumSlotBytes
                         || Sha256Utility.ComputeFileHex(path) != request.SlotObjectSha256)
@@ -1103,8 +1101,7 @@ namespace HollowKnightTAS.Runtime.Playback
                 {
                     try
                     {
-                        var slotPath = Path.Combine(Application.persistentDataPath,
-                            "user" + slot.ToString(CultureInfo.InvariantCulture) + ".dat");
+                        var slotPath = SavePathResolver.Current.GetSlotPath(slot, ".dat");
                         var length = new FileInfo(slotPath).Length;
                         if (length <= 0 || length > ReplayLifecycleLog.MaximumSlotBytes
                             || Sha256Utility.ComputeFileHex(slotPath) != activeLifecycle.SlotObjectSha256)

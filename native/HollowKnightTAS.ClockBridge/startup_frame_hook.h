@@ -9,7 +9,6 @@ static BOOL g_boot_frame_hook_enabled;
 static void (__cdecl *g_boot_original_player_loop)(void);
 static HANDLE g_boot_step;
 static HANDLE g_boot_state_mapping;
-static volatile LONG *g_boot_frame_state; /* completed, waiting, thread, hooked */
 static BOOL g_boot_loop_active;
 
 static void wait_boot_frame_command(void)
@@ -38,7 +37,25 @@ static void __cdecl boot_player_loop(void)
 {
     if (g_boot_loop_active) return;
     g_boot_loop_active = TRUE;
-    if (g_boot_frame_state && WaitForSingleObject(g_boot_continue, 0) != WAIT_OBJECT_0)
+    if (g_guard_required)
+    {
+        for (int attempt = 0; attempt < 10000 && g_guard_install_status == 0; ++attempt)
+            Sleep(1);
+        if (g_guard_install_status != 1)
+        {
+            g_boot_loop_active = FALSE;
+            return; /* Never advertise frame 0 as ready without the save guard. */
+        }
+    }
+    if (g_v2_gate_enabled)
+    {
+        if (!hktas_v2_before_frame())
+        {
+            g_boot_loop_active = FALSE;
+            return;
+        }
+    }
+    else if (g_boot_frame_state && WaitForSingleObject(g_boot_continue, 0) != WAIT_OBJECT_0)
     {
         InterlockedExchange(&g_boot_frame_state[2], (LONG)GetCurrentThreadId());
         InterlockedExchange(&g_boot_frame_state[1], 1);
@@ -49,6 +66,7 @@ static void __cdecl boot_player_loop(void)
     }
     advance_boot_frame_clock();
     g_boot_original_player_loop();
+    if (g_v2_gate_enabled) hktas_v2_after_frame();
     if (g_boot_frame_state) InterlockedIncrement(&g_boot_frame_state[0]);
     g_boot_loop_active = FALSE;
 }
@@ -84,6 +102,7 @@ static BOOL install_boot_frame_hook(void)
     if (!g_boot_step || !g_boot_state_mapping) return FALSE;
     g_boot_frame_state = (volatile LONG *)MapViewOfFile(g_boot_state_mapping, FILE_MAP_WRITE, 0, 0, 16);
     if (!g_boot_frame_state) return FALSE;
+    if (!install_full_run_frame_gate()) return FALSE;
 
     /* Replace one five-byte CALL with a nearby absolute-jump relay. No
      * function prologue relocation, no guessed instruction lengths. This

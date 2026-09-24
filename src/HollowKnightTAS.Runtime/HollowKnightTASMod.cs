@@ -1,6 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using HollowKnightTAS.Core.Automation;
+using HollowKnightTAS.Core.ReplaySave;
+using HollowKnightTAS.Runtime.ReplaySave;
+using HollowKnightTAS.Runtime.FullRun;
+using HollowKnightTAS.Runtime.Timing;
 using HollowKnightTAS.Runtime.Runtime;
 using HollowKnightTAS.Runtime.Settings;
 using Modding;
@@ -17,6 +22,8 @@ namespace HollowKnightTAS.Runtime
 
         private TasGlobalSettings? settings;
         private TasRuntimeHost? runtimeHost;
+        private ProtectedSaveRedirector? protectedSaves;
+        private RuntimeFullRunSession? fullRunSession;
         private bool hooksRegistered;
 
         public HollowKnightTASMod()
@@ -40,13 +47,51 @@ namespace HollowKnightTAS.Runtime
                 return;
             }
 
+            if (SavePathResolver.ProtectionRequested)
+            {
+                try
+                {
+                    if (Environment.GetEnvironmentVariable("HKTAS_FULL_RUN_V2") != "1")
+                        throw new InvalidOperationException("Protected launch is missing its v2 frame gate.");
+                    var descriptorPath = Environment.GetEnvironmentVariable("HKTAS_SAVE_DESCRIPTOR_PATH");
+                    if (string.IsNullOrWhiteSpace(descriptorPath))
+                        throw new InvalidOperationException("Protected save descriptor path is missing.");
+                    var fullPath = Path.GetFullPath(descriptorPath);
+                    var size = new FileInfo(fullPath).Length;
+                    if (size <= 0 || size > ProtectedSaveDescriptorCodec.MaximumBytes)
+                        throw new InvalidDataException("Protected save descriptor size is invalid.");
+                    var descriptor = ProtectedSaveDescriptorCodec.Parse(File.ReadAllBytes(fullPath));
+                    if (!string.Equals(fullPath,
+                            Path.Combine(descriptor.ShadowRoot, "descriptor.json"),
+                            StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException("Protected save descriptor path does not match its shadow root.");
+                    protectedSaves = ProtectedSaveRedirector.Install(descriptor,
+                        message => Log(message));
+                    var token = Environment.GetEnvironmentVariable("HKTAS_BOOT_GATE_TOKEN")
+                        ?? throw new InvalidOperationException("Full-run gate token is missing.");
+                    var clock = NativeFullRunFrameClock.Attach(token,
+                        HollowKnightTAS.Core.Movie.MovieProtocolV2.NativeProfileId);
+                    fullRunSession = RuntimeFullRunBootstrap.Attach(token, clock,
+                        protectedSaves, message => Log(message));
+                }
+                catch (Exception exception)
+                {
+                    LogError("Protected full-run bootstrap failed: " + exception);
+                    if (!NativeFullRunFrameClock.TryFaultEarly(43))
+                        Environment.FailFast("Protected full-run bootstrap could not stop the native frame gate.",
+                            exception);
+                    throw;
+                }
+            }
+
             hooksRegistered = true;
             runtimeHost = new TasRuntimeHost(
                 settings ?? new TasGlobalSettings(),
                 message => Log(message),
                 message => LogDebug(message),
                 message => LogWarn(message),
-                message => LogError(message));
+                message => LogError(message),
+                fullRunSession);
 
             ModHooks.FinishedLoadingModsHook += OnFinishedLoadingMods;
             ModHooks.ApplicationQuitHook += OnApplicationQuit;
@@ -172,6 +217,11 @@ namespace HollowKnightTAS.Runtime
             catch (Exception exception)
             {
                 LogError("T01 runtime host failed to start: " + exception);
+                if (fullRunSession != null)
+                {
+                    NativeFullRunFrameClock.TryFaultEarly(44);
+                    throw;
+                }
             }
         }
 
@@ -198,6 +248,10 @@ namespace HollowKnightTAS.Runtime
             ModHooks.FinishedLoadingModsHook -= OnFinishedLoadingMods;
             ModHooks.ApplicationQuitHook -= OnApplicationQuit;
             runtimeHost = null;
+            fullRunSession?.Dispose();
+            fullRunSession = null;
+            protectedSaves?.Dispose();
+            protectedSaves = null;
             LogDebug("T01 hooks unregistered.");
         }
     }

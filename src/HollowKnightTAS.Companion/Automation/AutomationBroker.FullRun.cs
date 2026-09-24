@@ -1,0 +1,196 @@
+using System;
+using System.Globalization;
+using System.IO;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using HollowKnightTAS.Companion.Services;
+using HollowKnightTAS.Core.Automation;
+using HollowKnightTAS.Core.Ipc;
+using HollowKnightTAS.Core.Movie;
+
+namespace HollowKnightTAS.Companion.Automation
+{
+    public sealed partial class AutomationBroker
+    {
+        private async Task<AutomationResultEnvelope> RouteFullRunAsync(
+            AutomationBootstrapDescriptor binding, string clientId,
+            string connectionId, AutomationCommandEnvelope command,
+            CancellationToken cancellationToken)
+        {
+            var coordinator = fullRunMovies
+                ?? throw new InvalidOperationException("Full-run coordinator is unavailable.");
+            var shapeError = ValidateArgumentShape(command);
+            if (shapeError != null)
+                return Result(command, false, "InvalidArguments", shapeError);
+            var valueError = ValidateArgumentValues(command);
+            if (valueError != null)
+                return Result(command, false, "InvalidArguments", valueError);
+
+            if (command.CommandId == AutomationCommandIds.AcquireControl)
+                return AcquireBound(binding.SessionId, binding.ManifestSha256,
+                    binding.Mode, clientId, connectionId, command);
+            if (command.CommandId == AutomationCommandIds.RenewControl)
+                return Renew(clientId, connectionId, command);
+            if (command.CommandId == AutomationCommandIds.ReleaseControl)
+                return Release(clientId, connectionId, command);
+
+            var catalog = capabilityCatalog
+                ?? new AutomationCapabilityCatalog(binding.Mode, false, fullRunOnly: true);
+            if (!catalog.TryGet(command.CommandId, out var capability)
+                || capability.Scope != command.RequiredScope)
+                return Result(command, false, "CapabilityMismatch",
+                    "Command scope is unavailable in this full-run session.");
+            if (capability.Availability == "disabled")
+                return Result(command, false, "CapabilityDisabled",
+                    "Full-run control is disabled by the user policy.");
+            if (capability.RequiresLease && !leases.Validate(clientId,
+                    connectionId, command.LeaseId, command.RequiredScope,
+                    binding.SessionId, binding.ManifestSha256))
+                return Result(command, false, "LeaseRequired",
+                    "A matching unexpired exclusive control lease is required.");
+
+            var gate = coordinator.Gate
+                ?? throw new InvalidOperationException("Full-run gate is unavailable.");
+            if (command.CommandId == AutomationCommandIds.GetStatus
+                || command.CommandId == AutomationCommandIds.FullRunStatus)
+            {
+                var fields = new System.Collections.Generic.Dictionary<string, string>(
+                    Fields("sessionId", binding.SessionId,
+                        "manifestSha256", binding.ManifestSha256,
+                        "automationMode", binding.Mode.ToString(),
+                        "mode", coordinator.Mode,
+                        "nativeFrame", gate.NativeCompletedFrames.ToString(CultureInfo.InvariantCulture),
+                        "paused", gate.IsWaiting ? "true" : "false",
+                        "runtimeConnected", GetBoundSession()?.IsConnected == true ? "true" : "false",
+                        "faultCode", gate.FullRunFaultCode.ToString(CultureInfo.InvariantCulture),
+                        "saveGuardArmed", gate.SaveGuardArmed.ToString(CultureInfo.InvariantCulture)),
+                    StringComparer.Ordinal);
+                var runtime = GetBoundSession();
+                if (runtime?.IsConnected == true)
+                {
+                    var observed = await ForwardAsync(runtime, command,
+                        IpcMessageTypes.FullRunStatus,
+                        Fields("requestId", command.RequestId),
+                        IpcMessageTypes.FullRunState, cancellationToken);
+                    if (observed.Success)
+                        foreach (var item in observed.Data)
+                            fields[item.Key] = item.Value;
+                }
+                return Result(command, true, "Ok", "Full-run state returned.", fields);
+            }
+            if (command.CommandId == AutomationCommandIds.GetCapabilities)
+                return Result(command, true, "Ok", "Full-run capability catalog returned.",
+                    Fields("catalog", catalog.Serialize(),
+                        "catalogJson", catalog.SerializeJson(),
+                        "mode", binding.Mode.ToString(),
+                        "debugMutationEnabled", "false"));
+
+            if (command.CommandId == AutomationCommandIds.FullRunMovie)
+            {
+                var runtime = GetBoundSession();
+                return runtime == null
+                    ? Result(command, false, "RuntimeNotReady",
+                        "The full-run Runtime has not connected yet.")
+                    : await ForwardAsync(runtime, command, IpcMessageTypes.FullRunMovie,
+                        Fields("requestId", command.RequestId),
+                        IpcMessageTypes.FullRunMovieDocument, cancellationToken);
+            }
+
+            if (command.CommandId == AutomationCommandIds.QuitGame)
+            {
+                if (!gate.IsWaiting)
+                    return Result(command, false, "PreconditionFailed",
+                        "Protected game exit requires a paused native frame.");
+                var runtime = GetBoundSession();
+                return runtime == null
+                    ? Result(command, false, "RuntimeNotReady",
+                        "The full-run Runtime has not connected yet.")
+                    : await ForwardAsync(runtime, command, IpcMessageTypes.QuitGame,
+                        Fields("requestId", command.RequestId),
+                        IpcMessageTypes.CommandAccepted, cancellationToken);
+            }
+
+            var expectedFrame = long.Parse(command.Arguments["expectedNativeFrame"],
+                CultureInfo.InvariantCulture);
+            if (command.CommandId == AutomationCommandIds.FullRunPause)
+            {
+                if (command.ExpectedRuntimeMode != "Running"
+                    || expectedFrame > gate.NativeCompletedFrames)
+                    return Result(command, false, "PreconditionFailed",
+                        "Full-run pause requires an observed running frame.");
+                var boundary = await coordinator.PauseAsync(cancellationToken);
+                return BoundaryResult(command, boundary);
+            }
+            if (command.ExpectedRuntimeMode != "Paused"
+                || !gate.IsWaiting || gate.NativeCompletedFrames != expectedFrame)
+                return Result(command, false, "PreconditionFailed",
+                    "Full-run command requires the exact paused native frame.");
+
+            if (command.CommandId == AutomationCommandIds.BeginFullRunRecording)
+            {
+                coordinator.ArmRecording(command.Arguments["mouseEnabled"] == "true");
+                return Result(command, true, "Ok", "Recording armed at native frame 0.",
+                    Fields("mode", coordinator.Mode, "nativeFrame", "0"));
+            }
+            if (command.CommandId == AutomationCommandIds.BeginFullRunReplay)
+            {
+                byte[] bytes;
+                try { bytes = Convert.FromBase64String(command.Arguments["movieBase64"]); }
+                catch (FormatException)
+                {
+                    return Result(command, false, "InvalidMovie", "movieBase64 is invalid.");
+                }
+                if (bytes.Length == 0 || bytes.Length > MovieProtocolV2.MaximumSourceUtf8Bytes)
+                    return Result(command, false, "InvalidMovie", "Full-run movie size is invalid.");
+                var source = new UTF8Encoding(false, true).GetString(bytes);
+                var codec = new MovieV2Codec();
+                var parsed = codec.Parse(new StringReader(source), "<automation>");
+                if (!parsed.Success || parsed.Document == null
+                    || codec.WriteCanonical(parsed.Document) != source)
+                    return Result(command, false, "InvalidMovie",
+                        "Full-run replay requires a canonical v2 movie.");
+                coordinator.ArmReplay(parsed.Document);
+                return Result(command, true, "Ok", "Replay armed at native frame 0.",
+                    Fields("mode", coordinator.Mode, "nativeFrame", "0",
+                        "movieId", codec.ComputeMovieId(parsed.Document)));
+            }
+            if (command.CommandId == AutomationCommandIds.FullRunStep)
+                return BoundaryResult(command,
+                    await coordinator.StepAsync(expectedFrame, cancellationToken));
+            if (command.CommandId == AutomationCommandIds.FullRunPlay)
+            {
+                coordinator.Run(expectedFrame);
+                return Result(command, true, "Ok", "Full-run playback started.",
+                    Fields("mode", coordinator.Mode,
+                        "nativeFrame", expectedFrame.ToString(CultureInfo.InvariantCulture)));
+            }
+            if (command.CommandId == AutomationCommandIds.FullRunStop)
+            {
+                var runtime = GetBoundSession();
+                if (runtime == null)
+                    return Result(command, false, "RuntimeNotReady",
+                        "The full-run Runtime has not connected yet.");
+                var stopped = await ForwardAsync(runtime, command,
+                    IpcMessageTypes.FullRunStop,
+                    Fields("requestId", command.RequestId, "expectedNativeFrame",
+                        expectedFrame.ToString(CultureInfo.InvariantCulture)),
+                    IpcMessageTypes.FullRunMovieDocument, cancellationToken);
+                if (stopped.Success) coordinator.MarkStopped();
+                return stopped;
+            }
+            return Result(command, false, "CapabilityMismatch",
+                "Command is unavailable in this full-run session.");
+        }
+
+        private AutomationResultEnvelope BoundaryResult(
+            AutomationCommandEnvelope command,
+            NativeFrameBoundary boundary)
+            => Result(command, boundary.Mode != "Fault",
+                boundary.Mode == "Fault" ? "NativeFault" : "Ok",
+                boundary.Mode == "Fault" ? boundary.Error : "Native frame boundary reached.",
+                Fields("mode", boundary.Mode,
+                    "nativeFrame", boundary.CompletedFrame.ToString(CultureInfo.InvariantCulture),
+                    "ackSequence", boundary.AckSequence.ToString(CultureInfo.InvariantCulture)));
+    }
+}

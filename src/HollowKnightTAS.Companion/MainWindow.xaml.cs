@@ -101,6 +101,7 @@ namespace HollowKnightTAS.Companion
             while (element != null && element is not DataGridCell)
                 element = VisualTreeHelper.GetParent(element);
             if (element is not DataGridCell cell || cell.DataContext is not InputGridRow row) return;
+            if (row.IsV2) return;
             // This preview handler consumes button cells before DataGrid can move focus.
             // Keep subsequent transport/editor shortcuts on the grid, not the last text box.
             cell.Focus();
@@ -126,6 +127,7 @@ namespace HollowKnightTAS.Companion
         {
             if (DataContext is not MainViewModel vm) return;
             var first = vm.InputRows.FirstOrDefault(r => r.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture) == vm.GridStart);
+            if (first?.IsV2 == true) return;
             new AxisEditorWindow(vm, first?.Input) { Owner = this }.ShowDialog();
         }
 

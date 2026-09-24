@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using HollowKnightTAS.Core.Movie;
 
 namespace HollowKnightTAS.Cli.Commands
@@ -26,18 +27,37 @@ namespace HollowKnightTAS.Cli.Commands
                 return 2;
             }
 
-            var loaded = MovieCommandUtilities.LoadAndValidate(
+            var v2Limit = args.Contains("--max-expanded-ticks", StringComparer.Ordinal)
+                ? Math.Min(context.MaxExpandedTicks, MovieProtocolV2.MaximumExpandedFrames)
+                : MovieProtocolV2.MaximumExpandedFrames;
+            var loaded = MovieCommandUtilities.LoadAndValidateAny(
                 path,
                 context,
+                new MovieV2ValidationContext(v2Limit,
+                    MovieProtocolV2.MaximumSamplesPerFrame),
                 standardError);
+            if (loaded.V2Document != null)
+            {
+                if (args.Contains("--manifest-sha256", StringComparer.Ordinal)
+                    || args.Contains("--baseline-sha256", StringComparer.Ordinal))
+                {
+                    standardError.WriteLine("INVALID v2 movies do not bind a save baseline; manifest options apply to v1 only.");
+                    return 2;
+                }
+                var codec = new MovieV2Codec();
+                standardOutput.WriteLine("VALID " + codec.ComputeMovieId(loaded.V2Document)
+                    + " frames=" + loaded.ExpandedFrames.ToString(CultureInfo.InvariantCulture)
+                    + " frame-origin=startup0 tick-unit=input-playerloop");
+                return 0;
+            }
             var writer = new MovieCanonicalWriter();
             standardOutput.WriteLine(
                 "VALID "
-                + writer.ComputeMovieId(loaded.Document)
+                + writer.ComputeMovieId(loaded.V1Document!)
                 + " ticks="
-                + loaded.Report.ExpandedTickCount.ToString(CultureInfo.InvariantCulture)
+                + loaded.ExpandedFrames.ToString(CultureInfo.InvariantCulture)
                 + " commands="
-                + loaded.Document.Commands.Count.ToString(CultureInfo.InvariantCulture));
+                + loaded.V1Document!.Commands.Count.ToString(CultureInfo.InvariantCulture));
             return 0;
         }
 

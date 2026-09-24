@@ -10,6 +10,7 @@ using HollowKnightTAS.Core.Ipc;
 using HollowKnightTAS.Core.Automation;
 using HollowKnightTAS.Runtime.Inspector;
 using HollowKnightTAS.Runtime.Ipc;
+using HollowKnightTAS.Runtime.FullRun;
 using HollowKnightTAS.Runtime.Keyframes;
 using HollowKnightTAS.Runtime.Playback;
 using HollowKnightTAS.Runtime.ReplaySave;
@@ -53,7 +54,8 @@ namespace HollowKnightTAS.Runtime.Companion
             Action<string> logError,
             Action<
                 string,
-                IReadOnlyDictionary<string, string>> emit)
+                IReadOnlyDictionary<string, string>> emit,
+            RuntimeFullRunSession? fullRunSession = null)
         {
             this.settings =
                 (settings
@@ -147,7 +149,8 @@ namespace HollowKnightTAS.Runtime.Companion
                     nameof(keyframeResolution)),
                 this.settings
                     .CompanionMainThreadBudgetMilliseconds,
-                emit);
+                emit,
+                fullRunSession);
             launcher = new CompanionLauncher(
                 modRoot,
                 registration,

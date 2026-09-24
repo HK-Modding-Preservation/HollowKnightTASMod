@@ -1806,8 +1806,7 @@ namespace HollowKnightTAS.Runtime.ReplaySave
                 if (install.WroteSlot) logInfo("Lifecycle slot backup: " + install.BackupDirectory);
                 RuntimeReplayJournal.VerifyLifecycleModdedSlot(request);
                 // Verify the installed dat again before invoking native load.
-                var slotPath = Path.Combine(Application.persistentDataPath,
-                    "user" + request.Slot.ToString(CultureInfo.InvariantCulture) + ".dat");
+                var slotPath = SavePathResolver.Current.GetSlotPath(request.Slot, ".dat");
                 var size = new FileInfo(slotPath).Length;
                 if (size <= 0 || size > ReplayLifecycleLog.MaximumSlotBytes
                     || Sha256Utility.ComputeFileHex(slotPath) != request.SlotObjectSha256)
@@ -1844,8 +1843,8 @@ namespace HollowKnightTAS.Runtime.ReplaySave
             if (coldIntent != null)
             {
                 using (var process = Process.GetCurrentProcess())
-                    lease.ConfigureRecovery(new SlotRecoveryStore(Path.Combine(Application.persistentDataPath,
-                        "HollowKnightTAS", "replay-saves", "v1", "slot-recovery")),
+                    lease.ConfigureRecovery(new SlotRecoveryStore(SavePathResolver.Current.GetTasDataPath(
+                        "replay-saves", "v1", "slot-recovery")),
                         coldIntent.OperationId, process.Id, new DateTimeOffset(process.StartTime.ToUniversalTime()),
                         checked(slotRecoverySequence++));
             }

@@ -16,11 +16,17 @@
         <MenuItem Header="Exit 关闭 Studio" Click="OnCloseStudio" />
       </MenuItem>
       <MenuItem Header="_Settings 设置">
+        <MenuItem Header="Enable game mouse for new v2 Movie 启用游戏鼠标"
+                  IsCheckable="True" IsChecked="{Binding GameMouseEnabled, Mode=TwoWay}"
+                  AutomationProperties.AutomationId="HktasStudio.GameMouseEnabled" />
+        <Separator />
         <MenuItem Header="Hotkeys 快捷键…" Tag="ShortcutSettingsTab" Click="OnNavigate" />
         <MenuItem Header="Runtime 运行控制…" Tag="ControlTab" Click="OnNavigate" />
         <MenuItem Header="Autosave 自动存档…" Tag="SavesTab" Click="OnNavigate" />
       </MenuItem>
       <MenuItem Header="_Movie 序列">
+        <MenuItem Header="New full-run Movie 从第 0 帧新建" Command="{Binding NewFullRunMovieCommand}"
+                  AutomationProperties.AutomationId="HktasStudio.NewFullRunMovie" />
         <MenuItem Header="Open Movie 打开…" InputGestureText="Ctrl+O" Command="{Binding OpenMovieCommand}" />
         <MenuItem Header="Save Movie 保存…" InputGestureText="Ctrl+S" Command="{Binding SaveMovieCommand}" />
         <Separator />
@@ -152,6 +158,10 @@
             <DataGrid.Columns>
               <DataGridTextColumn Header="" Binding="{Binding Current}" Width="28" />
               <DataGridTextColumn Header="Frame" Binding="{Binding Tick}" Width="75" />
+              <DataGridTextColumn Header="Channels" Binding="{Binding Channels}" Width="150" />
+              <DataGridTextColumn Header="Samples" Binding="{Binding SampleCount}" Width="65" />
+              <DataGridCheckBoxColumn Header="Submit" Binding="{Binding Submit, Mode=OneWay}" Width="65" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
+              <DataGridCheckBoxColumn Header="Cancel" Binding="{Binding Cancel, Mode=OneWay}" Width="65" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
               <DataGridCheckBoxColumn Header="Left" Binding="{Binding Left, Mode=OneWay}" SortMemberPath="Left" Width="55" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
               <DataGridCheckBoxColumn Header="Right" Binding="{Binding Right, Mode=OneWay}" SortMemberPath="Right" Width="55" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
               <DataGridCheckBoxColumn Header="Up" Binding="{Binding Up, Mode=OneWay}" SortMemberPath="Up" Width="45" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />

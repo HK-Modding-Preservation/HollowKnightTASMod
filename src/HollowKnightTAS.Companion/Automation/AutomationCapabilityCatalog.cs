@@ -13,7 +13,8 @@ namespace HollowKnightTAS.Companion.Automation
 
         public AutomationCapabilityCatalog(
             AutomationMode mode,
-            bool debugMutationEnabled)
+            bool debugMutationEnabled,
+            bool fullRunOnly = false)
         {
             var items = new[]
             {
@@ -44,6 +45,18 @@ namespace HollowKnightTAS.Companion.Automation
                 Read(
                     AutomationCommandIds.GetMovie,
                     AutomationScope.MovieRead),
+                Read(AutomationCommandIds.FullRunStatus, AutomationScope.ObserveStatus),
+                Read(AutomationCommandIds.FullRunMovie, AutomationScope.MovieRead),
+                Write(AutomationCommandIds.BeginFullRunRecording,
+                    AutomationScope.ControlRecording, mode),
+                Write(AutomationCommandIds.BeginFullRunReplay,
+                    AutomationScope.ControlPlayback, mode),
+                Write(AutomationCommandIds.FullRunStep,
+                    AutomationScope.ControlStep, mode),
+                Write(AutomationCommandIds.FullRunPlay,
+                    AutomationScope.ControlPlayback, mode),
+                Write(AutomationCommandIds.FullRunPause,
+                    AutomationScope.ControlPlayback, mode),
                 Read(
                     AutomationCommandIds.GetRestoreStrategy,
                     AutomationScope.ObserveStatus),
@@ -79,6 +92,7 @@ namespace HollowKnightTAS.Companion.Automation
                     AutomationScope.ControlPlayback,
                     mode),
                 Write(AutomationCommandIds.QuitGame, AutomationScope.ControlPlayback, mode),
+                Write(AutomationCommandIds.FullRunStop, AutomationScope.ControlPlayback, mode),
                 Write(AutomationCommandIds.StartVideoExport, AutomationScope.ControlPlayback, mode),
                 Write(AutomationCommandIds.FinishVideoExport, AutomationScope.ControlPlayback, mode),
                 Write(AutomationCommandIds.CancelVideoExport, AutomationScope.ControlPlayback, mode),
@@ -173,7 +187,19 @@ namespace HollowKnightTAS.Companion.Automation
                     mode,
                     debugMutationEnabled)
             };
-            capabilities = items.ToDictionary(
+            var selected = fullRunOnly ? items.Where(item =>
+                item.CommandId == AutomationCommandIds.GetStatus
+                || item.CommandId == AutomationCommandIds.GetCapabilities
+                || item.CommandId == AutomationCommandIds.FullRunStatus
+                || item.CommandId == AutomationCommandIds.FullRunMovie
+                || item.CommandId == AutomationCommandIds.BeginFullRunRecording
+                || item.CommandId == AutomationCommandIds.BeginFullRunReplay
+                || item.CommandId == AutomationCommandIds.FullRunStep
+                || item.CommandId == AutomationCommandIds.FullRunPlay
+                || item.CommandId == AutomationCommandIds.FullRunPause
+                || item.CommandId == AutomationCommandIds.FullRunStop
+                || item.CommandId == AutomationCommandIds.QuitGame) : items;
+            capabilities = selected.ToDictionary(
                 item => item.CommandId,
                 StringComparer.Ordinal);
         }

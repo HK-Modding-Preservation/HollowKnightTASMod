@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using HollowKnightTAS.Core.Cryptography;
 using HollowKnightTAS.Core.Ipc;
+using HollowKnightTAS.Core.Movie;
 using HollowKnightTAS.Core.ReplaySave;
 
 namespace HollowKnightTAS.Companion.Services
@@ -555,6 +556,8 @@ namespace HollowKnightTAS.Companion.Services
             start.Environment.Remove("HKTAS_BOOT_GATE_OWNER");
             start.Environment.Remove("HKTAS_BOOT_FRAME_GATE");
             bootGate?.ConfigureInjector(start);
+            if (bootGate?.IsFullRun == true)
+                start.Environment["HKTAS_FULL_RUN_BOSS_TRACE"] = "1";
 
             var job = new NativeHostJob();
             Process? injector = null;
@@ -618,6 +621,18 @@ namespace HollowKnightTAS.Companion.Services
                     {
                         throw new InvalidDataException(
                             "ClockInjector launch evidence is not bound to the cold intent.");
+                    }
+                    if (bootGate?.IsFullRun == true)
+                    {
+                        if (!ReadExact(root, "fullRunCapability", MovieProtocolV2.NativeProfileId)
+                            || !ReadExact(root, "fullRunRandomPolicy",
+                                MovieProtocolV2.RandomSynchronizationPolicyId)
+                            || !root.TryGetProperty("fullRunGateAbi", out var gateAbi)
+                            || gateAbi.GetInt32() != 2
+                            || !root.TryGetProperty("saveGuardStatus", out var guardStatus)
+                            || guardStatus.GetString() == "fault")
+                            throw new InvalidDataException(
+                                "ClockInjector did not confirm the full-run frame and save-guard capability.");
                     }
 
                     var game = Process.GetProcessById(processId);

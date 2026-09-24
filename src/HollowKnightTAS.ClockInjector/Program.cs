@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -532,6 +533,26 @@ namespace HollowKnightTAS.ClockInjector
                         "unity-init-state-at-root-only-native-scene-lifecycle-v19",
                     ["randomSynchronizationSeed"] = 1212896321
                 };
+                if (string.Equals(Environment.GetEnvironmentVariable("HKTAS_FULL_RUN_V2"),
+                        "1", StringComparison.Ordinal))
+                {
+                    var token = Environment.GetEnvironmentVariable("HKTAS_BOOT_GATE_TOKEN");
+                    if (token == null || token.Length != 32
+                        || Environment.GetEnvironmentVariable("HKTAS_FULL_RUN_SAVE_GUARD") != "1")
+                        throw new InvalidDataException("Full-run gate or save guard launch intent is incomplete.");
+                    using var stateMap = MemoryMappedFile.OpenExisting(
+                        "Local\\HKTAS.Boot." + token + ".V2State");
+                    using var stateView = stateMap.CreateViewAccessor();
+                    if (stateView.ReadInt32(0) != 0x32544648 || stateView.ReadInt32(4) != 2)
+                        throw new InvalidDataException("Full-run frame mapping capability is invalid.");
+                    result["fullRunCapability"] = "hktas-unity-input-playerloop-load-elision-scene-rng-2026-v3";
+                    result["fullRunRandomPolicy"] = "scene-input-boundary-seed-render-isolation-v1";
+                    result["fullRunGateAbi"] = 2;
+                    result["saveGuardStatus"] = stateView.ReadInt32(92) == 1
+                        ? "armed"
+                        : stateView.ReadInt32(88) != 0 ? "fault" : "installing";
+                    result["fullRunFaultCode"] = stateView.ReadInt32(88);
+                }
                 Console.Out.WriteLine(JsonSerializer.Serialize(result));
                 launchSucceeded = true;
                 return 0;

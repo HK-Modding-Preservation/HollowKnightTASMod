@@ -17,7 +17,7 @@ using HollowKnightTAS.Core.ReplaySave;
 
 namespace HollowKnightTAS.Companion.Automation
 {
-    public sealed class AutomationBroker : IDisposable
+    public sealed partial class AutomationBroker : IDisposable
     {
         private const int TimelineCapacity = 5000;
         private const int IdempotencyCapacity = 2048;
@@ -33,6 +33,7 @@ namespace HollowKnightTAS.Companion.Automation
 
         private readonly object sync = new object();
         private readonly SessionRegistry sessions;
+        private readonly FullRunMovieCoordinator? fullRunMovies;
         private readonly ColdRestoreSupervisor? coldRestoreSupervisor;
         private readonly ControlLeaseManager leases =
             new ControlLeaseManager();
@@ -68,6 +69,7 @@ namespace HollowKnightTAS.Companion.Automation
         private MoviePatchWorkspace? movieWorkspace;
         private AutomationPipeServer? pipeServer;
         private AutomationBootstrapDescriptor? bootstrap;
+        private AutomationBootstrapDescriptor? fullRunBootstrap;
         private string currentMovieId = string.Empty;
         private byte[]? currentMovieBytes;
         private MovieLifecycleExportData? currentLifecycleSource;
@@ -79,12 +81,14 @@ namespace HollowKnightTAS.Companion.Automation
         public AutomationBroker(
             SessionRegistry sessions,
             ColdRestoreSupervisor? coldRestoreSupervisor = null,
-            string? automationDirectory = null)
+            string? automationDirectory = null,
+            FullRunMovieCoordinator? fullRunMovies = null)
         {
             this.sessions = sessions
                             ?? throw new ArgumentNullException(
                                 nameof(sessions));
             this.coldRestoreSupervisor = coldRestoreSupervisor;
+            this.fullRunMovies = fullRunMovies;
             brokerToken = new byte[32];
             using (var random =
                    System.Security.Cryptography
@@ -136,6 +140,81 @@ namespace HollowKnightTAS.Companion.Automation
         public string BootstrapPath => System.IO.Path.Combine(
             automationRoot,
             AutomationProtocol.BootstrapFileName);
+
+        public void BindFullRunEndpoint(string gateToken,
+            string startupProfileSha256, AutomationMode mode)
+        {
+            lock (bindingSync)
+            {
+                if (disposed || fullRunMovies?.IsPending != true
+                    || fullRunMovies.Gate?.Token != gateToken)
+                    throw new InvalidOperationException("Full-run gate is unavailable for automation.");
+                if (mode == AutomationMode.Disabled)
+                {
+                    EndFullRunEndpointCore();
+                    return;
+                }
+                if (fullRunBootstrap != null)
+                    throw new InvalidOperationException("Full-run automation is already bound.");
+                var suffix = Sha256Utility.ComputeUtf8Hex(
+                        Environment.UserDomainName + "\\" + Environment.UserName
+                        + isolatedPipeNamespace).Substring(0, 16);
+                var pipeName = "HollowKnightTAS.Automation." + suffix;
+                var descriptor = new AutomationBootstrapDescriptor(pipeName,
+                    gateToken, startupProfileSha256, mode, brokerToken);
+                var evidenceRoot = Path.Combine(automationRoot, "artifacts");
+                var newAudit = new AutomationAuditSink(evidenceRoot,
+                    gateToken, brokerToken);
+                var workspace = new MoviePatchWorkspace(evidenceRoot,
+                    gateToken, Path.Combine(automationRoot, "movie-library"));
+                var server = pipeServer ?? new AutomationPipeServer(pipeName,
+                    this, new AutomationSessionAuthenticator(brokerToken));
+                WriteBootstrap(descriptor);
+                lock (sync)
+                {
+                    fullRunBootstrap = descriptor;
+                    bootstrap = descriptor;
+                    boundSession = null;
+                    capabilityCatalog = new AutomationCapabilityCatalog(mode, false,
+                        fullRunOnly: true);
+                    audit = newAudit;
+                    movieWorkspace = workspace;
+                    pipeServer = server;
+                    latest.Clear();
+                    idempotency.Clear();
+                    idempotencyOrder.Clear();
+                    expiredIdempotency.Clear();
+                    idempotencyRetainedBytes = 0;
+                }
+                leases.Revoke();
+                server.Start();
+            }
+        }
+
+        public void EndFullRunEndpoint()
+        {
+            lock (bindingSync)
+            {
+                EndFullRunEndpointCore();
+                if (!disposed) RefreshBindingCore();
+            }
+        }
+
+        private void EndFullRunEndpointCore()
+        {
+            if (fullRunBootstrap == null) return;
+            lock (sync)
+            {
+                fullRunBootstrap = null;
+                bootstrap = null;
+                boundSession = null;
+                capabilityCatalog = null;
+                audit = null;
+                movieWorkspace = null;
+            }
+            leases.Revoke();
+            DeleteBootstrap();
+        }
 
         public AutomationSessionAuthenticator? Authenticator =>
             pipeServer?.Authenticator;
@@ -203,8 +282,9 @@ namespace HollowKnightTAS.Companion.Automation
             AutomationCommandEnvelope command,
             CancellationToken cancellationToken)
         {
-            var session = GetBoundSession();
-            if (session == null)
+            var fullRun = GetFullRunBinding();
+            var session = fullRun == null ? GetBoundSession() : null;
+            if (session == null && fullRun == null)
             {
                 return UnboundResult(command.RequestId);
             }
@@ -213,9 +293,9 @@ namespace HollowKnightTAS.Companion.Automation
                     authenticatedClientId,
                     command.ClientId,
                     StringComparison.Ordinal)
-                || command.SessionId != session.SessionId
+                || command.SessionId != (fullRun?.SessionId ?? session!.SessionId)
                 || command.ManifestSha256
-                   != session.EnvironmentManifestSha256)
+                   != (fullRun?.ManifestSha256 ?? session!.EnvironmentManifestSha256))
             {
                 return Result(
                     command,
@@ -278,12 +358,11 @@ namespace HollowKnightTAS.Companion.Automation
             AutomationResultEnvelope result;
             try
             {
-                result = await RouteAsync(
-                    session,
-                    authenticatedClientId,
-                    connectionId,
-                    command,
-                    cancellationToken);
+                result = fullRun == null
+                    ? await RouteAsync(session!, authenticatedClientId,
+                        connectionId, command, cancellationToken)
+                    : await RouteFullRunAsync(fullRun, authenticatedClientId,
+                        connectionId, command, cancellationToken);
             }
             catch (OperationCanceledException)
                 when (cancellationToken.IsCancellationRequested)
@@ -398,8 +477,9 @@ namespace HollowKnightTAS.Companion.Automation
             string leaseId = string.Empty;
             try
             {
-                var session = GetBoundSession();
-                if (session == null)
+                var fullRun = GetFullRunBinding();
+                var session = fullRun == null ? GetBoundSession() : null;
+                if (session == null && fullRun == null)
                 {
                     return UnboundResult(
                         "ui-" + Guid.NewGuid().ToString("N"));
@@ -407,6 +487,10 @@ namespace HollowKnightTAS.Companion.Automation
 
                 var requestId =
                     "ui-" + Guid.NewGuid().ToString("N");
+                var sessionId = fullRun?.SessionId ?? session!.SessionId;
+                var manifestSha256 = fullRun?.ManifestSha256
+                    ?? session!.EnvironmentManifestSha256;
+                var mode = fullRun?.Mode ?? session!.AutomationMode;
                 var canonicalArguments = IpcPayloadCodec.Serialize(
                     arguments
                     ?? new Dictionary<string, string>(
@@ -415,8 +499,8 @@ namespace HollowKnightTAS.Companion.Automation
                     requestId,
                     requestId,
                     clientId,
-                    session.SessionId,
-                    session.EnvironmentManifestSha256,
+                    sessionId,
+                    manifestSha256,
                     commandId,
                     requiredScope,
                     string.Empty,
@@ -425,8 +509,8 @@ namespace HollowKnightTAS.Companion.Automation
                     canonicalArguments);
                 var catalog = capabilityCatalog
                               ?? new AutomationCapabilityCatalog(
-                                  session.AutomationMode,
-                                  session.DebugMutationEnabled);
+                                  mode,
+                                  session?.DebugMutationEnabled == true);
                 if (catalog.TryGet(commandId, out var capability)
                     && capability.RequiresLease)
                 {
@@ -435,9 +519,9 @@ namespace HollowKnightTAS.Companion.Automation
                         connectionId,
                         new[] { requiredScope },
                         ControlLeaseManager.DefaultTtl,
-                        session.SessionId,
-                        session.EnvironmentManifestSha256,
-                        session.AutomationMode);
+                        sessionId,
+                        manifestSha256,
+                        mode);
                     if (!acquired.Success || acquired.Lease == null)
                     {
                         return Result(
@@ -452,8 +536,8 @@ namespace HollowKnightTAS.Companion.Automation
                         requestId,
                         requestId,
                         clientId,
-                        session.SessionId,
-                        session.EnvironmentManifestSha256,
+                        sessionId,
+                        manifestSha256,
                         commandId,
                         requiredScope,
                         leaseId,
@@ -645,6 +729,25 @@ namespace HollowKnightTAS.Companion.Automation
                     false,
                     "LeaseRequired",
                     "A matching unexpired exclusive control lease is required.");
+            }
+
+            if (command.CommandId == AutomationCommandIds.FullRunStatus)
+                return await ForwardAsync(session, command, IpcMessageTypes.FullRunStatus,
+                    Fields("requestId", command.RequestId), IpcMessageTypes.FullRunState,
+                    cancellationToken);
+            if (command.CommandId == AutomationCommandIds.FullRunMovie)
+                return await ForwardAsync(session, command, IpcMessageTypes.FullRunMovie,
+                    Fields("requestId", command.RequestId), IpcMessageTypes.FullRunMovieDocument,
+                    cancellationToken);
+            if (command.CommandId == AutomationCommandIds.FullRunStop)
+            {
+                if (command.ExpectedRuntimeMode != "Paused")
+                    return Result(command, false, "PreconditionFailed",
+                        "Full-run stop requires expectedRuntimeMode=Paused.");
+                return await ForwardAsync(session, command, IpcMessageTypes.FullRunStop,
+                    Fields("requestId", command.RequestId, "expectedNativeFrame",
+                        command.Arguments["expectedNativeFrame"]),
+                    IpcMessageTypes.FullRunMovieDocument, cancellationToken);
             }
 
             if (command.CommandId == AutomationCommandIds.CancelRecordingRestart)
@@ -1043,6 +1146,13 @@ namespace HollowKnightTAS.Companion.Automation
             string clientId,
             string connectionId,
             AutomationCommandEnvelope command)
+            => AcquireBound(session.SessionId,
+                session.EnvironmentManifestSha256, session.AutomationMode,
+                clientId, connectionId, command);
+
+        private AutomationResultEnvelope AcquireBound(string sessionId,
+            string manifestSha256, AutomationMode mode, string clientId,
+            string connectionId, AutomationCommandEnvelope command)
         {
             var scopeText = RequiredArgument(command, "scopes");
             if (scopeText.Length > 1024)
@@ -1093,9 +1203,9 @@ namespace HollowKnightTAS.Companion.Automation
                 connectionId,
                 scopes,
                 ttl,
-                session.SessionId,
-                session.EnvironmentManifestSha256,
-                session.AutomationMode);
+                sessionId,
+                manifestSha256,
+                mode);
             return LeaseResult(command, lease);
         }
 
@@ -3121,6 +3231,8 @@ namespace HollowKnightTAS.Companion.Automation
                 case AutomationCommandIds.Resume:
                 case AutomationCommandIds.StartRecording:
                 case AutomationCommandIds.StopRecording:
+                case AutomationCommandIds.FullRunStatus:
+                case AutomationCommandIds.FullRunMovie:
                 case AutomationCommandIds.StartReplay:
                 case AutomationCommandIds.StopReplay:
                 case AutomationCommandIds.ResumeReplaySaveRestore:
@@ -3142,6 +3254,18 @@ namespace HollowKnightTAS.Companion.Automation
                 case AutomationCommandIds.RestartRecordingSession:
                 case AutomationCommandIds.ReloadGameSlot:
                     required = new[] { "slot" };
+                    break;
+                case AutomationCommandIds.FullRunStop:
+                case AutomationCommandIds.FullRunStep:
+                case AutomationCommandIds.FullRunPlay:
+                case AutomationCommandIds.FullRunPause:
+                    required = new[] { "expectedNativeFrame" };
+                    break;
+                case AutomationCommandIds.BeginFullRunRecording:
+                    required = new[] { "expectedNativeFrame", "mouseEnabled" };
+                    break;
+                case AutomationCommandIds.BeginFullRunReplay:
+                    required = new[] { "expectedNativeFrame", "movieBase64" };
                     break;
                 case AutomationCommandIds.CancelRecordingRestart:
                     required = new[] { "operationId" };
@@ -3315,6 +3439,25 @@ namespace HollowKnightTAS.Companion.Automation
             var arguments = command.Arguments;
             switch (command.CommandId)
             {
+                case AutomationCommandIds.BeginFullRunRecording:
+                case AutomationCommandIds.BeginFullRunReplay:
+                case AutomationCommandIds.FullRunStep:
+                case AutomationCommandIds.FullRunPlay:
+                case AutomationCommandIds.FullRunPause:
+                case AutomationCommandIds.FullRunStop:
+                    if (!TryInt64(arguments["expectedNativeFrame"], 0,
+                            long.MaxValue, out _))
+                        return "expectedNativeFrame must be a non-negative Int64.";
+                    if (command.CommandId == AutomationCommandIds.BeginFullRunRecording
+                        && arguments["mouseEnabled"] != "true"
+                        && arguments["mouseEnabled"] != "false")
+                        return "mouseEnabled must be true or false.";
+                    if (command.CommandId == AutomationCommandIds.BeginFullRunReplay
+                        && (arguments["movieBase64"].Length == 0
+                            || arguments["movieBase64"].Length
+                                > MovieProtocolV2.MaximumSourceUtf8Bytes * 4 / 3 + 8))
+                        return "movieBase64 is empty or too large.";
+                    break;
                 case AutomationCommandIds.GetState:
                     if (arguments.TryGetValue("statusOnly", out var statusOnly) && statusOnly != "true")
                         return "statusOnly must be true when supplied.";
@@ -3810,6 +3953,8 @@ namespace HollowKnightTAS.Companion.Automation
 
         private long CurrentMovieTick()
         {
+            if (fullRunBootstrap != null && fullRunMovies?.IsPending == true)
+                return fullRunMovies.Gate?.NativeCompletedFrames ?? -1;
             lock (sync)
             {
                 if (latest.TryGetValue(
@@ -3840,6 +3985,12 @@ namespace HollowKnightTAS.Companion.Automation
                     ? boundSession
                     : null;
             }
+        }
+
+        private AutomationBootstrapDescriptor? GetFullRunBinding()
+        {
+            lock (sync)
+                return fullRunMovies?.IsPending == true ? fullRunBootstrap : null;
         }
 
         private void OnEnvelopeReceived(
@@ -3940,6 +4091,18 @@ namespace HollowKnightTAS.Companion.Automation
                     session => session.SessionId,
                     StringComparer.Ordinal)
                 .FirstOrDefault();
+            if (fullRunBootstrap != null && fullRunMovies?.IsPending == true)
+            {
+                RuntimeSessionClient? prior;
+                lock (sync)
+                {
+                    prior = boundSession;
+                    boundSession = candidate;
+                }
+                if (candidate != null && !ReferenceEquals(prior, candidate))
+                    _ = PrimeRuntimeStreamsAsync(candidate);
+                return;
+            }
             RuntimeSessionClient? previous;
             lock (sync)
             {
@@ -4045,6 +4208,15 @@ namespace HollowKnightTAS.Companion.Automation
         {
             try
             {
+                if (fullRunMovies?.IsPending == true)
+                {
+                    var requestId = "automation-full-run-prime-"
+                        + Guid.NewGuid().ToString("N");
+                    await SendRuntimeAsync(session, IpcMessageTypes.FullRunStatus,
+                        Fields("requestId", requestId), requestId,
+                        IpcMessageTypes.FullRunState, shutdown.Token);
+                    return;
+                }
                 foreach (var stream in new[] { "watch", "ledger" })
                 {
                     var requestId = "automation-subscribe-"
@@ -4232,6 +4404,8 @@ namespace HollowKnightTAS.Companion.Automation
                 case AutomationCommandIds.GetReplaySaves:
                 case AutomationCommandIds.GetMovie:
                 case AutomationCommandIds.GetRestoreStrategy:
+                case AutomationCommandIds.FullRunStatus:
+                case AutomationCommandIds.FullRunMovie:
                 case AutomationCommandIds.ValidateMoviePatch:
                     return false;
                 default:

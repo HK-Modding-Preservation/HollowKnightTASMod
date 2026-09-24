@@ -136,6 +136,22 @@ namespace HollowKnightTAS.Cli.Commands.Automation
                 }
             }
 
+            if (commandId == AutomationCommandIds.BeginFullRunReplay
+                && arguments.TryGetValue("movieFile", out var movieFile))
+            {
+                if (arguments.ContainsKey("movieBase64"))
+                    throw new ArgumentException("Use movieFile or movieBase64, not both.");
+                var moviePath = Path.GetFullPath(movieFile);
+                var length = new FileInfo(moviePath).Length;
+                if (length <= 0 || length > HollowKnightTAS.Core.Movie.MovieProtocolV2.MaximumSourceUtf8Bytes)
+                    throw new ArgumentException("Full-run movie file size is invalid.");
+                var bytes = File.ReadAllBytes(moviePath);
+                if (bytes.LongLength != length)
+                    throw new IOException("Full-run movie changed while reading.");
+                arguments.Remove("movieFile");
+                arguments.Add("movieBase64", Convert.ToBase64String(bytes));
+            }
+
             var lease = ReadOption(args, "--lease=")
                         ?? string.Empty;
             var expectedMode =
