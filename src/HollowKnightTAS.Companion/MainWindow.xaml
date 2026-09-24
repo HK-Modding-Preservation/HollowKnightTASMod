@@ -63,6 +63,9 @@
       <Button Content="Frame Advance 逐帧" Command="{Binding StepCommand}"
               AutomationProperties.AutomationId="HktasStudio.FrameAdvanceButton" ToolTip="{Binding ConfiguredAdvance}" />
       <Button Content="Stop 停止序列" Command="{Binding StopReplayCommand}" />
+      <Button Content="Quit Game 退出游戏" Command="{Binding QuitGameCommand}"
+              AutomationProperties.AutomationId="HktasStudio.QuitGameButton"
+              ToolTip="退出受控游戏；全流程播放中会先暂停到原生帧边界。请先保存需要保留的 Movie。" />
       <TextBlock Text="{Binding FrameCounterText}" Margin="14,0,8,0" VerticalAlignment="Center"
                  FontFamily="Consolas" AutomationProperties.AutomationId="HktasStudio.FrameCounter" />
       <TextBlock Text="{Binding PlaybackStateText}" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}" />
@@ -260,8 +263,8 @@
                     AutomationProperties.AutomationId="HktasStudio.ControlResumeButton"
                     Command="{Binding ResumeCommand}" />
             <Button Content="Structured State" Command="{Binding SnapshotCommand}" />
-            <Button Content="退出暂停游戏" Command="{Binding QuitGameCommand}"
-                    ToolTip="先保存需要保留的 TAS 点并等待 Ready；退出不会继续运行游戏。" />
+            <Button Content="退出游戏" Command="{Binding QuitGameCommand}"
+                    ToolTip="全流程播放中会先暂停；请先保存需要保留的 Movie。" />
             <TextBlock Text="游戏槽（1–4）" VerticalAlignment="Center" Margin="6,0" />
             <TextBox Text="{Binding GameSlot, UpdateSourceTrigger=PropertyChanged}" Width="36" />
             <Button Content="读取已有游戏槽" Command="{Binding LoadGameSlotCommand}"

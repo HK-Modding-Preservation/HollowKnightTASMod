@@ -80,6 +80,10 @@ namespace HollowKnightTAS.Companion.Tests
                     Assert.AreEqual(Color.FromRgb(24, 32, 43), ((SolidColorBrush)mainMenu.Background).Color);
 
                     var toolbar = LogicalTreeHelper.GetChildren(root).OfType<WrapPanel>().Single();
+                    var quitButton = toolbar.Children.OfType<Button>().Single(button =>
+                        System.Windows.Automation.AutomationProperties.GetAutomationId(button)
+                        == "HktasStudio.QuitGameButton");
+                    Assert.AreSame(vm.QuitGameCommand, quitButton.Command);
                     foreach (var button in toolbar.Children.OfType<Button>())
                     {
                         var buttonBounds = button.TransformToAncestor(root)

@@ -48,6 +48,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private readonly NativeHostLauncher nativeHostLauncher;
         private readonly AutomationBroker automationBroker;
         private readonly Func<string, Task>? launchGame;
+        private readonly Action? exitProtectedGameProcess;
         private readonly StartupBootController? startupBoot;
         private readonly FullRunMovieCoordinator? fullRunMovies;
         private readonly HashSet<string> warmedSessions =
@@ -115,13 +116,15 @@ namespace HollowKnightTAS.Companion.ViewModels
             AutomationBroker automationBroker,
             Func<string, Task>? launchGame = null,
             StartupBootController? startupBoot = null,
-            FullRunMovieCoordinator? fullRunMovies = null)
+            FullRunMovieCoordinator? fullRunMovies = null,
+            Action? exitProtectedGameProcess = null)
         {
             this.registry = registry;
             this.movieEditor = movieEditor;
             this.capabilityBroker = capabilityBroker;
             this.nativeHostLauncher = nativeHostLauncher;
             this.automationBroker = automationBroker;
+            this.exitProtectedGameProcess = exitProtectedGameProcess;
             automationBroker.ColdRestoreChanged += (_, args) => Dispatch(() =>
             {
                 var record = args.Snapshot.Latest;
@@ -285,8 +288,14 @@ namespace HollowKnightTAS.Companion.ViewModels
                     () => ExecuteHumanAsync(
                         AutomationCommandIds.Resume,
                         AutomationScope.ControlPlayback));
-            QuitGameCommand = Command(() => ExecuteHumanAsync(
-                AutomationCommandIds.QuitGame, AutomationScope.ControlPlayback));
+            QuitGameCommand = new AsyncRelayCommand(async () =>
+            {
+                try { await QuitGameAsync(); }
+                catch (Exception exception) { Status = exception.Message; }
+            }, () => fullRunMovies?.IsPending == true
+                || (startupBoot?.IsPending != true
+                    && SelectedSession?.Client.IsConnected == true));
+            runtimeCommands.Add((AsyncRelayCommand)QuitGameCommand);
             LoadGameSlotCommand = Command(() => ExecuteHumanAsync(
                 AutomationCommandIds.LoadGameSlot, AutomationScope.ControlPlayback,
                 Fields("slot", ParseCount(GameSlot, 1, 4, "game slot").ToString(CultureInfo.InvariantCulture))));
@@ -883,6 +892,71 @@ namespace HollowKnightTAS.Companion.ViewModels
                     : !requireConnected || SelectedSession?.Client.IsConnected == true);
             runtimeCommands.Add(command);
             return command;
+        }
+
+        private async Task QuitGameAsync()
+        {
+            if (fullRunMovies?.IsPending != true)
+            {
+                await ExecuteHumanAsync(AutomationCommandIds.QuitGame,
+                    AutomationScope.ControlPlayback);
+                return;
+            }
+
+            startupBoot?.Refresh();
+            if (startupBoot?.FullRunFaultCode != 0)
+            {
+                ExitProtectedGameProcess();
+                return;
+            }
+            if (startupBoot?.IsWaiting != true && fullRunMovies.IsArmed)
+            {
+                NativeFrameBoundary? boundary = null;
+                try { boundary = await fullRunMovies.PauseAsync(CancellationToken.None); }
+                catch (InvalidOperationException) when (fullRunMovies.Gate?.IsFullRunFinished == true)
+                {
+                    // Playback completed while the pause request was being prepared.
+                }
+                if (boundary?.Mode == "Fault")
+                {
+                    if (startupBoot?.FullRunFaultCode != 0)
+                    {
+                        ExitProtectedGameProcess();
+                        return;
+                    }
+                    throw new InvalidOperationException(boundary.Error);
+                }
+                startupBoot?.Refresh();
+            }
+            if (startupBoot?.IsWaiting != true)
+                throw new InvalidOperationException("等待游戏停在原生帧边界后再退出。");
+
+            // Runtime is not connected at frame 0. The verified process is still
+            // owned by App, so the UI can close that exact protected process.
+            if (fullRunMovies.Mode == "Unarmed")
+            {
+                ExitProtectedGameProcess();
+                return;
+            }
+
+            var result = await automationBroker.ExecuteHumanAsync(
+                AutomationCommandIds.QuitGame, AutomationScope.ControlPlayback,
+                null, "Paused", null, CancellationToken.None);
+            if (!result.Success && result.ResultCode == "RuntimeNotReady")
+            {
+                ExitProtectedGameProcess();
+                return;
+            }
+            RequireAutomationSuccess(result);
+            Status = "游戏退出请求已发送。";
+        }
+
+        private void ExitProtectedGameProcess()
+        {
+            if (exitProtectedGameProcess == null)
+                throw new InvalidOperationException("受控游戏退出入口尚未就绪。");
+            exitProtectedGameProcess();
+            Status = "正在退出受保护的游戏进程。";
         }
 
         private async Task LaunchGameAsync()

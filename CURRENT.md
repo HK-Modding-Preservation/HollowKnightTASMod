@@ -1,5 +1,7 @@
 # 当前进度：全流程 Movie、加载省帧与新版假骑士示范已通过冷启动回放
 
+2026-09-25 Studio 退出入口补齐：主界面新增 `Quit Game 退出游戏`，全流程运行中先暂停到原生帧边界再退出；第 0 帧 Runtime 尚未连接或原生门闩报错时，只关闭 Studio 所持有的受保护游戏进程；Movie 已完成后按钮仍可用。`Stop` 仍只停止序列，`File → Exit` 只关闭 Studio。定向后台测试 4/4 通过（含第 0 帧回调、Completed 命令可用性、WPF 布局与命令绑定），Release 构建 0 警告，签名安装验真。当前 Companion manifest SHA-256 `04872a9b5c419d3080681bf9da60dd8836dcfb4ffac6d367bf003756fb69a647`，安装 Companion DLL `a0c404a6e37effbaa1d15368c26f9f1bd33712b219aae493097e2d8d09c6b6ab`、Runtime `0e564961634e9b5656abc6e5d8cb46e0f28c4bd37630947bbf63383603a88b25`、Core `55668815cc8ed5c28ec9affb23b3e15af4ada85f37b0ddaf36793dbb56b6f946`。用户正在使用电脑，本轮未启动游戏或抢占前台；该新安装版的界面点击和假骑士回放尚未实机复验，下文历史实机结论限于各自当时的安装身份。
+
 2026-09-24 Studio 输入表格跟随已修复并安装：播放／逐帧时默认按逻辑 Movie 帧滚动当前行，跨 500 行自动换页；可关闭“播放时跟随”停在别处查看，并用“当前帧”手动定位。全流程顶部同时显示 Movie 帧和原生帧。Companion 定向测试 2/2 通过，安装包验签通过，当前 Companion manifest SHA-256 `de563cda3a37dc64c4b8bcdb31e5f498a2cdb06c089c62d20da5379a0c9364fb`。从 Steam 第 0 帧打开正式示范 `fixtures/full-run/false-knight-startup-v2.hktas`，两次完整回放都由表格自动跟到末帧；最终一次 Movie 10892/10892、原生 12024、跳过 1089 个不可输入循环、输入偏差 0，Boss 死亡／战场完成事件成立，终点 `GG_Workshop`。本次受保护会话 `full-run-2af3e448cecd4c378adba6db2e1bd567` 的原始四槽 20 个文件与起始描述符文件集及 SHA-256 差异为 0；游戏和 Studio 已正常退出。
 
 2026-09-24 生命周期补充验证：`RuntimeFullRunSession` 在原生 `GameManager.ReturnToMainMenu` 开始后跳过保存、淡出及 `Quit_To_Menu` 的不可输入循环，直到标题菜单重新可输入。`artifacts/full-run-false-knight/lifecycle-smoke-v4-partial.hktas` 从 Steam 原生第 0 帧录制，经第 4 槽加载、保存退出、重载、再次保存退出；59715 Movie 帧冷启动回放 `Completed`，跳过 2364 原生循环，输入偏差 0。此前只凭 `Quit_To_Menu` 场景名跳帧的 v3 在 Movie 31454 帧失败，证据不再视为通过。

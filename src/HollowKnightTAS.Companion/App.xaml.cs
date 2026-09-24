@@ -204,7 +204,14 @@ namespace HollowKnightTAS.Companion
                     };
                 var viewModel = new MainViewModel(sessions, new MovieEditorService(),
                     new CapabilityBroker(), new NativeHostLauncher(), automationBroker, launchGameAsync,
-                    startupBoot, fullRunMovies);
+                    startupBoot, fullRunMovies, () =>
+                    {
+                        if (startupBoot?.IsPending != true
+                            || (startupBoot.IsWaiting != true && startupBoot.FullRunFaultCode == 0)
+                            || startupGame == null)
+                            throw new InvalidOperationException("受控游戏尚未停在可退出的启动帧。");
+                        if (!startupGame.HasExited) startupGame.Kill();
+                    });
                 automaticStartup = new AutomaticStartupHandoff(sessions, Dispatcher,
                     gamePath => Task.Run(() => VerifiedStartupProfile.Load(
                         Path.Combine(AppContext.BaseDirectory, "ClockStartup"), gamePath).RequireStartupFrameGate(), shutdown.Token),

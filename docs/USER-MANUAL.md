@@ -17,6 +17,7 @@ v2 会话中的标题菜单、选槽、局内操作以及 Save&Load 都走真实
 - `Play / Pause`：继续或暂停，默认快捷键为 `Pause`。
 - `Frame Advance`：暂停时前进一帧，默认快捷键为 `V`。
 - `Stop`：停止正在播放的序列。
+- `Quit Game 退出游戏`：关闭受控游戏。全流程播放中会先停在原生帧边界，再请求退出；回放完成后也可直接点击。启动第 0 帧还未加载 Movie 时同样可用。需要保留录制内容时，先停止并保存 Movie。关闭 Studio 请另用 `File → Exit 关闭 Studio`。
 - `Frame`：当前 TAS 输入帧。
 
 快捷键只在 Studio 窗口获得焦点时生效。可在 `Settings → Hotkeys` 修改播放和逐帧按键。
