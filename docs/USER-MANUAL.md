@@ -25,7 +25,7 @@ v2 会话中的标题菜单、选槽、局内操作以及 Save&Load 都走真实
 
 1. 从 Steam 启动游戏，等待 Studio 自动打开并显示 `Native frame: 0`。
 2. 回放时用 `Movie → Open Movie 打开…` 选择 v2 `.hktas`；录制时先选游戏鼠标模式，再用 `Movie → New full-run Movie 从第 0 帧新建`。
-3. 点击 `Frame Advance` 或 `Play`。Movie 的真实输入会操作标题菜单并选择存档；加载速度只影响等待时间，不移动 Movie 输入位置。暂停时可查看当前 Movie 帧和原生帧。
+3. 点击 `Frame Advance` 或 `Play`。Movie 的真实输入会操作标题菜单并选择存档；场景加载以及确认保存退出后的保存、淡出过程只影响等待时间，不移动 Movie 输入位置。暂停时可查看当前 Movie 帧和原生帧。
 4. 录制完成后停止并通过 `Movie → Save Movie 保存…` 保存。回放结束后核对 `Completed`、输入偏差数和游戏终态。
 
 已验证的假骑士示范在 `fixtures/full-run/false-knight-startup-v2.hktas`。按上述步骤打开即可由序列在标题菜单选择第 4 槽，进入神居假骑士战斗并返回神居；不需要先手动进入存档。该文件有 10892 个 Movie 帧，需使用含 `load-elision-scene-rng-2026-v3` profile 的当前 Mod。游戏加载变慢时，Studio 的原生帧数会增加，Movie 帧位置保持不变。

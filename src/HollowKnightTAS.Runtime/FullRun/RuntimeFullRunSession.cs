@@ -102,6 +102,8 @@ namespace HollowKnightTAS.Runtime.FullRun
         private long expectedNativeStart = -1;
         private bool frameInputEnabled;
         private bool titleReadySeen;
+        private bool returningToMainMenu;
+        private bool returnToMainMenuHooked;
         private string frameBoundary = "Bootstrap";
         private UIManager? uiManager;
         private static readonly FieldInfo MainMenuScreenField = typeof(UIManager).GetField(
@@ -342,12 +344,12 @@ namespace HollowKnightTAS.Runtime.FullRun
                 boundary = "GameManagerUnavailable";
                 return false;
             }
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             if (manager.IsInSceneTransition)
             {
                 boundary = "SceneTransition";
                 return false;
             }
-            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             if (scene == "Menu_Title" && manager.gameState == GameState.MAIN_MENU)
             {
                 uiManager = uiManager == null
@@ -364,10 +366,16 @@ namespace HollowKnightTAS.Runtime.FullRun
                     return false;
                 }
                 titleReadySeen = true;
+                returningToMainMenu = false;
                 boundary = "TitleInput";
                 return true;
             }
             titleReadySeen = false;
+            if (returningToMainMenu || scene == "Quit_To_Menu")
+            {
+                boundary = "QuitToMenuLoading";
+                return false;
+            }
             if (manager.gameState != GameState.PLAYING
                 && manager.gameState != GameState.PAUSED
                 && manager.gameState != GameState.CUTSCENE)
@@ -446,9 +454,19 @@ namespace HollowKnightTAS.Runtime.FullRun
             else input.StartReplay(replayMovie
                 ?? throw new InvalidOperationException("Replay movie is missing."));
             input.PrepareFrame(0);
+            On.GameManager.ReturnToMainMenu += OnReturnToMainMenu;
+            returnToMainMenuHooked = true;
             expectedNativeStart = frame;
             clock.RegisterBeforeFrame(OnNativeBeforeFrame);
             inputReady = true;
+        }
+
+        private System.Collections.IEnumerator OnReturnToMainMenu(
+            On.GameManager.orig_ReturnToMainMenu original, GameManager self,
+            GameManager.ReturnToMainMenuSaveModes saveMode, Action<bool> callback)
+        {
+            returningToMainMenu = true;
+            return original(self, saveMode, callback);
         }
 
         private void ObserveBoss()
@@ -568,6 +586,8 @@ namespace HollowKnightTAS.Runtime.FullRun
         {
             if (disposed) return;
             disposed = true;
+            if (returnToMainMenuHooked)
+                On.GameManager.ReturnToMainMenu -= OnReturnToMainMenu;
             input.Sampled -= OnSampled;
             input.Faulted -= OnInputFault;
             UnbindBoss();

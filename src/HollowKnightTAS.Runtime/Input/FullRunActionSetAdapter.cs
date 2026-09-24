@@ -183,13 +183,30 @@ namespace HollowKnightTAS.Runtime.Input
                     return;
                 }
                 GameInputSample? desired = null;
+                var redundantExtra = false;
                 if (replaying)
                 {
                     SkipRedundantSamplesBefore(channel);
-                    if (sampleIndex >= expected.Count || expected[sampleIndex].Channel != channel)
-                        throw new InvalidDataException("Input channel/order mismatch at native frame "
-                            + currentFrame + ", sample " + sampleIndex + ".");
-                    desired = expected[sampleIndex];
+                    if (sampleIndex >= expected.Count)
+                    {
+                        // InControl may update an unchanged action set an extra time in
+                        // the same PlayerLoop. Reuse the last edge-free state, then
+                        // verify the actual values and edges below.
+                        var last = expected.Count == 0 ? null : expected[expected.Count - 1];
+                        if (last == null || last.Channel != channel
+                            || last.PressedMask != 0 || last.ReleasedMask != 0)
+                            throw new InvalidDataException("Input channel/order mismatch at native frame "
+                                + currentFrame + ", sample " + sampleIndex + ".");
+                        desired = last;
+                        redundantExtra = true;
+                    }
+                    else
+                    {
+                        if (expected[sampleIndex].Channel != channel)
+                            throw new InvalidDataException("Input channel/order mismatch at native frame "
+                                + currentFrame + ", sample " + sampleIndex + ".");
+                        desired = expected[sampleIndex];
+                    }
                     var lease = FindOrAttach(self, channel, actions);
                     lease.Prepare(desired.Values);
                 }
@@ -215,9 +232,12 @@ namespace HollowKnightTAS.Runtime.Input
                         throw new InvalidDataException("Input edge mismatch at native frame "
                             + currentFrame + ", sample " + sampleIndex + ".");
                 }
-                Sampled?.Invoke(currentFrame, observed, updateTick);
-                EdgesObserved?.Invoke(currentFrame, observed, pressed, released);
-                sampleIndex++;
+                if (!redundantExtra)
+                {
+                    Sampled?.Invoke(currentFrame, observed, updateTick);
+                    EdgesObserved?.Invoke(currentFrame, observed, pressed, released);
+                    sampleIndex++;
+                }
             }
             catch (Exception exception)
             {
