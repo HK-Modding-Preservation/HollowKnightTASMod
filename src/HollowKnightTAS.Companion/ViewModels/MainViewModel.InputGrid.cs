@@ -19,9 +19,16 @@ namespace HollowKnightTAS.Companion.ViewModels
         private string gridSource = string.Empty;
         private string gridStart = "0", gridCount = "1", gridStatus = "打开脚本后刷新表格。";
         private long gridPageStart;
+        private long gridTotalFrames;
+        private long lastFollowedGridFrame = -1;
+        private long currentFullRunMovieFrame = -1;
+        private bool autoFollowGrid = true;
+        private string? gridProgressRequestId;
+        private DateTime gridProgressRequestedUtc;
         private TasAction gridAction = TasAction.Attack;
         private bool gridApplying;
         public event EventHandler? InputGridRefreshed;
+        public event Action<long>? InputGridPositionChanged;
         public ObservableCollection<InputGridRow> InputRows { get; } = new ObservableCollection<InputGridRow>();
         public IReadOnlyList<TasAction> GridActions { get; } = Enum.GetValues<TasAction>()
             .Where(a => a != TasAction.None && a != TasAction.AllGameplay).ToArray();
@@ -29,6 +36,16 @@ namespace HollowKnightTAS.Companion.ViewModels
         public string GridCount { get => gridCount; set => Set(ref gridCount, value); }
         public string GridStatus { get => gridStatus; private set => Set(ref gridStatus, value); }
         public TasAction GridAction { get => gridAction; set => Set(ref gridAction, value); }
+        public bool AutoFollowGrid
+        {
+            get => autoFollowGrid;
+            set
+            {
+                if (autoFollowGrid == value) return;
+                Set(ref autoFollowGrid, value);
+                if (value) TrackGridFrame(CurrentGridFrame, true);
+            }
+        }
         public ICommand RefreshGridCommand { get; private set; } = null!;
         public ICommand PreviousGridPageCommand { get; private set; } = null!;
         public ICommand NextGridPageCommand { get; private set; } = null!;
@@ -73,9 +90,9 @@ namespace HollowKnightTAS.Companion.ViewModels
             GoToGridFrameCommand = Local(() => { gridPageStart = GridIndex(); RefreshInputGrid(); });
             FollowGridFrameCommand = Local(() =>
             {
-                gridPageStart = Math.Max(0, startupBoot?.IsPending == true
-                    ? startupBoot.NativeCompletedFrames : currentMovieTick);
+                gridPageStart = Math.Max(0, CurrentGridFrame);
                 RefreshInputGrid();
+                ScrollGridToFrame(CurrentGridFrame);
             });
             ToggleGridCommand = Local(() =>
             {
@@ -165,6 +182,70 @@ namespace HollowKnightTAS.Companion.ViewModels
         private long GridLength() => ParseCount(GridCount, 1,
             MovieProtocolV2.MaximumExpandedFrames, "selected frame count");
 
+        private long CurrentGridFrame => startupBoot?.IsPending == true
+            ? currentFullRunMovieFrame >= 0 ? currentFullRunMovieFrame : 0
+            : currentMovieTick;
+
+        public void ShowCurrentGridFrame() => TrackGridFrame(CurrentGridFrame, true);
+
+        public async Task PollInputGridProgressAsync()
+        {
+            var session = SelectedSession?.Client;
+            if (session?.IsConnected != true
+                || (startupBoot?.IsPending != true && InputRows.Count == 0))
+                return;
+            var now = DateTime.UtcNow;
+            var interval = startupBoot?.IsWaiting == true || currentControlMode == "Paused"
+                ? TimeSpan.FromSeconds(1) : TimeSpan.FromMilliseconds(200);
+            if (now - gridProgressRequestedUtc < interval) return;
+            if (gridProgressRequestId != null
+                && now - gridProgressRequestedUtc < TimeSpan.FromSeconds(2))
+                return;
+            var requestId = "studio-grid-follow-" + Guid.NewGuid().ToString("N");
+            gridProgressRequestId = requestId;
+            gridProgressRequestedUtc = now;
+            try
+            {
+                var fullRun = startupBoot?.IsPending == true;
+                await session.SendCommandAsync(fullRun
+                        ? HollowKnightTAS.Core.Ipc.IpcMessageTypes.FullRunStatus
+                        : HollowKnightTAS.Core.Ipc.IpcMessageTypes.RequestSnapshot,
+                    fullRun ? Fields("requestId", requestId)
+                        : Fields("requestId", requestId, "statusOnly", "true"),
+                    System.Threading.CancellationToken.None);
+            }
+            catch
+            {
+                // A disconnected session may disappear between the timer tick and the write.
+                if (gridProgressRequestId == requestId) gridProgressRequestId = null;
+            }
+        }
+
+        private void TrackGridFrame(long frame, bool forceScroll = false)
+        {
+            if (frame < 0 || InputRows.Count == 0 || gridTotalFrames == 0) return;
+            var visibleFrame = Math.Min(frame, gridTotalFrames - 1);
+            foreach (var row in InputRows) row.UpdateCurrent(visibleFrame);
+            if (!AutoFollowGrid) return;
+            var changedPage = visibleFrame < gridPageStart
+                || visibleFrame - gridPageStart >= InputRows.Count;
+            if (changedPage)
+            {
+                gridPageStart = Math.Max(0, visibleFrame - 80);
+                RefreshInputGrid();
+            }
+            if (forceScroll || changedPage || visibleFrame != lastFollowedGridFrame)
+                ScrollGridToFrame(visibleFrame);
+        }
+
+        private void ScrollGridToFrame(long frame)
+        {
+            if (gridTotalFrames == 0) return;
+            var visibleFrame = Math.Min(Math.Max(frame, 0), gridTotalFrames - 1);
+            lastFollowedGridFrame = visibleFrame;
+            InputGridPositionChanged?.Invoke(visibleFrame);
+        }
+
         public bool TryEditGridAxes(string start, string count, bool enabled, int x, int y)
         {
             try
@@ -186,19 +267,21 @@ namespace HollowKnightTAS.Companion.ViewModels
             var source = GridAny();
             var total = source.V2Document != null ? InputGridEditor.Count(source.V2Document)
                 : InputGridEditor.Count(source.V1Document!);
+            gridTotalFrames = total;
             gridPageStart = Math.Min(gridPageStart, Math.Max(0, total - 1));
             InputRows.Clear();
             if (source.V2Document != null)
                 foreach (var row in InputGridEditor.Page(source.V2Document,
-                    gridPageStart, startupBoot?.NativeCompletedFrames ?? -1))
+                    gridPageStart, CurrentGridFrame))
                     InputRows.Add(new InputGridRow(row));
             else
                 foreach (var row in InputGridEditor.Page(source.V1Document!,
-                    gridPageStart, currentMovieTick)) InputRows.Add(row);
+                    gridPageStart, CurrentGridFrame)) InputRows.Add(row);
             GridStatus = $"帧 {gridPageStart}–{Math.Max(gridPageStart, gridPageStart + InputRows.Count - 1)} / 共 {total} 帧。" +
                 (message ?? (source.V2Document != null
                     ? "v2 原生帧含菜单和游戏输入；表格支持插入、删除、复制与粘贴。"
                     : "点击按键切换；Shift 选择范围。编辑仅改变草稿，应用后再重放。"));
+            lastFollowedGridFrame = -1;
             InputGridRefreshed?.Invoke(this, EventArgs.Empty);
         }
 

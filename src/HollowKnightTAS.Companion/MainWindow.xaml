@@ -114,7 +114,8 @@
       </Grid>
     </Border>
 
-    <TabControl x:Name="MainTabs" AutomationProperties.AutomationId="HktasStudio.MainTabs">
+    <TabControl x:Name="MainTabs" AutomationProperties.AutomationId="HktasStudio.MainTabs"
+                SelectionChanged="OnMainTabsSelectionChanged">
       <TabItem x:Name="InputGridTab" Header="Input Editor" AutomationProperties.AutomationId="HktasStudio.InputGridTab">
         <Grid Margin="6">
           <Grid.RowDefinitions>
@@ -131,6 +132,10 @@
             <TextBox Text="{Binding GridCount, UpdateSourceTrigger=PropertyChanged}" Width="65" VerticalContentAlignment="Center" />
             <Button Content="定位" Command="{Binding GoToGridFrameCommand}" />
             <Button Content="当前帧" Command="{Binding FollowGridFrameCommand}" />
+            <CheckBox Content="播放时跟随" IsChecked="{Binding AutoFollowGrid, Mode=TwoWay}"
+                      AutomationProperties.AutomationId="HktasStudio.AutoFollowGrid"
+                      ToolTip="播放时让输入表格跟随当前 Movie 帧；关闭后可停在其他帧查看。"
+                      VerticalAlignment="Center" Margin="8,0" />
             <Button Content="应用分支" Command="{Binding ApplyGridCommand}" />
             <Button Content="应用并重放到 Frame" Command="{Binding ApplyGridAndSeekCommand}" />
           </WrapPanel>

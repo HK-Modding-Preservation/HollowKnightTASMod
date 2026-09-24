@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using System.Windows.Media;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using System.Runtime.InteropServices;
 using HollowKnightTAS.Companion.Services;
 using HollowKnightTAS.Core.Input;
@@ -16,15 +17,30 @@ namespace HollowKnightTAS.Companion
     public partial class MainWindow : Window
     {
         private bool restoringGridSelection;
+        private readonly DispatcherTimer gridFollowTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(200)
+        };
 
         public MainWindow()
         {
             InitializeComponent();
             SourceInitialized += (_, _) => EnableDarkTitleBar();
             DataContextChanged += OnStudioDataContextChanged;
+            gridFollowTimer.Tick += async (_, _) =>
+            {
+                if (DataContext is MainViewModel vm)
+                    await vm.PollInputGridProgressAsync();
+            };
+            Loaded += (_, _) => gridFollowTimer.Start();
             Closed += (_, _) =>
             {
-                if (DataContext is MainViewModel vm) vm.InputGridRefreshed -= RestoreGridSelection;
+                gridFollowTimer.Stop();
+                if (DataContext is MainViewModel vm)
+                {
+                    vm.InputGridRefreshed -= RestoreGridSelection;
+                    vm.InputGridPositionChanged -= ScrollGridToFrame;
+                }
             };
         }
 
@@ -43,12 +59,32 @@ namespace HollowKnightTAS.Companion
 
         private void OnStudioDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (e.OldValue is MainViewModel oldVm) oldVm.InputGridRefreshed -= RestoreGridSelection;
+            if (e.OldValue is MainViewModel oldVm)
+            {
+                oldVm.InputGridRefreshed -= RestoreGridSelection;
+                oldVm.InputGridPositionChanged -= ScrollGridToFrame;
+            }
             if (e.NewValue is MainViewModel vm)
             {
                 vm.InputGridRefreshed += RestoreGridSelection;
+                vm.InputGridPositionChanged += ScrollGridToFrame;
                 RestoreGridSelection(vm, EventArgs.Empty);
             }
+        }
+
+        private void ScrollGridToFrame(long frame)
+        {
+            if (MainTabs.SelectedItem != InputGridTab || DataContext is not MainViewModel vm)
+                return;
+            var row = vm.InputRows.FirstOrDefault(candidate => candidate.Tick == frame);
+            if (row != null) InputGrid.ScrollIntoView(row);
+        }
+
+        private void OnMainTabsSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.Source == MainTabs && MainTabs.SelectedItem == InputGridTab
+                && DataContext is MainViewModel { AutoFollowGrid: true } vm)
+                vm.ShowCurrentGridFrame();
         }
 
         private void RestoreGridSelection(object? sender, EventArgs e)

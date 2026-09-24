@@ -440,6 +440,8 @@ namespace HollowKnightTAS.Companion.ViewModels
 
                 selectedSession = value;
                 currentMovieTick = -1;
+                currentFullRunMovieFrame = -1;
+                gridProgressRequestId = null;
                 currentControlMode = string.Empty;
                 currentSceneEpoch = -1;
                 quickSlotCatalog = "[]";
@@ -518,8 +520,10 @@ namespace HollowKnightTAS.Companion.ViewModels
         }
 
         public string FrameCounterText => startupBoot?.IsPending == true
-            ? "Native frame: " + (startupBoot.NativeCompletedFrames < 0 ? "—"
-                : startupBoot.NativeCompletedFrames.ToString(CultureInfo.InvariantCulture))
+            ? "Movie frame: " + (currentFullRunMovieFrame < 0 ? "—"
+                : currentFullRunMovieFrame.ToString(CultureInfo.InvariantCulture))
+                + " · Native frame: " + (startupBoot.NativeCompletedFrames < 0 ? "—"
+                    : startupBoot.NativeCompletedFrames.ToString(CultureInfo.InvariantCulture))
             : currentMovieTick < 0 ? "Frame: —"
                 : "Frame: " + currentMovieTick.ToString(CultureInfo.InvariantCulture);
         public string PlaybackStateText => startupBoot?.IsPending == true
@@ -1969,6 +1973,9 @@ namespace HollowKnightTAS.Companion.ViewModels
             Dispatch(
                 () =>
                 {
+                    var isGridProgressPoll = payload.Success && payload.Fields != null
+                        && payload.Fields.TryGetValue("requestId", out var requestId)
+                        && requestId.StartsWith("studio-grid-follow-", StringComparison.Ordinal);
                     var summary = payload.Success
                                   && payload.Fields != null
                         ? string.Join(
@@ -1980,13 +1987,14 @@ namespace HollowKnightTAS.Companion.ViewModels
                                             pair.Value,
                                             180)))
                         : "invalid-payload";
-                    AddTimeline(
-                        eventArgs.Envelope.Sequence.ToString(
-                            CultureInfo.InvariantCulture)
-                        + " "
-                        + eventArgs.Envelope.MessageType
-                        + " "
-                        + summary);
+                    if (!isGridProgressPoll)
+                        AddTimeline(
+                            eventArgs.Envelope.Sequence.ToString(
+                                CultureInfo.InvariantCulture)
+                            + " "
+                            + eventArgs.Envelope.MessageType
+                            + " "
+                            + summary);
                     if (ReferenceEquals(SelectedSession?.Client, eventArgs.Session))
                         HandleTypedEvent(
                             eventArgs.Envelope.MessageType,
@@ -2002,6 +2010,14 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 return;
             }
+
+            if (fields.TryGetValue("requestId", out var requestId)
+                && requestId == gridProgressRequestId
+                && (messageType == IpcMessageTypes.FullRunState
+                    || messageType == IpcMessageTypes.RuntimeStatus
+                    || messageType == IpcMessageTypes.CommandRejected
+                    || messageType == IpcMessageTypes.Fault))
+                gridProgressRequestId = null;
 
             if (fields.Keys.Any(key => key.StartsWith("videoExport.", StringComparison.Ordinal)))
             {
@@ -2049,7 +2065,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 currentMovieTick = movieTick;
                 OnPropertyChanged(nameof(FrameCounterText));
-                foreach (var row in InputRows) row.UpdateCurrent(currentMovieTick);
+                if (startupBoot?.IsPending != true) TrackGridFrame(currentMovieTick);
             }
 
             if (fields.TryGetValue("sceneEpoch", out var epochText)
@@ -2074,6 +2090,14 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (string.Equals(messageType, IpcMessageTypes.FullRunState,
                     StringComparison.Ordinal))
             {
+                if (fields.TryGetValue("movieFrame", out var frameText)
+                    && long.TryParse(frameText, NumberStyles.None,
+                        CultureInfo.InvariantCulture, out var frame))
+                {
+                    currentFullRunMovieFrame = frame;
+                    OnPropertyChanged(nameof(FrameCounterText));
+                    TrackGridFrame(frame);
+                }
                 LatestState = string.Join(Environment.NewLine,
                     fields.Select(pair => pair.Key + " = " + pair.Value));
                 RuntimeSummary = "全流程 · "

@@ -1,5 +1,7 @@
 # 当前进度：全流程 Movie、加载省帧与新版假骑士示范已通过冷启动回放
 
+2026-09-24 Studio 输入表格跟随已修复并安装：播放／逐帧时默认按逻辑 Movie 帧滚动当前行，跨 500 行自动换页；可关闭“播放时跟随”停在别处查看，并用“当前帧”手动定位。全流程顶部同时显示 Movie 帧和原生帧。Companion 定向测试 2/2 通过，安装包验签通过，当前 Companion manifest SHA-256 `de563cda3a37dc64c4b8bcdb31e5f498a2cdb06c089c62d20da5379a0c9364fb`。从 Steam 第 0 帧打开正式示范 `fixtures/full-run/false-knight-startup-v2.hktas`，两次完整回放都由表格自动跟到末帧；最终一次 Movie 10892/10892、原生 12024、跳过 1089 个不可输入循环、输入偏差 0，Boss 死亡／战场完成事件成立，终点 `GG_Workshop`。本次受保护会话 `full-run-2af3e448cecd4c378adba6db2e1bd567` 的原始四槽 20 个文件与起始描述符文件集及 SHA-256 差异为 0；游戏和 Studio 已正常退出。
+
 2026-09-24 生命周期补充验证：`RuntimeFullRunSession` 在原生 `GameManager.ReturnToMainMenu` 开始后跳过保存、淡出及 `Quit_To_Menu` 的不可输入循环，直到标题菜单重新可输入。`artifacts/full-run-false-knight/lifecycle-smoke-v4-partial.hktas` 从 Steam 原生第 0 帧录制，经第 4 槽加载、保存退出、重载、再次保存退出；59715 Movie 帧冷启动回放 `Completed`，跳过 2364 原生循环，输入偏差 0。此前只凭 `Quit_To_Menu` 场景名跳帧的 v3 在 Movie 31454 帧失败，证据不再视为通过。
 
 新增 `artifacts/full-run-false-knight/lifecycle-smoke-v5.hktas`（Movie ID `aedacfc4179fce1dde05f23510544cf6ab63376bf1a34a33d05f27de454a4ae0`，197959 帧），真实键盘路线为 Steam 第 0 帧→第 2 槽加载并保存退出→第 4 槽加载并保存退出→在受保护的影子第三槽清档、创建经典模式新档→进入 `Tutorial_01` 并保存退出。首次冷启动在新档开场第 168633 帧遇到同一原生循环中多一次未变化 Hero 输入更新；`FullRunActionSetAdapter` 现允许复用末尾无按键边缘样本，并继续核验值与边缘。修复后原 Movie 冷启动回放 `Completed`，197959/197959 帧、原生帧 204603、跳过不可输入循环 6604、输入偏差 0，终点 `Menu_Title`。回放会话原始四槽 20 个文件的文件集与 SHA-256 均未改变；影子第三槽 `user3.dat`、`user3.modded.json` 已变化。当前 Release Runtime 安装哈希为 `bbb6da318b5c5322de88f3860b347b3f304b2d5aadeea38a3e4130e58c9d88b9`。Studio 新 Movie 游戏鼠标设置已恢复启用。
