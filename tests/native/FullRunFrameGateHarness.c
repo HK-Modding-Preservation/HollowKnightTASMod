@@ -14,11 +14,24 @@ static BOOL g_fake_guard_armed = TRUE;
 static BOOL save_write_guard_is_armed(void) { return g_fake_guard_armed; }
 
 #include "../../native/HollowKnightTAS.ClockBridge/full_run_frame_gate.h"
+static HANDLE g_boot_continue;
+static void advance_boot_frame_clock(void) { }
+#include "../../native/HollowKnightTAS.ClockBridge/startup_frame_hook.h"
 
 static int failed;
 static volatile LONG before_count;
 static volatile LONG completed_count;
 static volatile LONG loading_frames_to_skip;
+static volatile LONG timer_callbacks;
+static volatile LONG nested_main_loops;
+static void __cdecl fake_main_loop(void) { InterlockedIncrement(&nested_main_loops); }
+static void __cdecl fake_player_loop(void) { Sleep(2); }
+static void CALLBACK title_bar_timer(HWND window, UINT message, UINT_PTR timer, DWORD time)
+{
+    (void)window; (void)message; (void)timer; (void)time;
+    InterlockedIncrement(&timer_callbacks);
+    boot_title_bar_main_loop();
+}
 static void __cdecl before_frame(uint64_t completed)
 {
     (void)completed;
@@ -65,17 +78,19 @@ static void send_command(LONGLONG sequence, LONG mode, LONGLONG expected)
 static DWORD WINAPI game_loop(LPVOID ignored)
 {
     (void)ignored;
+    UINT_PTR timer = SetTimer(NULL, 0, 10, title_bar_timer);
     for (int i = 0; i < 1000; i++)
     {
-        if (!hktas_v2_before_frame()) return 0;
-        Sleep(2);
-        hktas_v2_after_frame();
+        boot_player_loop();
+        if (g_v2_state->fault_code) { KillTimer(NULL, timer); return 0; }
     }
+    KillTimer(NULL, timer);
     return 1;
 }
 
 int main(void)
 {
+    (void)install_boot_frame_hook; /* Hook-site identity is checked against the installed Unity binary in smoke. */
     const wchar_t *token = L"0123456789abcdef0123456789abcdef";
     SetEnvironmentVariableW(L"HKTAS_BOOT_GATE_TOKEN", token);
     g_boot_ready = CreateEventW(NULL, TRUE, FALSE, NULL);
@@ -89,11 +104,18 @@ int main(void)
     g_v2_state = &state;
     g_v2_before_callback = before_frame;
     g_v2_completed_callback = completed_frame;
+    g_boot_original_player_loop = fake_player_loop;
+    g_boot_original_main_loop = fake_main_loop;
+    boot_title_bar_main_loop();
+    check(nested_main_loops == 1, "title_bar_timer_preserves_normal_main_loop");
+    nested_main_loops = 0;
     HANDLE game = CreateThread(NULL, 0, game_loop, NULL, 0, NULL);
     check(WaitForSingleObject(g_boot_ready, 3000) == WAIT_OBJECT_0,
         "frame_zero_ready_with_guard");
-    Sleep(30);
+    Sleep(100);
     check(state.completed_frames == 0, "unarmed_does_not_advance");
+    check(timer_callbacks > 0, "paused_window_pump_dispatches_title_bar_timers");
+    check(nested_main_loops == 0, "paused_timer_never_enters_presentation_wait");
     state.descriptor_sha256[0] = 0x5a;
     state.bootstrap_armed = 1;
     send_command(1, HKTAS_V2_MODE_STEP, 0);

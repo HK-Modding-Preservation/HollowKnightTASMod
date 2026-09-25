@@ -243,7 +243,9 @@ namespace HollowKnightTAS.Companion.ViewModels
                     {
                         if (!fullRunMovies.IsArmed)
                             throw new InvalidOperationException("先在第 0 帧选择 New Movie 或打开 v2 Movie。");
-                        fullRunMovies.Run(this.startupBoot.NativeCompletedFrames);
+                        var boundary = await fullRunMovies.RunAsync(
+                            this.startupBoot.NativeCompletedFrames, CancellationToken.None);
+                        if (boundary.Mode == "Fault") throw new InvalidOperationException(boundary.Error);
                     }
                     else this.startupBoot.Continue();
                     return;
@@ -537,11 +539,13 @@ namespace HollowKnightTAS.Companion.ViewModels
                 : "Frame: " + currentMovieTick.ToString(CultureInfo.InvariantCulture);
         public string PlaybackStateText => startupBoot?.IsPending == true
             ? startupBoot.FullRunFaultCode != 0 ? "Full-run fault " + startupBoot.FullRunFaultCode
+                : startupBoot.IsCommandPending ? "等待游戏确认命令…"
                 : startupBoot.IsWaiting ? "Native frame paused · " + (fullRunMovies?.Mode ?? "Unarmed")
                 : "Native frame running"
             : string.IsNullOrEmpty(currentControlMode) ? "No runtime" : currentControlMode;
         public string PlayPauseLabel => startupBoot?.IsPending == true
-            ? startupBoot.IsWaiting ? "Play 继续" : "Pause 暂停"
+            ? startupBoot.IsCommandPending ? "等待确认…"
+                : startupBoot.IsWaiting ? "Play 继续" : "Pause 暂停"
             : currentControlMode == "Paused" ? "Play 继续" : "Pause 暂停";
 
         public string LatestState
@@ -885,7 +889,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 },
                 () => startupBoot?.IsPending == true
                     ? fullRunMovies?.IsPending == true
-                        ? fullRunMovies.IsArmed && (allowStartupContinue
+                        ? fullRunMovies.IsArmed && !startupBoot.IsCommandPending && (allowStartupContinue
                             || (allowStartupStep && startupBoot.CanStep))
                         : (allowStartupContinue && startupBoot.IsWaiting)
                             || (allowStartupStep && startupBoot.CanStep)
@@ -1932,6 +1936,8 @@ namespace HollowKnightTAS.Companion.ViewModels
         private async Task WarmSessionAsync(
             RuntimeSessionClient session)
         {
+            // A menu-requested restart endpoint is not a gameplay Runtime.
+            if (StartupActivationPolicy.IsManualRequest(session.SessionId)) return;
             try
             {
                 if (fullRunMovies?.IsPending == true)

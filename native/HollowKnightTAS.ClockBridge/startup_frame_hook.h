@@ -10,6 +10,16 @@ static void (__cdecl *g_boot_original_player_loop)(void);
 static HANDLE g_boot_step;
 static HANDLE g_boot_state_mapping;
 static BOOL g_boot_loop_active;
+static void (__cdecl *g_boot_original_main_loop)(void);
+
+/* Unity's title-bar timer can reenter PerformMainLoop from the nested window
+ * message pump while PlayerLoop is parked. Skipping just PlayerLoop is too
+ * late: the outer loop still waits for a presentation that never happened.
+ * Preserve normal timer updates whenever no controlled PlayerLoop is active. */
+static void __cdecl boot_title_bar_main_loop(void)
+{
+    if (!g_boot_loop_active) g_boot_original_main_loop();
+}
 
 static void wait_boot_frame_command(void)
 {
@@ -94,6 +104,11 @@ static BOOL install_boot_frame_hook(void)
     BYTE *site = base + 0x5231e5;
     const BYTE expected_call[5] = {0xe8,0xd6,0x92,0x23,0x00};
     if (memcmp(site, expected_call, sizeof(expected_call)) != 0) return FALSE;
+    /* Matching PDB: TitleBarTimerUpdateCallback tail-jumps to PerformMainLoop.
+     * Validate both patch sites before modifying either one. */
+    BYTE *timer_site = base + 0x5253d1;
+    const BYTE expected_timer_jump[5] = {0xe9,0x5a,0xdc,0xff,0xff};
+    if (memcmp(timer_site, expected_timer_jump, sizeof(expected_timer_jump)) != 0) return FALSE;
     GetEnvironmentVariableW(L"HKTAS_BOOT_GATE_TOKEN", token, 40);
     wsprintfW(name, L"Local\\HKTAS.Boot.%s.Step", token);
     g_boot_step = OpenEventW(SYNCHRONIZE, FALSE, name);
@@ -120,10 +135,21 @@ static BOOL install_boot_frame_hook(void)
     memset(relay + 2, 0, 4);
     void (*target)(void) = boot_player_loop;
     memcpy(relay + 6, &target, sizeof(target));
+    relay[32] = 0xff; relay[33] = 0x25;
+    memset(relay + 34, 0, 4);
+    void (*timer_target)(void) = boot_title_bar_main_loop;
+    memcpy(relay + 38, &timer_target, sizeof(timer_target));
     DWORD old;
     if (!VirtualProtect(relay, 4096, PAGE_EXECUTE_READ, &old)) return FALSE;
-    FlushInstructionCache(GetCurrentProcess(), relay, 14);
+    FlushInstructionCache(GetCurrentProcess(), relay, 46);
     g_boot_original_player_loop = (void (__cdecl *)(void))(base + 0x75c4c0);
+    g_boot_original_main_loop = (void (__cdecl *)(void))(base + 0x523030);
+    if (!VirtualProtect(timer_site, 5, PAGE_EXECUTE_READWRITE, &old)) return FALSE;
+    int32_t timer_relative = (int32_t)((intptr_t)(relay + 32) - (intptr_t)(timer_site + 5));
+    memcpy(timer_site + 1, &timer_relative, sizeof(timer_relative));
+    DWORD timer_ignored;
+    if (!VirtualProtect(timer_site, 5, old, &timer_ignored)) return FALSE;
+    FlushInstructionCache(GetCurrentProcess(), timer_site, 5);
     if (!VirtualProtect(site, 5, PAGE_EXECUTE_READWRITE, &old)) return FALSE;
     int32_t relative = (int32_t)((intptr_t)relay - (intptr_t)(site + 5));
     memcpy(site + 1, &relative, sizeof(relative));

@@ -11,6 +11,68 @@ namespace HollowKnightTAS.Companion.Tests
     public sealed class StartupBootGateV2Tests
     {
         [TestMethod]
+        public async Task PlayWaitsForAcknowledgement_AndStaleReadyCannotOfferAnotherCommand()
+        {
+            using var controller = new StartupBootController();
+            var gate = controller.BeginV2();
+            using var mapping = MemoryMappedFile.OpenExisting("Local\\HKTAS.Boot." + gate.Token + ".V2State");
+            using var view = mapping.CreateViewAccessor();
+            using var ready = EventWaitHandle.OpenExisting("Local\\HKTAS.Boot." + gate.Token + ".Ready");
+            view.Write(92, 1);
+            ready.Set();
+            controller.Refresh();
+            gate.ArmV2(gate.Token, new string('a', 64));
+            using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+            var play = controller.RunV2Async(0, cancel.Token);
+            Assert.IsFalse(play.IsCompleted, "Sending a command is not native acknowledgement.");
+            Assert.IsTrue(controller.IsCommandPending);
+            Assert.IsFalse(controller.IsWaiting);
+            Assert.IsFalse(controller.CanStep);
+            Assert.IsFalse(gate.IsWaiting, "Native Ready can still describe the previous boundary.");
+            await Assert.ThrowsAsync<InvalidOperationException>(() => controller.RunV2Async(0, cancel.Token));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => controller.StepV2Async(0, cancel.Token));
+            Assert.AreEqual(1L, view.ReadInt64(48), "Rejected commands must not overwrite the pending command.");
+
+            ready.Reset();
+            view.Write(76, 2);
+            view.Write(56, 1L);
+            var started = await play;
+            Assert.AreEqual("Running", started.Mode);
+            Assert.IsFalse(controller.IsCommandPending);
+            Assert.IsFalse(controller.IsWaiting);
+
+            var pause = controller.PauseV2Async(cancel.Token);
+            Assert.AreEqual(2L, view.ReadInt64(48));
+            view.Write(40, 12L);
+            view.Write(76, 0);
+            view.Write(56, 2L);
+            ready.Set();
+            Assert.AreEqual("Paused", (await pause).Mode);
+            controller.Refresh();
+            Assert.IsTrue(controller.CanStep);
+        }
+
+        [TestMethod]
+        public async Task PlayReturnsNativeFaultInsteadOfReportingSuccess()
+        {
+            using var gate = new StartupBootGate(frameBased: true, fullRun: true);
+            using var mapping = MemoryMappedFile.OpenExisting("Local\\HKTAS.Boot." + gate.Token + ".V2State");
+            using var view = mapping.CreateViewAccessor();
+            using var ready = EventWaitHandle.OpenExisting("Local\\HKTAS.Boot." + gate.Token + ".Ready");
+            view.Write(92, 1);
+            ready.Set();
+            gate.ArmV2(gate.Token, new string('a', 64));
+            using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var play = gate.RunV2Async(0, cancel.Token);
+            view.Write(88, 2);
+            view.Write(76, 3);
+            var result = await play;
+            Assert.AreEqual("Fault", result.Mode);
+            StringAssert.Contains(result.Error, "2");
+        }
+
+        [TestMethod]
         public async Task ArmIsFrameZeroOnly_AndStepCarriesExpectedFrameAndAck()
         {
             using var gate = new StartupBootGate(frameBased: true, fullRun: true);

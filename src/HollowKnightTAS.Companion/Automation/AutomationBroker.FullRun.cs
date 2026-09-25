@@ -160,7 +160,8 @@ namespace HollowKnightTAS.Companion.Automation
                     await coordinator.StepAsync(expectedFrame, cancellationToken));
             if (command.CommandId == AutomationCommandIds.FullRunPlay)
             {
-                coordinator.Run(expectedFrame);
+                var boundary = await coordinator.RunAsync(expectedFrame, cancellationToken);
+                if (boundary.Mode == "Fault") return BoundaryResult(command, boundary);
                 return Result(command, true, "Ok", "Full-run playback started.",
                     Fields("mode", coordinator.Mode,
                         "nativeFrame", expectedFrame.ToString(CultureInfo.InvariantCulture)));

@@ -42,11 +42,17 @@ namespace HollowKnightTAS.Companion.Services
                 if (disposed || IsActive || busy()) return;
                 foreach (var session in sessions.Sessions)
                 {
-                    if (!session.IsConnected || !attempted.Add(session.SessionId)) continue;
+                    if (!StartupActivationPolicy.IsManualRequest(session.SessionId)
+                        || !session.IsConnected || !attempted.Add(session.SessionId)) continue;
                     IsActive = true;
                     try { await TryHandoffAsync(session, shutdown.Token); }
                     catch (OperationCanceledException) when (shutdown.IsCancellationRequested) { }
-                    catch (Exception error) { report("自动启动接管未完成：" + error.Message); }
+                    catch (Exception error)
+                    {
+                        report("手动启动接管未完成：" + error.Message);
+                        try { await RequestAsync(session, string.Empty, "cancel", shutdown.Token); }
+                        catch (Exception) { /* The source also expires its request locally. */ }
+                    }
                     finally { IsActive = false; }
                     if (disposed || busy()) return;
                 }

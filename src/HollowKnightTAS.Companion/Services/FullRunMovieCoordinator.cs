@@ -87,10 +87,11 @@ namespace HollowKnightTAS.Companion.Services
             return boot.StepV2Async(expectedFrame, cancellationToken);
         }
 
-        public void Run(long expectedFrame)
+        public Task<NativeFrameBoundary> RunAsync(long expectedFrame,
+            CancellationToken cancellationToken)
         {
             RequireArmed();
-            boot.RunV2(expectedFrame);
+            return boot.RunV2Async(expectedFrame, cancellationToken);
         }
 
         public Task<NativeFrameBoundary> PauseAsync(CancellationToken cancellationToken)

@@ -1,6 +1,6 @@
 # HollowKnightTAS Studio 操作手册
 
-Studio 用来在《空洞骑士》中逐帧播放、编辑和回退 TAS 输入。直接启动游戏时，Mod 会自动打开 Studio，并把受控游戏停在 `Startup frame: 0`；如果先打开 Studio，也可以点击 `Start 启动` 拉起游戏。
+Studio 用来在《空洞骑士》中逐帧播放、编辑和回退 TAS 输入。普通启动游戏不会激活 TAS 功能。需要使用时，在标题界面的 `选项 → Modding → HollowKnightTAS` 点击 `打开 Studio（重启游戏）`，游戏会重新启动并停在第 0 帧；如果先打开 Studio，也可以点击 `Start 启动` 拉起受控游戏。
 
 ## 开始前
 
@@ -8,7 +8,7 @@ Studio 用来在《空洞骑士》中逐帧播放、编辑和回退 TAS 输入�
 
 新建前可在 `Settings → Enable game mouse for new v2 Movie 启用游戏鼠标` 设置游戏鼠标；默认关闭，标题菜单仍可用键盘操作。打开已有 v2 Movie 时使用文件记录的鼠标模式。开始后模式固定，Studio 自身的鼠标不受影响。
 
-直接启动时，最初的标题进程会在进入存档前退出，Studio 随后启动受控游戏。这个短暂的重新启动是首帧暂停流程的一部分。
+手动点击后，Studio 先校验启动组件，再让标题进程退出并启动受控游戏。局内不能执行此操作，请先正常保存退出到标题。启动失败会保留原游戏，可从同一按钮重试；移交期间离开标题会取消本次请求。每次普通启动都需要重新点击，即使 Studio 已在后台运行，也不会自动接管普通游戏。未点击时不启用 TAS 的输入记录、时钟控制、检查器、快捷键、叠加层或存档重定向，普通游玩仍使用原始存档。
 
 v2 会话中的标题菜单、选槽、局内操作以及 Save&Load 都走真实游戏输入。游戏对原始存档只读；保存、删档和建档作用于受保护影子副本，不自动写回原件。打开 Movie 前请确保所用槽位存档由你自己对齐。原生门闩和 Runtime 会在启动过程中接管，无须手动预选存档。
 
@@ -24,7 +24,7 @@ v2 会话中的标题菜单、选槽、局内操作以及 Save&Load 都走真实
 
 ## 从启动第 0 帧播放或录制 v2 Movie
 
-1. 从 Steam 启动游戏，等待 Studio 自动打开并显示 `Native frame: 0`。
+1. 从 Steam 启动游戏，在标题界面的 `选项 → Modding → HollowKnightTAS` 点击 `打开 Studio（重启游戏）`，等待 Studio 显示 `Native frame: 0`。
 2. 回放时用 `Movie → Open Movie 打开…` 选择 v2 `.hktas`；录制时先选游戏鼠标模式，再用 `Movie → New full-run Movie 从第 0 帧新建`。
 3. 点击 `Frame Advance` 或 `Play`。Movie 的真实输入会操作标题菜单并选择存档；场景加载以及确认保存退出后的保存、淡出过程只影响等待时间，不移动 Movie 输入位置。暂停时可查看当前 Movie 帧和原生帧。
 4. 录制完成后停止并通过 `Movie → Save Movie 保存…` 保存。回放结束后核对 `Completed`、输入偏差数和游戏终态。
@@ -35,7 +35,7 @@ v2 Movie 不绑定某一个槽位或存档哈希；若存档内容不同，输�
 
 ## 播放旧版局内 TAS（v1）
 
-1. 从 Steam 启动游戏，等待 Studio 自动打开并显示启动暂停点。此时可在 `Movie → Open Movie` 预览 v1 `.hktas` 文件。
+1. 从 Steam 启动游戏，在标题的 Modding 设置中手动打开 Studio，等待重新启动并显示启动暂停点。此时可在 `Movie → Open Movie` 预览 v1 `.hktas` 文件。
 2. 点击顶部 `Play` 继续初始化。在游戏标题画面选择序列所需的存档槽；进入起点场景后，等待 Studio 显示 `READY` 和 `CONNECTED · IPC v1`。
 3. 如果序列配有需要恢复的状态，打开 `Savestates`，选择匹配且显示 `Compatible` 或 `Ready` 的项，点击 `Restore Selected` 并等待 `Completed`；如提示覆盖，先核对再决定是否批准。已经从匹配存档槽进入正确起点时，可直接继续。
 4. 在 Studio 点击 `Pause`，打开 `Movie Text`，依次点击 `Validate`、`Upload`、`Start Replay`。开始回放后仍处于暂停状态；点击 `Frame Advance` 可执行 Movie 第 0 帧，再次点击逐帧推进，点击 `Play` 则连续播放。

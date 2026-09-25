@@ -533,7 +533,7 @@
           <StackPanel MaxWidth="940" HorizontalAlignment="Left">
             <TextBlock Text="快速开始" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
             <TextBlock Margin="0,8,0,16" TextWrapping="Wrap"
-                       Text="看到右上角 READY 和 CONNECTED 后再操作。游戏启动时 Mod 会自动打开 Studio；也可以先开 Studio，再点 Start 启动。若底部显示 An active HeroController is unavailable，请先进入可控制小骑士的游戏场景并等待加载完成。完整说明随更新包放在 docs/USER-MANUAL.md。" />
+                       Text="普通启动游戏不会激活 TAS。请在标题的选项 → Modding → HollowKnightTAS 中点击打开 Studio（重启游戏）；局内请先保存退出到标题。也可以先开 Studio，再点 Start 启动受控游戏。停在第 0 帧后，新建或打开全流程 Movie，即可单步或播放。完整说明见 docs/USER-MANUAL.md。" />
 
             <TextBlock Text="播放已有 TAS" FontSize="17" FontWeight="SemiBold" />
             <TextBlock Margin="0,6,0,16" TextWrapping="Wrap"

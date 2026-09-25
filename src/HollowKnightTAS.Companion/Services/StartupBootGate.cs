@@ -93,6 +93,8 @@ namespace HollowKnightTAS.Companion.Services
         public int FullRunFaultCode => !disposed && v2View != null ? v2View.ReadInt32(88) : 0;
         public bool IsFullRunFinished => !disposed && v2View != null
             && v2View.ReadInt32(76) == V2ModeFinished;
+        public bool IsCommandPending => !disposed && v2View != null
+            && v2View.ReadInt64(48) != v2View.ReadInt64(56);
         public bool IsAcknowledged
         {
             get
@@ -105,6 +107,7 @@ namespace HollowKnightTAS.Companion.Services
             && (fullRun
                 ? v2View != null && (v2View.ReadInt32(76) == V2ModePaused
                     || v2View.ReadInt32(76) == V2ModeFinished)
+                    && !IsCommandPending
                     && v2View.ReadInt32(88) == 0 && v2View.ReadInt32(92) == 1
                 : !proceed.WaitOne(0)
                     && (stateView == null || (stateView.ReadInt32(12) == 1
@@ -184,21 +187,30 @@ namespace HollowKnightTAS.Companion.Services
                 .ConfigureAwait(false);
         }
 
-        public void RunV2(long expectedNativeFrame)
+        public async Task<NativeFrameBoundary> RunV2Async(long expectedNativeFrame,
+            CancellationToken cancellationToken)
         {
-            if (!fullRun || NativeCompletedFrames != expectedNativeFrame)
-                throw new InvalidOperationException("Full-run native frame differs from the expected position.");
-            RequestV2(V2ModeRun, expectedNativeFrame);
+            if (!fullRun || !IsWaiting || NativeCompletedFrames != expectedNativeFrame)
+                throw new InvalidOperationException("Full-run native frame is not paused at the expected position.");
+            var sequence = RequestV2(V2ModeRun, expectedNativeFrame);
+            return await WaitV2Async(sequence, -1, false, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private long RequestV2(int mode, long expectedNativeFrame)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (!v2Armed || v2View == null || v2Command == null
-                || v2View.ReadInt32(88) != 0 || v2View.ReadInt32(76) == V2ModeFinished
-                || expectedNativeFrame < 0
-                || v2View.ReadInt64(48) != v2View.ReadInt64(56))
-                throw new InvalidOperationException("Full-run command cannot be issued at this boundary.");
+            if (!v2Armed || v2View == null || v2Command == null)
+                throw new InvalidOperationException("Full-run bootstrap is not armed. Open a v2 Movie or create a new Movie at frame 0.");
+            if (v2View.ReadInt32(88) != 0 || v2View.ReadInt32(76) == V2ModeFault)
+                throw new InvalidOperationException("Native full-run gate fault " + v2View.ReadInt32(88) + ". Restart the session.");
+            if (v2View.ReadInt32(76) == V2ModeFinished)
+                throw new InvalidOperationException("Full-run Movie has finished. Restart the session to replay.");
+            if (expectedNativeFrame < 0)
+                throw new InvalidOperationException("Full-run native frame is unavailable.");
+            if (IsCommandPending)
+                throw new InvalidOperationException("Waiting for native command acknowledgement (command "
+                    + v2View.ReadInt64(48) + ", acknowledged " + v2View.ReadInt64(56) + ").");
             var sequence = checked(++v2CommandSequence);
             v2View.Write(64, expectedNativeFrame);
             v2View.Write(72, mode);
@@ -228,13 +240,15 @@ namespace HollowKnightTAS.Companion.Services
                     return new NativeFrameBoundary(frame, ack, "Completed", string.Empty);
                 if (ack == sequence && (requiredFrame < 0 || frame == requiredFrame)
                     && (!requirePause || (mode == V2ModePaused && ready.WaitOne(0))))
-                    return new NativeFrameBoundary(frame, ack, "Paused", string.Empty);
+                    return new NativeFrameBoundary(frame, ack, requirePause ? "Paused" : "Running", string.Empty);
                 if (requiredFrame >= 0 && frame > requiredFrame)
                     return new NativeFrameBoundary(frame, ack, "Fault", "Native frame advanced past the command target.");
                 await Task.Delay(5, cancellationToken).ConfigureAwait(false);
             }
             return new NativeFrameBoundary(NativeCompletedFrames, v2View?.ReadInt64(56) ?? -1,
-                "Fault", "Native frame command timed out.");
+                "Fault", "Native frame command timed out (command " + sequence
+                    + ", acknowledged " + (v2View?.ReadInt64(56) ?? -1)
+                    + ", native frame " + NativeCompletedFrames + "). Restart the session.");
         }
 
         public void Step()
@@ -250,7 +264,7 @@ namespace HollowKnightTAS.Companion.Services
         public void Continue()
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (fullRun) throw new InvalidOperationException("Use RunV2 for a full-run gate.");
+            if (fullRun) throw new InvalidOperationException("Use RunV2Async for a full-run gate.");
             proceed.Set();
         }
 

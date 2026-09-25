@@ -9,6 +9,10 @@ using HollowKnightTAS.Runtime.Timing;
 using HollowKnightTAS.Runtime.Runtime;
 using HollowKnightTAS.Runtime.Settings;
 using Modding;
+using Modding.Menu;
+using Modding.Menu.Config;
+using HollowKnightTAS.Core.Ipc;
+using HollowKnightTAS.Runtime.Companion;
 using UnityEngine;
 
 namespace HollowKnightTAS.Runtime
@@ -16,7 +20,7 @@ namespace HollowKnightTAS.Runtime
     public sealed class HollowKnightTASMod :
         Mod,
         IGlobalSettings<TasGlobalSettings>,
-        IMenuMod
+        ICustomMenuMod
     {
         public const string Version = "0.1.0";
 
@@ -25,6 +29,9 @@ namespace HollowKnightTAS.Runtime
         private ProtectedSaveRedirector? protectedSaves;
         private RuntimeFullRunSession? fullRunSession;
         private bool hooksRegistered;
+        private ManualStartupService? manualStartup;
+        private string startupMessage = "打开 Studio（重启游戏）";
+        private UnityEngine.UI.Text? startupLabel;
 
         public HollowKnightTASMod()
             : base("HollowKnightTAS")
@@ -85,13 +92,18 @@ namespace HollowKnightTAS.Runtime
             }
 
             hooksRegistered = true;
-            runtimeHost = new TasRuntimeHost(
-                settings ?? new TasGlobalSettings(),
-                message => Log(message),
-                message => LogDebug(message),
-                message => LogWarn(message),
-                message => LogError(message),
-                fullRunSession);
+            // A normal Steam launch must not create any TAS services or gameplay hooks.
+            if (StartupActivationPolicy.ShouldStartRuntime(SavePathResolver.ProtectionRequested,
+                    Environment.GetEnvironmentVariable("HKTAS_CLOCK_STARTUP_LATCH")))
+            {
+                runtimeHost = new TasRuntimeHost(
+                    settings ?? new TasGlobalSettings(),
+                    message => Log(message),
+                    message => LogDebug(message),
+                    message => LogWarn(message),
+                    message => LogError(message),
+                    fullRunSession);
+            }
 
             ModHooks.FinishedLoadingModsHook += OnFinishedLoadingMods;
             ModHooks.ApplicationQuitHook += OnApplicationQuit;
@@ -112,6 +124,66 @@ namespace HollowKnightTAS.Runtime
         }
 
         public bool ToggleButtonInsideMenu => false;
+
+        public MenuScreen GetMenuScreen(MenuScreen modListMenu, ModToggleDelegates? toggleDelegates)
+        {
+            var builder = MenuUtils.CreateMenuBuilderWithBackButton("HollowKnightTAS", modListMenu, out _);
+            builder.AddContent(RegularGridLayout.CreateVerticalLayout(150f), content =>
+            {
+                content.AddMenuButton("OpenStudio", new MenuButtonConfig
+                {
+                    Label = startupMessage,
+                    Style = MenuButtonStyle.VanillaStyle,
+                    SubmitAction = _ => OpenStudio(),
+                    CancelAction = _ => UIManager.instance.UIGoToDynamicMenu(modListMenu),
+                    Description = new DescriptionInfo { Text = "仅标题界面可用；重启后暂停在第 0 帧。" }
+                }, out var button);
+                startupLabel = button.GetComponentInChildren<UnityEngine.UI.Text>();
+                MenuUtils.AddModMenuContent(GetMenuData(null), content, modListMenu);
+            });
+            return builder.Build();
+        }
+
+        private void SetStartupMessage(string message)
+        {
+            startupMessage = message;
+            if (startupLabel != null) startupLabel.text = message;
+        }
+
+        private void OpenStudio()
+        {
+            if (manualStartup != null) return;
+            if (runtimeHost != null)
+            {
+                SetStartupMessage("当前已是受控游戏");
+                return;
+            }
+            if (!ManualStartupService.IsStableTitle())
+            {
+                SetStartupMessage("请先保存退出到标题，再打开 Studio");
+                return;
+            }
+            try
+            {
+                SetStartupMessage("正在打开 Studio，请稍候…");
+                manualStartup = new ManualStartupService(message => Log(message), message => LogWarn(message),
+                    message => LogError(message), reason =>
+                    {
+                        manualStartup?.Dispose();
+                        manualStartup = null;
+                        SetStartupMessage("启动未完成，点击重试");
+                        LogWarn(reason);
+                    });
+                manualStartup.Start();
+            }
+            catch (Exception error)
+            {
+                manualStartup?.Dispose();
+                manualStartup = null;
+                SetStartupMessage("启动失败，点击重试");
+                LogError("Manual Studio launch failed: " + error);
+            }
+        }
 
         public List<IMenuMod.MenuEntry> GetMenuData(
             IMenuMod.MenuEntry? toggleButtonEntry)
@@ -229,6 +301,8 @@ namespace HollowKnightTAS.Runtime
         {
             try
             {
+                manualStartup?.Dispose();
+                manualStartup = null;
                 runtimeHost?.Stop("application-quit");
             }
             finally

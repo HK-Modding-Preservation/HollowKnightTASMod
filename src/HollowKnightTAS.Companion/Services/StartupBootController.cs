@@ -9,11 +9,13 @@ namespace HollowKnightTAS.Companion.Services
     {
         private StartupBootGate? gate;
         private bool waiting;
+        private bool commandPending;
         private int completedFrames = -1;
         public event EventHandler? Changed;
         public bool IsPending => gate != null;
         public bool IsWaiting => waiting;
         public bool CanStep => waiting && gate?.IsFrameBased == true;
+        public bool IsCommandPending => gate?.IsCommandPending == true;
         public int CompletedFrames => completedFrames;
         public long NativeCompletedFrames => gate?.NativeCompletedFrames ?? -1;
         public int FullRunFaultCode => gate?.FullRunFaultCode ?? 0;
@@ -40,25 +42,38 @@ namespace HollowKnightTAS.Companion.Services
             Changed?.Invoke(this, EventArgs.Empty);
         }
 
-        public Task<NativeFrameBoundary> StepV2Async(long expectedFrame,
+        public async Task<NativeFrameBoundary> StepV2Async(long expectedFrame,
             CancellationToken cancellationToken)
-            => gate?.StepV2Async(expectedFrame, cancellationToken)
-               ?? throw new InvalidOperationException("Full-run gate is unavailable.");
+        {
+            var command = gate?.StepV2Async(expectedFrame, cancellationToken)
+                ?? throw new InvalidOperationException("Full-run gate is unavailable.");
+            Refresh();
+            try { return await command; }
+            finally { Refresh(); }
+        }
 
         public Task<NativeFrameBoundary> PauseV2Async(CancellationToken cancellationToken)
             => gate?.PauseV2Async(cancellationToken)
                ?? throw new InvalidOperationException("Full-run gate is unavailable.");
 
-        public void RunV2(long expectedFrame)
-            => (gate ?? throw new InvalidOperationException("Full-run gate is unavailable."))
-                .RunV2(expectedFrame);
+        public async Task<NativeFrameBoundary> RunV2Async(long expectedFrame,
+            CancellationToken cancellationToken)
+        {
+            var command = (gate ?? throw new InvalidOperationException("Full-run gate is unavailable."))
+                .RunV2Async(expectedFrame, cancellationToken);
+            Refresh();
+            try { return await command; }
+            finally { Refresh(); }
+        }
 
         public void Refresh()
         {
             var next = gate?.IsWaiting == true;
+            var pending = IsCommandPending;
             var frames = gate?.CompletedFrames ?? -1;
-            if (waiting == next && completedFrames == frames) return;
+            if (waiting == next && completedFrames == frames && commandPending == pending) return;
             waiting = next;
+            commandPending = pending;
             completedFrames = frames;
             Changed?.Invoke(this, EventArgs.Empty);
         }
@@ -87,6 +102,7 @@ namespace HollowKnightTAS.Companion.Services
             gate?.Dispose();
             gate = null;
             waiting = false;
+            commandPending = false;
             completedFrames = -1;
             Changed?.Invoke(this, EventArgs.Empty);
         }
