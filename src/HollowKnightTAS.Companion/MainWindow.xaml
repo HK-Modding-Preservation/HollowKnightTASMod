@@ -1,6 +1,7 @@
 <Window x:Class="HollowKnightTAS.Companion.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:HollowKnightTAS.Companion.Controls"
         AutomationProperties.AutomationId="HktasStudio.MainWindow"
         Style="{StaticResource {x:Type Window}}"
         Title="HollowKnightTAS Studio"
@@ -33,6 +34,7 @@
         <MenuItem Header="Input Editor 输入编辑器" Tag="InputGridTab" Click="OnNavigate" />
         <MenuItem Header="Movie Text 文本脚本" Tag="MovieTextTab" Click="OnNavigate" />
         <MenuItem Header="Savestates 存档管理" Tag="SavesTab" Click="OnNavigate" />
+        <MenuItem Header="Timeline 时间线" Tag="WorldlinesTab" Click="OnNavigate" />
         <Separator />
         <MenuItem Header="Encode to MP4 导出视频…" Command="{Binding StartVideoExportCommand}" />
         <MenuItem Header="Cancel Encoding 取消视频导出" Command="{Binding CancelVideoExportCommand}" />
@@ -152,24 +154,32 @@
             <ComboBox ItemsSource="{Binding GridActions}" SelectedItem="{Binding GridAction}" Width="100" Margin="6,3" />
             <Button Content="切换选区按键" Command="{Binding ToggleGridCommand}" />
             <Button Content="Axes 模拟轴…" Click="OnEditGridAxes" />
+            <TextBlock Text="默认 FPS" VerticalAlignment="Center" Margin="8,0,4,0" />
+            <TextBox Text="{Binding DefaultFrameRate, UpdateSourceTrigger=PropertyChanged}" Width="48" ToolTip="新补空帧的实际游戏帧率（1–1000）" />
+            <TextBlock Text="选区 FPS" VerticalAlignment="Center" Margin="8,0,4,0" />
+            <TextBox Text="{Binding SelectedFrameRate, UpdateSourceTrigger=PropertyChanged}" Width="48" />
+            <Button Content="设置帧率" Command="{Binding SetFrameRateCommand}" />
           </WrapPanel>
           <DataGrid x:Name="InputGrid" Grid.Row="2" ItemsSource="{Binding InputRows}"
                     InputMethod.IsInputMethodEnabled="False"
                     AutomationProperties.AutomationId="HktasStudio.InputGrid" AutoGenerateColumns="False"
                     IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
                     SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column"
-                    EnableRowVirtualization="True" EnableColumnVirtualization="True" RowHeight="25"
+                    EnableRowVirtualization="True" EnableColumnVirtualization="True" RowHeight="19" FontSize="12" VirtualizingPanel.VirtualizationMode="Recycling" ScrollViewer.CanContentScroll="True"
                     Background="#0D131B" Foreground="#E6EDF5" RowBackground="#18202B" AlternatingRowBackground="#202A38"
                     HorizontalGridLinesBrush="#344256" VerticalGridLinesBrush="#344256"
                     PreviewMouseLeftButtonDown="OnInputGridClick" SelectionChanged="OnInputGridSelectionChanged"
-                    PreviewKeyDown="OnInputGridKeyDown">
+                    PreviewKeyDown="OnInputGridKeyDown" PreviewMouseMove="OnInputGridMouseMove"
+                    PreviewMouseLeftButtonUp="OnInputGridMouseUp" LostMouseCapture="OnInputGridLostCapture"
+                    PreviewMouseWheel="OnInputGridWheel" PreviewMouseRightButtonDown="OnInputGridRightClick">
             <DataGrid.Columns>
               <DataGridTextColumn Header="" Binding="{Binding Current}" Width="28" />
               <DataGridTextColumn Header="Frame" Binding="{Binding Tick}" Width="75" />
+              <DataGridTextColumn Header="FPS" Binding="{Binding FramesPerSecond}" Width="45" />
               <DataGridTextColumn Header="Channels" Binding="{Binding Channels}" Width="150" />
               <DataGridTextColumn Header="Samples" Binding="{Binding SampleCount}" Width="65" />
-              <DataGridCheckBoxColumn Header="Submit" Binding="{Binding Submit, Mode=OneWay}" Width="65" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
-              <DataGridCheckBoxColumn Header="Cancel" Binding="{Binding Cancel, Mode=OneWay}" Width="65" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
+              <DataGridCheckBoxColumn Header="Submit" SortMemberPath="Submit" Binding="{Binding Submit, Mode=OneWay}" Width="65" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
+              <DataGridCheckBoxColumn Header="Cancel" SortMemberPath="Cancel" Binding="{Binding Cancel, Mode=OneWay}" Width="65" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
               <DataGridCheckBoxColumn Header="Left" Binding="{Binding Left, Mode=OneWay}" SortMemberPath="Left" Width="55" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
               <DataGridCheckBoxColumn Header="Right" Binding="{Binding Right, Mode=OneWay}" SortMemberPath="Right" Width="55" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
               <DataGridCheckBoxColumn Header="Up" Binding="{Binding Up, Mode=OneWay}" SortMemberPath="Up" Width="45" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
@@ -186,6 +196,33 @@
           </DataGrid>
           <TextBlock Grid.Row="3" Text="{Binding GridStatus}" TextWrapping="Wrap" Margin="4,6" />
         </Grid>
+      </TabItem>
+      <TabItem x:Name="WorldlinesTab" Header="Timeline 时间线" AutomationProperties.AutomationId="HktasStudio.TimelineTab">
+        <DockPanel Margin="8">
+          <StackPanel DockPanel.Dock="Top">
+            <WrapPanel>
+              <TextBlock Text="时间线" VerticalAlignment="Center" Margin="4" />
+              <ComboBox Width="230" ItemsSource="{Binding TimelineTrees}" DisplayMemberPath="Name" SelectedValuePath="Id" SelectedValue="{Binding SelectedTimelineTreeId}" />
+              <TextBlock Text="世界线（叶子）" VerticalAlignment="Center" Margin="12,4,4,4" />
+              <ComboBox Width="200" ItemsSource="{Binding WorldlineLeaves}" DisplayMemberPath="Label" SelectedValuePath="Id" SelectedValue="{Binding SelectedWorldlineId}" />
+            </WrapPanel>
+            <WrapPanel Margin="0,6,0,6">
+              <Button Content="保存当前帧为节点" Command="{Binding SaveTimelineNodeCommand}" />
+              <Button Content="恢复所选节点" Command="{Binding RestoreTimelineNodeCommand}" />
+              <Button Content="删除节点及子树…" Command="{Binding DeleteTimelineNodeCommand}" />
+            </WrapPanel>
+            <TextBlock Text="点击叶子选择世界线，再点击其路径上的节点。绿色连线为所选世界线，粗边框为所选节点。" Foreground="{StaticResource MutedTextBrush}" Margin="4,0,4,8" TextWrapping="Wrap" />
+          </StackPanel>
+          <TextBlock DockPanel.Dock="Bottom" Text="{Binding TimelineTreeStatus}" Margin="4,8" TextWrapping="Wrap" />
+          <Border DockPanel.Dock="Right" Width="240" Background="{StaticResource PanelBrush}" Padding="10" Margin="8,0,0,0">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Text="所选世界线的节点" FontWeight="Bold" Margin="0,0,0,8" />
+              <TextBlock DockPanel.Dock="Bottom" Text="{Binding TimelineNodeDetail}" Margin="0,8,0,0" TextWrapping="Wrap" />
+              <ListBox ItemsSource="{Binding WorldlinePath}" SelectedItem="{Binding SelectedTimelineNode}" DisplayMemberPath="Label" />
+            </DockPanel>
+          </Border>
+          <controls:TimelineGraph />
+        </DockPanel>
       </TabItem>
       <TabItem x:Name="MovieTextTab" Header="Movie Text"
                AutomationProperties.AutomationId="HktasStudio.MovieEditorTab">

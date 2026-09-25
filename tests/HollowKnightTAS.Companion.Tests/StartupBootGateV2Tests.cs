@@ -49,8 +49,11 @@ namespace HollowKnightTAS.Companion.Tests
             view.Write(56, 2L);
             ready.Set();
             Assert.AreEqual("Paused", (await pause).Mode);
-            controller.Refresh();
-            Assert.IsTrue(controller.CanStep);
+            Assert.IsTrue(controller.CanStep, "Pause completion must publish the paused state without a timer tick.");
+            Assert.IsTrue(controller.IsWaiting);
+            var resumed = controller.RunV2Async(12, cancel.Token);
+            ready.Reset(); view.Write(76, 2); view.Write(56, 3L);
+            Assert.AreEqual("Running", (await resumed).Mode);
         }
 
         [TestMethod]

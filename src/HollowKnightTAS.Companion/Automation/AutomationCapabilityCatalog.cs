@@ -45,6 +45,9 @@ namespace HollowKnightTAS.Companion.Automation
                 Read(
                     AutomationCommandIds.GetMovie,
                     AutomationScope.MovieRead),
+                Write(AutomationCommandIds.FullRunUpdateMovie, AutomationScope.ControlPlayback, mode),
+                Write(AutomationCommandIds.FullRunSeek, AutomationScope.ControlPlayback, mode),
+                Read(AutomationCommandIds.FullRunSnapshot, AutomationScope.MovieRead),
                 Read(AutomationCommandIds.FullRunStatus, AutomationScope.ObserveStatus),
                 Read(AutomationCommandIds.FullRunMovie, AutomationScope.MovieRead),
                 Write(AutomationCommandIds.BeginFullRunRecording,
@@ -190,6 +193,9 @@ namespace HollowKnightTAS.Companion.Automation
             var selected = fullRunOnly ? items.Where(item =>
                 item.CommandId == AutomationCommandIds.GetStatus
                 || item.CommandId == AutomationCommandIds.GetCapabilities
+                || item.CommandId == AutomationCommandIds.FullRunUpdateMovie
+                || item.CommandId == AutomationCommandIds.FullRunSeek
+                || item.CommandId == AutomationCommandIds.FullRunSnapshot
                 || item.CommandId == AutomationCommandIds.FullRunStatus
                 || item.CommandId == AutomationCommandIds.FullRunMovie
                 || item.CommandId == AutomationCommandIds.BeginFullRunRecording

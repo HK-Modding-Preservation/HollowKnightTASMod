@@ -33,24 +33,30 @@ namespace HollowKnightTAS.Companion.Tests
                         new MovieSourceSpan("grid-follow.hktas", 1, 1, 1))
                 }));
             vm.RefreshGridCommand.Execute(null);
-            Assert.AreEqual(500, vm.InputRows.Count);
+            Assert.AreEqual(1200, vm.InputRows.Count);
 
             var scrolledTo = -1L;
             vm.InputGridPositionChanged += frame => scrolledTo = frame;
             ReceiveFrame(vm, 620, 740);
-            Assert.AreEqual(540L, vm.InputRows[0].Tick);
+            Assert.AreEqual(0L, vm.InputRows[0].Tick);
             Assert.AreEqual("▶", vm.InputRows.Single(row => row.Tick == 620).Current);
             Assert.AreEqual(620L, scrolledTo);
             StringAssert.Contains(vm.FrameCounterText, "Movie frame: 620");
 
+            vm.GridStart = "1000";
+            vm.GoToGridFrameCommand.Execute(null);
+            Assert.AreEqual(1000L, scrolledTo);
+            ReceiveFrame(vm, 620, 740);
+            Assert.AreEqual(1000L, scrolledTo, "Unchanged paused frame must not pull a user back from manual navigation.");
+            vm.ShowCurrentGridFrame();
             vm.AutoFollowGrid = false;
             ReceiveFrame(vm, 1150, 1300);
-            Assert.AreEqual(540L, vm.InputRows[0].Tick);
+            Assert.AreEqual(0L, vm.InputRows[0].Tick);
             Assert.AreEqual(620L, scrolledTo);
             StringAssert.Contains(vm.FrameCounterText, "Movie frame: 1150");
             vm.FollowGridFrameCommand.Execute(null);
-            Assert.AreEqual(1150L, vm.InputRows[0].Tick);
-            Assert.AreEqual("▶", vm.InputRows[0].Current);
+            Assert.AreEqual(0L, vm.InputRows[0].Tick);
+            Assert.AreEqual("▶", vm.InputRows[1150].Current);
             Assert.AreEqual(1150L, scrolledTo);
 
             vm.AutoFollowGrid = true;

@@ -38,6 +38,9 @@ namespace HollowKnightTAS.Core.Automation
         public const string RunUntil = "runUntil";
         public const string StartRecording = "startRecording";
         public const string StopRecording = "stopRecording";
+        public const string FullRunUpdateMovie = "fullRunUpdateMovie";
+        public const string FullRunSeek = "fullRunSeek";
+        public const string FullRunSnapshot = "fullRunSnapshot";
         public const string FullRunStatus = "fullRunStatus";
         public const string BeginFullRunRecording = "beginFullRunRecording";
         public const string BeginFullRunReplay = "beginFullRunReplay";
@@ -107,6 +110,9 @@ namespace HollowKnightTAS.Core.Automation
                     RunUntil,
                     StartRecording,
                     StopRecording,
+                    FullRunUpdateMovie,
+                    FullRunSeek,
+                    FullRunSnapshot,
                     FullRunStatus,
                     BeginFullRunRecording,
                     BeginFullRunReplay,

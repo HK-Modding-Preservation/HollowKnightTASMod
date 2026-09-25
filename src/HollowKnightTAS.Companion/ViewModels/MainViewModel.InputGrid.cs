@@ -27,9 +27,23 @@ namespace HollowKnightTAS.Companion.ViewModels
         private DateTime gridProgressRequestedUtc;
         private TasAction gridAction = TasAction.Attack;
         private bool gridApplying;
+        private void SetGridApplying(bool value)
+        {
+            gridApplying = value;
+            // A native pause can arrive while the operation still owns the UI.
+            // Publish again after releasing it, even when the gate has not changed.
+            startupBoot?.Refresh();
+            OnPropertyChanged(nameof(FrameCounterText));
+            OnPropertyChanged(nameof(PlaybackStateText));
+            OnPropertyChanged(nameof(PlayPauseLabel));
+            foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(SaveTimelineNodeCommand));
+            OnPropertyChanged(nameof(RestoreTimelineNodeCommand));
+            OnPropertyChanged(nameof(DeleteTimelineNodeCommand));
+        }
         public event EventHandler? InputGridRefreshed;
         public event Action<long>? InputGridPositionChanged;
-        public ObservableCollection<InputGridRow> InputRows { get; } = new ObservableCollection<InputGridRow>();
+        public VirtualInputRows InputRows { get; private set; } = new VirtualInputRows();
         public IReadOnlyList<TasAction> GridActions { get; } = Enum.GetValues<TasAction>()
             .Where(a => a != TasAction.None && a != TasAction.AllGameplay).ToArray();
         public string GridStart { get => gridStart; set => Set(ref gridStart, value); }
@@ -63,6 +77,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private void InitializeInputGrid()
         {
+            LoadGridPreferences();
             ICommand Local(Action action) => new RelayCommand(() =>
             {
                 try
@@ -76,7 +91,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             PreviousGridPageCommand = Local(() =>
             {
                 gridPageStart = Math.Max(0, gridPageStart - InputGridEditor.PageSize);
-                RefreshInputGrid();
+                ScrollGridToFrame(gridPageStart);
             });
             NextGridPageCommand = Local(() =>
             {
@@ -85,9 +100,9 @@ namespace HollowKnightTAS.Companion.ViewModels
                     : InputGridEditor.Count(source.V1Document!);
                 if (gridPageStart + InputGridEditor.PageSize < total)
                     gridPageStart += InputGridEditor.PageSize;
-                RefreshInputGrid();
+                ScrollGridToFrame(gridPageStart);
             });
-            GoToGridFrameCommand = Local(() => { gridPageStart = GridIndex(); RefreshInputGrid(); });
+            GoToGridFrameCommand = Local(() => ScrollGridToFrame(GridIndex()));
             FollowGridFrameCommand = Local(() =>
             {
                 gridPageStart = Math.Max(0, CurrentGridFrame);
@@ -97,8 +112,11 @@ namespace HollowKnightTAS.Companion.ViewModels
             ToggleGridCommand = Local(() =>
             {
                 if (GridAny().V2Document != null)
-                    throw new InvalidOperationException(
-                        "v2 有多通道动作与按下/抬起边缘；请在 Movie Text 编辑 samples。");
+                {
+                    var index = GridIndex();
+                    PaintGrid(index, index + GridLength() - 1, GridAction.ToString(), !InputRows[(int)index].HasAction(GridAction.ToString()));
+                    return;
+                }
                 EditGrid(InputGridEditor.Toggle(GridMovie(), GridIndex(), GridLength(), GridAction));
             });
             InsertGridCommand = Local(() =>
@@ -108,7 +126,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     EditGrid(new MovieV2TimelineEditor().InsertFrames(source.V2Document,
                         GridIndex(), new[] { new NativeFrameRun(GridLength(),
                             Array.Empty<GameInputSample>(),
-                            new MovieSourceSpan("<input-grid>", 1, 1, 1)) }));
+                            new MovieSourceSpan("<input-grid>", 1, 1, 1), ParseFrameRate(DefaultFrameRate), true) }));
                 else EditGrid(MovieTimelineEditor.Insert(source.V1Document!, GridIndex(),
                     new[] { new FrameRunCommand(GridLength(), TasAction.None, 0, 0, false,
                         new MovieSourceSpan("<input-grid>", 1, 1, 1)) }).Movie);
@@ -153,8 +171,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             });
             UndoGridCommand = Local(() => RestoreGridHistory(gridUndo, gridRedo));
             RedoGridCommand = Local(() => RestoreGridHistory(gridRedo, gridUndo));
-            ApplyGridCommand = Command(() => ApplyGridAsync(false));
-            ApplyGridAndSeekCommand = Command(() => ApplyGridAsync(true));
+            ApplyGridCommand = Command(() => ApplyGridAsync(false), allowStartupContinue: true);
+            ApplyGridAndSeekCommand = Command(() => ApplyGridAsync(true), allowStartupContinue: true);
         }
 
         private MovieAnyEditorResult GridAny()
@@ -194,6 +212,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (session?.IsConnected != true
                 || (startupBoot?.IsPending != true && InputRows.Count == 0))
                 return;
+            await SyncRecordingGridAsync();
             var now = DateTime.UtcNow;
             var interval = startupBoot?.IsWaiting == true || currentControlMode == "Paused"
                 ? TimeSpan.FromSeconds(1) : TimeSpan.FromMilliseconds(200);
@@ -223,18 +242,14 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private void TrackGridFrame(long frame, bool forceScroll = false)
         {
+            if (frame >= gridTotalFrames && fullRunMovies?.Mode == "Recording" && !gridApplying && !recordingGridSync)
+                AppendGridBlankFrames(frame + 500);
             if (frame < 0 || InputRows.Count == 0 || gridTotalFrames == 0) return;
             var visibleFrame = Math.Min(frame, gridTotalFrames - 1);
-            foreach (var row in InputRows) row.UpdateCurrent(visibleFrame);
-            if (!AutoFollowGrid) return;
-            var changedPage = visibleFrame < gridPageStart
-                || visibleFrame - gridPageStart >= InputRows.Count;
-            if (changedPage)
-            {
-                gridPageStart = Math.Max(0, visibleFrame - 80);
-                RefreshInputGrid();
-            }
-            if (forceScroll || changedPage || visibleFrame != lastFollowedGridFrame)
+            var changed = visibleFrame != lastFollowedGridFrame;
+            lastFollowedGridFrame = visibleFrame;
+            InputRows.UpdateCurrent(visibleFrame);
+            if (AutoFollowGrid && (forceScroll || changed))
                 ScrollGridToFrame(visibleFrame);
         }
 
@@ -242,7 +257,6 @@ namespace HollowKnightTAS.Companion.ViewModels
         {
             if (gridTotalFrames == 0) return;
             var visibleFrame = Math.Min(Math.Max(frame, 0), gridTotalFrames - 1);
-            lastFollowedGridFrame = visibleFrame;
             InputGridPositionChanged?.Invoke(visibleFrame);
         }
 
@@ -269,19 +283,11 @@ namespace HollowKnightTAS.Companion.ViewModels
                 : InputGridEditor.Count(source.V1Document!);
             gridTotalFrames = total;
             gridPageStart = Math.Min(gridPageStart, Math.Max(0, total - 1));
-            InputRows.Clear();
-            if (source.V2Document != null)
-                foreach (var row in InputGridEditor.Page(source.V2Document,
-                    gridPageStart, CurrentGridFrame))
-                    InputRows.Add(new InputGridRow(row));
-            else
-                foreach (var row in InputGridEditor.Page(source.V1Document!,
-                    gridPageStart, CurrentGridFrame)) InputRows.Add(row);
-            GridStatus = $"帧 {gridPageStart}–{Math.Max(gridPageStart, gridPageStart + InputRows.Count - 1)} / 共 {total} 帧。" +
-                (message ?? (source.V2Document != null
-                    ? "v2 原生帧含菜单和游戏输入；表格支持插入、删除、复制与粘贴。"
-                    : "点击按键切换；Shift 选择范围。编辑仅改变草稿，应用后再重放。"));
-            lastFollowedGridFrame = -1;
+            InputRows = source.V2Document != null
+                ? new VirtualInputRows(source.V2Document, CurrentGridFrame)
+                : new VirtualInputRows(source.V1Document!, CurrentGridFrame);
+            OnPropertyChanged(nameof(InputRows));
+            GridStatus = $"共 {total} 帧。" + (message ?? "滚轮浏览完整序列；按住按键列拖动以连续编辑。未来帧下次播放／逐帧自动同步；过去帧需重放。");
             InputGridRefreshed?.Invoke(this, EventArgs.Empty);
         }
 
@@ -299,13 +305,15 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private void EditGrid(MovieV2EditResult result)
         {
+            gridHasUserEdits = true;
+            earliestGridEdit = Math.Min(earliestGridEdit, GridIndex());
             if (!result.Success)
                 throw new InvalidOperationException(result.Diagnostics.Count > 0
                     ? result.Diagnostics[0].Message : "v2 编辑失败，草稿未改变。");
             PushGridHistory(gridUndo, MovieText);
             gridRedo.Clear();
             MovieText = gridSource = result.CanonicalText;
-            RefreshInputGrid("v2 草稿已修改；从下一次 Steam 启动的第 0 帧加载并重放。");
+            RefreshInputGrid("v2 草稿已修改；未来帧下次播放／逐帧自动同步，过去帧需重放。");
         }
 
         private static MovieV2Document SliceV2(MovieV2Document movie, long start, long count)
@@ -324,7 +332,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 var overlapEnd = Math.Min(end, runEnd);
                 if (overlapEnd > overlapStart)
                     runs.Add(new NativeFrameRun(overlapEnd - overlapStart,
-                        run.Samples, run.Span));
+                        run.Samples, run.Span, run.FramesPerSecond, run.Authored));
                 position = runEnd;
                 if (position >= end) break;
             }
@@ -352,6 +360,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             }
             PushGridHistory(target, MovieText);
             MovieText = gridSource = source.Pop();
+            gridHasUserEdits = true;
+            earliestGridEdit = 0;
             RefreshInputGrid("草稿历史已恢复，游戏状态未改变。");
         }
 
@@ -359,14 +369,16 @@ namespace HollowKnightTAS.Companion.ViewModels
         {
             if (gridApplying) throw new InvalidOperationException("表格分支提交正在进行。");
             if (GridAny().V2Document != null)
-                throw new InvalidOperationException(
-                    "v2 原生帧草稿须在下一次 Steam 启动的第 0 帧打开；当前运行不能从过去重写。");
+            {
+                await FrameMenuAsync("seek", seek ? GridIndex() : CurrentGridFrame);
+                return;
+            }
             GridMovie();
             var target = GridIndex();
             if (target > InputGridEditor.Count(GridMovie()))
                 throw new InvalidOperationException("目标帧超出序列。");
             var submittedText = MovieText;
-            gridApplying = true;
+            SetGridApplying(true);
             try
             {
                 await UploadMovieAsync();
@@ -383,7 +395,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     : "分支已应用；游戏位置未回退。修改过去输入后请重放到目标帧。";
             }
             catch (Exception ex) { GridStatus = ex.Message; throw; }
-            finally { gridApplying = false; }
+            finally { SetGridApplying(false); }
         }
     }
 }

@@ -34,6 +34,8 @@ namespace HollowKnightTAS.Companion.Services
         public string RunId => saves?.Descriptor.RunId ?? string.Empty;
         public string ShadowRoot => saves?.Descriptor.ShadowRoot ?? string.Empty;
         public StartupBootGate? Gate => gate;
+        public System.Collections.Generic.IReadOnlyDictionary<string, string> OriginalHashes => saves?.OriginalSha256
+            ?? throw new InvalidOperationException("Protected baseline is unavailable.");
 
         public StartupBootGate PrepareLaunch()
         {
@@ -54,17 +56,17 @@ namespace HollowKnightTAS.Companion.Services
             return nextGate;
         }
 
-        public void ArmRecording(bool gameMouseEnabled)
+        public void ArmRecording(bool gameMouseEnabled, int framesPerSecond = 50)
         {
             var readyGate = RequireFrameZero();
             var store = bootstrap ?? throw new InvalidOperationException("Bootstrap store is missing.");
             var descriptor = store.StageRecording(readyGate.Token,
-                saves!.Descriptor.RunId, gameMouseEnabled);
+                saves!.Descriptor.RunId, gameMouseEnabled, framesPerSecond);
             readyGate.ArmV2(readyGate.Token, store.CommitAndHash(descriptor));
             mode = "Recording";
         }
 
-        public void ArmReplay(MovieV2Document movie)
+        public void ArmReplay(MovieV2Document movie, long pauseAtFrame = -1)
         {
             if (movie == null) throw new ArgumentNullException(nameof(movie));
             var readyGate = RequireFrameZero();
@@ -75,7 +77,7 @@ namespace HollowKnightTAS.Companion.Services
                     + validation.Diagnostics[0].Message);
             var store = bootstrap ?? throw new InvalidOperationException("Bootstrap store is missing.");
             var descriptor = store.StageReplay(readyGate.Token,
-                saves!.Descriptor.RunId, movie);
+                saves!.Descriptor.RunId, movie, pauseAtFrame);
             readyGate.ArmV2(readyGate.Token, store.CommitAndHash(descriptor));
             mode = "Replay";
         }
@@ -99,6 +101,8 @@ namespace HollowKnightTAS.Companion.Services
             RequireArmed();
             return boot.PauseV2Async(cancellationToken);
         }
+
+        public void MarkLiveReplay() => mode = "Replay";
 
         public void MarkStopped()
         {

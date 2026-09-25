@@ -83,8 +83,10 @@ namespace HollowKnightTAS.Core.Movie
     {
         private readonly IReadOnlyList<GameInputSample> samples;
 
-        public NativeFrameRun(long repeatCount, IReadOnlyList<GameInputSample> samples, MovieSourceSpan span)
+        public NativeFrameRun(long repeatCount, IReadOnlyList<GameInputSample> samples, MovieSourceSpan span, int framesPerSecond = 50, bool authored = false)
         {
+            FramesPerSecond = framesPerSecond;
+            Authored = authored;
             RepeatCount = repeatCount;
             if (samples == null) throw new ArgumentNullException(nameof(samples));
             var copy = new GameInputSample[samples.Count];
@@ -94,6 +96,8 @@ namespace HollowKnightTAS.Core.Movie
             Span = span;
         }
 
+        public int FramesPerSecond { get; }
+        public bool Authored { get; }
         public long RepeatCount { get; }
         public IReadOnlyList<GameInputSample> Samples => samples;
         public MovieSourceSpan Span { get; }

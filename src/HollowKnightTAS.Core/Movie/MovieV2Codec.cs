@@ -89,6 +89,8 @@ namespace HollowKnightTAS.Core.Movie
 
             long expandedFrames = 0;
             long pendingCount = 0;
+            int pendingFps = 50;
+            bool pendingAuthored = false;
             IReadOnlyList<GameInputSample>? pendingSamples = null;
             foreach (var run in movie.Runs)
             {
@@ -96,22 +98,24 @@ namespace HollowKnightTAS.Core.Movie
                 if (run.RepeatCount > MovieProtocolV2.MaximumExpandedFrames - expandedFrames)
                     throw new InvalidDataException("Expanded native-frame limit exceeded.");
                 expandedFrames += run.RepeatCount;
-                if (pendingSamples != null && SameSamples(pendingSamples, run.Samples))
+                if (pendingSamples != null && pendingFps == run.FramesPerSecond && pendingAuthored == run.Authored && SameSamples(pendingSamples, run.Samples))
                 {
                     pendingCount += run.RepeatCount;
                     continue;
                 }
                 if (pendingSamples != null)
                 {
-                    AppendRun(builder, pendingCount, pendingSamples);
+                    AppendRun(builder, pendingCount, pendingSamples, pendingFps, pendingAuthored);
                     EnsureSourceBudget(builder);
                 }
                 pendingCount = run.RepeatCount;
+                pendingFps = run.FramesPerSecond;
+                pendingAuthored = run.Authored;
                 pendingSamples = run.Samples;
             }
             if (pendingSamples != null)
             {
-                AppendRun(builder, pendingCount, pendingSamples);
+                AppendRun(builder, pendingCount, pendingSamples, pendingFps, pendingAuthored);
                 EnsureSourceBudget(builder);
             }
             var canonical = builder.ToString();
@@ -184,7 +188,7 @@ namespace HollowKnightTAS.Core.Movie
 
         private static NativeFrameRun ReadRun(JsonValue json, string sourceName, int lineNumber)
         {
-            var fields = ObjectFields(json, "repeatCount", "samples");
+            var fields = ObjectFields(json, "repeatCount", "samples", "fps?", "authored?");
             var count = Integer(fields, "repeatCount", 1, MovieProtocolV2.MaximumExpandedFrames);
             var array = Field(fields, "samples");
             if (array.Kind != JsonKind.Array || array.Items == null)
@@ -193,7 +197,9 @@ namespace HollowKnightTAS.Core.Movie
                 throw new FormatFault(MovieDiagnosticCodes.InvalidCommand, array.Column, "Too many samples in one native frame.");
             var samples = new List<GameInputSample>(array.Items.Count);
             foreach (var item in array.Items) samples.Add(ReadSample(item));
-            return new NativeFrameRun(count, samples, new MovieSourceSpan(sourceName, lineNumber, 1, json.Length));
+            return new NativeFrameRun(count, samples, new MovieSourceSpan(sourceName, lineNumber, 1, json.Length),
+                fields.ContainsKey("fps") ? (int)Integer(fields, "fps", 1, 1000) : 50,
+                fields.ContainsKey("authored") && Boolean(fields, "authored"));
         }
 
         private static GameInputSample ReadSample(JsonValue json)
@@ -242,12 +248,12 @@ namespace HollowKnightTAS.Core.Movie
             {
                 var known = false;
                 foreach (var name in expected)
-                    if (pair.Key == name) { known = true; break; }
+                    if (pair.Key == name.TrimEnd('?')) { known = true; break; }
                 if (!known)
                     throw new FormatFault(MovieDiagnosticCodes.InvalidCommand, pair.Value.Column, "Unknown v2 field: " + pair.Key);
             }
             foreach (var name in expected)
-                if (!json.Fields.ContainsKey(name))
+                if (!name.EndsWith("?", StringComparison.Ordinal) && !json.Fields.ContainsKey(name))
                     throw new FormatFault(MovieDiagnosticCodes.MissingHeader, json.Column, "Missing v2 field: " + name);
             return json.Fields;
         }
@@ -315,6 +321,8 @@ namespace HollowKnightTAS.Core.Movie
 
         private static void ValidateRun(NativeFrameRun run)
         {
+            if (run.FramesPerSecond < 1 || run.FramesPerSecond > 1000)
+                throw new InvalidDataException("Frame rate must be between 1 and 1000 FPS.");
             if (run == null || run.RepeatCount < 1 || run.RepeatCount > MovieProtocolV2.MaximumExpandedFrames)
                 throw new InvalidDataException("Invalid native-frame run count.");
             if (run.Samples.Count > MovieProtocolV2.MaximumSamplesPerFrame)
@@ -344,10 +352,13 @@ namespace HollowKnightTAS.Core.Movie
                 throw new InvalidDataException("Canonical v2 movie exceeds the source byte limit.");
         }
 
-        private static void AppendRun(StringBuilder builder, long count, IReadOnlyList<GameInputSample> samples)
+        private static void AppendRun(StringBuilder builder, long count, IReadOnlyList<GameInputSample> samples, int fps, bool authored)
         {
             var start = builder.Length;
-            builder.Append("{\"repeatCount\":").Append(count.ToString(CultureInfo.InvariantCulture)).Append(",\"samples\":[");
+            builder.Append("{\"repeatCount\":").Append(count.ToString(CultureInfo.InvariantCulture));
+            if (fps != 50) builder.Append(",\"fps\":").Append(fps.ToString(CultureInfo.InvariantCulture));
+            if (authored) builder.Append(",\"authored\":true");
+            builder.Append(",\"samples\":[");
             for (var index = 0; index < samples.Count; index++)
             {
                 if (index != 0) builder.Append(',');

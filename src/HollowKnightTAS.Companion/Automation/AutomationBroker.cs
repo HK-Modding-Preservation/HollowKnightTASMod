@@ -3232,6 +3232,7 @@ namespace HollowKnightTAS.Companion.Automation
                 case AutomationCommandIds.StartRecording:
                 case AutomationCommandIds.StopRecording:
                 case AutomationCommandIds.FullRunStatus:
+                case AutomationCommandIds.FullRunSnapshot:
                 case AutomationCommandIds.FullRunMovie:
                 case AutomationCommandIds.StartReplay:
                 case AutomationCommandIds.StopReplay:
@@ -3255,6 +3256,12 @@ namespace HollowKnightTAS.Companion.Automation
                 case AutomationCommandIds.ReloadGameSlot:
                     required = new[] { "slot" };
                     break;
+                case AutomationCommandIds.FullRunUpdateMovie:
+                    required = new[] { "expectedNativeFrame", "moviePath" };
+                    break;
+                case AutomationCommandIds.FullRunSeek:
+                    required = new[] { "expectedNativeFrame", "targetFrame" };
+                    break;
                 case AutomationCommandIds.FullRunStop:
                 case AutomationCommandIds.FullRunStep:
                 case AutomationCommandIds.FullRunPlay:
@@ -3263,9 +3270,11 @@ namespace HollowKnightTAS.Companion.Automation
                     break;
                 case AutomationCommandIds.BeginFullRunRecording:
                     required = new[] { "expectedNativeFrame", "mouseEnabled" };
+                    optional = new[] { "fps" };
                     break;
                 case AutomationCommandIds.BeginFullRunReplay:
                     required = new[] { "expectedNativeFrame", "movieBase64" };
+                    optional = new[] { "pauseAtFrame" };
                     break;
                 case AutomationCommandIds.CancelRecordingRestart:
                     required = new[] { "operationId" };
@@ -4405,6 +4414,7 @@ namespace HollowKnightTAS.Companion.Automation
                 case AutomationCommandIds.GetMovie:
                 case AutomationCommandIds.GetRestoreStrategy:
                 case AutomationCommandIds.FullRunStatus:
+                case AutomationCommandIds.FullRunSnapshot:
                 case AutomationCommandIds.FullRunMovie:
                 case AutomationCommandIds.ValidateMoviePatch:
                     return false;

@@ -58,7 +58,7 @@ namespace HollowKnightTAS.Companion.Tests
                         .Select(tab => tab.Header?.ToString())
                         .ToArray();
                     CollectionAssert.AreEquivalent(
-                        new[] { "Input Editor", "Movie Text", "Savestates" }, visibleTabs);
+                        new[] { "Input Editor", "Timeline 时间线", "Movie Text", "Savestates" }, visibleTabs);
                     Assert.IsTrue(tabs.Items.OfType<TabItem>()
                         .Where(tab => !visibleTabs.Contains(tab.Header?.ToString()))
                         .All(tab => tab.Visibility == Visibility.Collapsed),
@@ -164,7 +164,7 @@ namespace HollowKnightTAS.Companion.Tests
                     menus.Single(menu => menu.Header.ToString()!.StartsWith("Close Tool Panels"))
                         .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                     Assert.AreSame(window.FindName("InputGridTab"), tabs.SelectedItem);
-                    Assert.AreEqual(3, tabs.Items.OfType<TabItem>().Count(item => item.Visibility == Visibility.Visible));
+                    Assert.AreEqual(4, tabs.Items.OfType<TabItem>().Count(item => item.Visibility == Visibility.Visible));
                     vm.GridStart = "0";
                     vm.GridCount = "2";
                     vm.RefreshGridCommand.Execute(null);

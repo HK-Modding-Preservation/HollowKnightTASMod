@@ -35,6 +35,9 @@ namespace HollowKnightTAS.Core.Ipc
         public const string RunUntil = "runUntil";
         public const string StartRecording = "startRecording";
         public const string StopRecording = "stopRecording";
+        public const string FullRunUpdateMovie = "fullRunUpdateMovie";
+        public const string FullRunSeek = "fullRunSeek";
+        public const string FullRunSnapshot = "fullRunSnapshot";
         public const string FullRunStatus = "fullRunStatus";
         public const string FullRunStop = "fullRunStop";
         public const string FullRunMovie = "fullRunMovie";
@@ -131,6 +134,9 @@ namespace HollowKnightTAS.Core.Ipc
                     RunUntil,
                     StartRecording,
                     StopRecording,
+                    FullRunUpdateMovie,
+                    FullRunSeek,
+                    FullRunSnapshot,
                     FullRunStatus,
                     FullRunStop,
                     FullRunMovie,

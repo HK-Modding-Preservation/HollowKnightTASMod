@@ -52,9 +52,14 @@ namespace HollowKnightTAS.Companion.Services
             finally { Refresh(); }
         }
 
-        public Task<NativeFrameBoundary> PauseV2Async(CancellationToken cancellationToken)
-            => gate?.PauseV2Async(cancellationToken)
-               ?? throw new InvalidOperationException("Full-run gate is unavailable.");
+        public async Task<NativeFrameBoundary> PauseV2Async(CancellationToken cancellationToken)
+        {
+            var command = gate?.PauseV2Async(cancellationToken)
+                ?? throw new InvalidOperationException("Full-run gate is unavailable.");
+            Refresh();
+            try { return await command; }
+            finally { Refresh(); }
+        }
 
         public async Task<NativeFrameBoundary> RunV2Async(long expectedFrame,
             CancellationToken cancellationToken)

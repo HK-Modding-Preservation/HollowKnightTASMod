@@ -58,6 +58,12 @@ namespace HollowKnightTAS.Runtime.Input
             replaying = isReplay;
         }
 
+        public void UseReplayInputs()
+        {
+            if (disposed || input == null) throw new InvalidOperationException("Mouse bridge is not configured.");
+            replaying = true;
+        }
+
         public bool TryInstall(bool enabled, out string error)
         {
             error = string.Empty;

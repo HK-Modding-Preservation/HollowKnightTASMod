@@ -97,6 +97,40 @@ namespace HollowKnightTAS.Companion.Automation
                         IpcMessageTypes.FullRunMovieDocument, cancellationToken);
             }
 
+            if (command.CommandId == AutomationCommandIds.FullRunUpdateMovie)
+            {
+                var runtime = GetBoundSession();
+                if (runtime == null || !gate.IsWaiting
+                    || !long.TryParse(command.Arguments["expectedNativeFrame"], out var expected)
+                    || expected != gate.NativeCompletedFrames)
+                    return Result(command, false, "PreconditionFailed", "Movie update requires a connected, paused frame.");
+                var path = Path.GetFullPath(command.Arguments["moviePath"]);
+                if (!path.StartsWith(Path.GetFullPath(coordinator.ShadowRoot) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    return Result(command, false, "InvalidArguments", "Movie escaped the protected session.");
+                var updated = await ForwardAsync(runtime, command, IpcMessageTypes.FullRunUpdateMovie,
+                    Fields("requestId", command.RequestId, "moviePath", path,
+                        "expectedNativeFrame", expected.ToString(CultureInfo.InvariantCulture)),
+                    IpcMessageTypes.CommandAccepted, cancellationToken);
+                if (updated.Success) coordinator.MarkLiveReplay();
+                return updated;
+            }
+
+            if (command.CommandId == AutomationCommandIds.FullRunSnapshot || command.CommandId == AutomationCommandIds.FullRunSeek)
+            {
+                if (!gate.IsWaiting) return Result(command, false, "PreconditionFailed", "Pause at a frame boundary first.");
+                var runtime = GetBoundSession();
+                if (runtime == null) return Result(command, false, "RuntimeNotReady", "Runtime has not connected yet.");
+                if (command.CommandId == AutomationCommandIds.FullRunSnapshot)
+                    return await ForwardAsync(runtime, command, IpcMessageTypes.FullRunSnapshot,
+                        Fields("requestId", command.RequestId), IpcMessageTypes.FullRunMovieDocument, cancellationToken);
+                if (!long.TryParse(command.Arguments["targetFrame"], out var target) || target < 0 || target > MovieProtocolV2.MaximumExpandedFrames
+                    || !long.TryParse(command.Arguments["expectedNativeFrame"], out var observed) || observed != gate.NativeCompletedFrames)
+                    return Result(command, false, "PreconditionFailed", "Invalid target or stale native frame.");
+                return await ForwardAsync(runtime, command, IpcMessageTypes.FullRunSeek,
+                    Fields("requestId", command.RequestId, "targetFrame", target.ToString(CultureInfo.InvariantCulture),
+                        "expectedNativeFrame", observed.ToString(CultureInfo.InvariantCulture)), IpcMessageTypes.CommandAccepted, cancellationToken);
+            }
+
             if (command.CommandId == AutomationCommandIds.QuitGame)
             {
                 if (!gate.IsWaiting)
@@ -129,7 +163,8 @@ namespace HollowKnightTAS.Companion.Automation
 
             if (command.CommandId == AutomationCommandIds.BeginFullRunRecording)
             {
-                coordinator.ArmRecording(command.Arguments["mouseEnabled"] == "true");
+                coordinator.ArmRecording(command.Arguments["mouseEnabled"] == "true",
+                    command.Arguments.TryGetValue("fps", out var fps) ? int.Parse(fps, CultureInfo.InvariantCulture) : 50);
                 return Result(command, true, "Ok", "Recording armed at native frame 0.",
                     Fields("mode", coordinator.Mode, "nativeFrame", "0"));
             }
@@ -150,7 +185,8 @@ namespace HollowKnightTAS.Companion.Automation
                     || codec.WriteCanonical(parsed.Document) != source)
                     return Result(command, false, "InvalidMovie",
                         "Full-run replay requires a canonical v2 movie.");
-                coordinator.ArmReplay(parsed.Document);
+                coordinator.ArmReplay(parsed.Document, command.Arguments.TryGetValue("pauseAtFrame", out var target)
+                    ? long.Parse(target, CultureInfo.InvariantCulture) : -1);
                 return Result(command, true, "Ok", "Replay armed at native frame 0.",
                     Fields("mode", coordinator.Mode, "nativeFrame", "0",
                         "movieId", codec.ComputeMovieId(parsed.Document)));

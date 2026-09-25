@@ -14,6 +14,7 @@ namespace HollowKnightTAS.Companion.Services
         public InputGridRow(V2InputGridRow row)
         {
             Tick = row.NativeFrame;
+            FramesPerSecond = row.FramesPerSecond;
             Current = row.Current;
             IsV2 = true;
             Channels = row.Channels;
@@ -52,13 +53,26 @@ namespace HollowKnightTAS.Companion.Services
             Input = new FrameRunCommand(1, held, 0, 0, false,
                 new MovieSourceSpan("<v2-grid>", 1, 1, 1));
         }
+        public override bool Equals(object? obj) => obj is InputGridRow row && row.Tick == Tick;
+        public override int GetHashCode() => Tick.GetHashCode();
+        public int FramesPerSecond { get; } = 50;
+        public bool HasAction(string action) => action == "Submit" ? Submit : action == "Cancel" ? Cancel : Enum.TryParse<TasAction>(action, out var parsed) && Has(parsed);
         public long Tick { get; }
         public FrameRunCommand Input { get; }
         public bool IsV2 { get; }
         public string Channels { get; } = "—";
         public int SampleCount { get; }
-        public bool Submit { get; }
-        public bool Cancel { get; }
+        private bool submit, cancel;
+        private string? previewAction;
+        private bool previewHeld;
+        public bool Submit { get => previewAction == "Submit" ? previewHeld : submit; private set => submit = value; }
+        public bool Cancel { get => previewAction == "Cancel" ? previewHeld : cancel; private set => cancel = value; }
+        public void PreviewAction(string? action, bool held)
+        {
+            if (previewAction == action && previewHeld == held) return;
+            previewAction = action; previewHeld = held;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
+        }
         public string Current { get; private set; }
         public event PropertyChangedEventHandler? PropertyChanged;
         public void UpdateCurrent(long tick)
@@ -80,17 +94,19 @@ namespace HollowKnightTAS.Companion.Services
         public bool SuperDash => Has(TasAction.SuperDash);
         public bool DreamNail => Has(TasAction.DreamNail);
         public string Axes => Input.HasAnalogAxes ? $"{Input.AxisX}, {Input.AxisY}" : "—";
-        private bool Has(TasAction action) => (Input.HeldActions & action) != 0;
+        private bool Has(TasAction action) => previewAction == action.ToString() ? previewHeld : (Input.HeldActions & action) != 0;
     }
 
     public sealed class V2InputGridRow
     {
-        public V2InputGridRow(long nativeFrame, IReadOnlyList<GameInputSample> samples, long currentFrame)
+        public V2InputGridRow(long nativeFrame, IReadOnlyList<GameInputSample> samples, long currentFrame, int framesPerSecond = 50)
         {
+            FramesPerSecond = framesPerSecond;
             NativeFrame = nativeFrame;
             Samples = samples;
             Current = nativeFrame == currentFrame ? "▶" : "";
         }
+        public int FramesPerSecond { get; }
         public long NativeFrame { get; }
         public IReadOnlyList<GameInputSample> Samples { get; }
         public string Current { get; }
@@ -123,7 +139,7 @@ namespace HollowKnightTAS.Companion.Services
             {
                 var runEnd = position + run.RepeatCount;
                 for (var frame = Math.Max(start, position); frame < Math.Min(end, runEnd); frame++)
-                    rows.Add(new V2InputGridRow(frame, run.Samples, currentFrame));
+                    rows.Add(new V2InputGridRow(frame, run.Samples, currentFrame, run.FramesPerSecond));
                 position = runEnd;
                 if (position >= end) break;
             }

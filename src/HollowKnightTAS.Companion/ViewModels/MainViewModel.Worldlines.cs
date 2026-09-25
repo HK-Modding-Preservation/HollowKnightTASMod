@@ -1,0 +1,268 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Input;
+using HollowKnightTAS.Companion.Services;
+
+namespace HollowKnightTAS.Companion.ViewModels
+{
+    public sealed partial class MainViewModel
+    {
+        private StudioTimelineStore? worldlines;
+        private TimelineTree? freshTimeline = new TimelineTree { Name = "当前空序列（未存档）" };
+        private TimelineTree? selectedTimelineTree;
+        private TimelineNode? selectedWorldline, selectedTimelineNode;
+        private bool resettingTimelineSelectors;
+        private string timelineTreeStatus = "选择叶子确定世界线，再选择节点恢复。恢复采用从第 0 帧重放。";
+        public IReadOnlyList<TimelineTree> TimelineTrees => freshTimeline == null
+            ? worldlines?.Library.Trees ?? new List<TimelineTree>()
+            : new[] { freshTimeline }.Concat((worldlines?.Library.Trees ?? new List<TimelineTree>())
+                .Where(t => t.Nodes.Count > 1 || t.Nodes[0].Movie.Length > 0)).ToArray();
+        public string? SelectedTimelineTreeId
+        {
+            get => resettingTimelineSelectors ? null : selectedTimelineTree?.Id;
+            set { if (value != null) SelectedTimelineTree = TimelineTrees.FirstOrDefault(t => t.Id == value); }
+        }
+        public int? SelectedWorldlineId
+        {
+            get => resettingTimelineSelectors ? null : selectedWorldline?.Id;
+            set { if (value != null) SelectedWorldline = WorldlineLeaves.FirstOrDefault(n => n.Id == value); }
+        }
+        public TimelineTree? SelectedTimelineTree
+        {
+            get => selectedTimelineTree;
+            set
+            {
+                if (value == null || gridApplying || value == selectedTimelineTree) return;
+                selectedTimelineTree = value;
+                selectedWorldline = value.Leaves.Last(); selectedTimelineNode = selectedWorldline;
+                NotifyWorldlines();
+            }
+        }
+        public IReadOnlyList<TimelineNode> WorldlineLeaves => selectedTimelineTree?.Leaves.ToArray() ?? Array.Empty<TimelineNode>();
+        public IReadOnlyList<TimelineNode> WorldlinePath => selectedTimelineTree != null && selectedWorldline != null
+            ? selectedTimelineTree.PathTo(selectedWorldline.Id) : Array.Empty<TimelineNode>();
+        public TimelineNode? SelectedWorldline
+        {
+            get => selectedWorldline;
+            set
+            {
+                if (value == null || gridApplying || value == selectedWorldline) return;
+                selectedWorldline = value; selectedTimelineNode = value; NotifyWorldlines();
+            }
+        }
+        public TimelineNode? SelectedTimelineNode
+        {
+            get => selectedTimelineNode;
+            set { if (value != null && value != selectedTimelineNode && !gridApplying) SelectTimelineNode(value.Id); }
+        }
+        public string TimelineTreeStatus { get => timelineTreeStatus; private set => Set(ref timelineTreeStatus, value); }
+        public string TimelineNodeDetail => selectedTimelineNode == null ? "" :
+            $"{selectedTimelineNode.Label}\n{(selectedTimelineNode.ParentId is int p ? "父节点：" + p : "所有世界线的起点")}\n{selectedTimelineNode.CreatedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}";
+        public ICommand SaveTimelineNodeCommand => new AsyncRelayCommand(() => FrameMenuAsync("save", -1), () => !gridApplying && fullRunMovies?.IsPending == true && fullRunMovies.Mode != "Unarmed");
+        public ICommand RestoreTimelineNodeCommand => new AsyncRelayCommand(RestoreTimelineSelectionAsync, () => !gridApplying && selectedTimelineNode != null && selectedTimelineTree != freshTimeline && fullRunMovies?.IsPending == true);
+        public ICommand DeleteTimelineNodeCommand => new RelayCommand(DeleteTimelineSelection, () => !gridApplying && selectedTimelineNode != null && selectedTimelineTree != freshTimeline);
+        public void InitializeWorldlines()
+        {
+            if (worldlines != null) return;
+            try
+            {
+                worldlines = new StudioTimelineStore(Path.Combine(FrameSaveRoot, "timelines.json"));
+                if (!worldlines.Library.LegacyImported)
+                {
+                    worldlines.Update(library =>
+                    {
+                        foreach (var path in frameSaves.Values.OrderBy(File.GetCreationTimeUtc))
+                        {
+                            var save = System.Text.Json.JsonSerializer.Deserialize<FrameSave>(File.ReadAllText(path))!;
+                            var movie = TimelineTree.Parse(save.Movie);
+                            var tree = library.Trees.FirstOrDefault(t => t.Nodes[0].Movie.Length != 0
+                                && TimelineTree.SameBaseline(t.OriginalHashes, save.OriginalHashes)
+                                && HollowKnightTAS.Core.Movie.MovieV2Prefix.Matches(TimelineTree.Parse(t.Nodes[0].Movie), movie, 0));
+                            if (tree == null)
+                            {
+                                tree = library.Trees.FirstOrDefault(t => t.Nodes.Count == 1 && t.Nodes[0].Movie.Length == 0) ?? new TimelineTree();
+                                if (!library.Trees.Contains(tree)) library.Trees.Add(tree);
+                            }
+                            tree.Add(save.Frame, save.Movie, save.OriginalHashes);
+                            library.ActiveTreeId = tree.Id;
+                        }
+                        library.LegacyImported = true;
+                    });
+                }
+                if (freshTimeline != null)
+                {
+                    selectedTimelineTree = freshTimeline;
+                    selectedWorldline = freshTimeline.Nodes[0];
+                    selectedTimelineNode = selectedWorldline;
+                    NotifyWorldlines();
+                }
+                else RefreshWorldlines(worldlines.Library.ActiveTreeId);
+            }
+            catch (Exception ex) { worldlines = null; TimelineTreeStatus = "时间线加载失败（原文件保留）：" + ex.Message; }
+        }
+        private void NotifyWorldlines()
+        {
+            OnPropertyChanged(nameof(TimelineTrees));
+            OnPropertyChanged(nameof(WorldlineLeaves));
+            OnPropertyChanged(nameof(WorldlinePath));
+            void Selection()
+            {
+                // A rejected transient null from ItemsSource replacement leaves WPF's
+                // source-value cache unchanged. Explicitly reset that cache before rebinding.
+                resettingTimelineSelectors = true;
+                OnPropertyChanged(nameof(SelectedTimelineTreeId));
+                OnPropertyChanged(nameof(SelectedWorldlineId));
+                resettingTimelineSelectors = false;
+                OnPropertyChanged(nameof(SelectedTimelineTreeId));
+                OnPropertyChanged(nameof(SelectedWorldlineId));
+                OnPropertyChanged(nameof(SelectedTimelineTree));
+                OnPropertyChanged(nameof(SelectedWorldline));
+                OnPropertyChanged(nameof(SelectedTimelineNode));
+            }
+            Selection();
+            // ItemsSource replacement can clear a Selector after the first notification.
+            if (Application.Current != null) Application.Current.Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.ContextIdle, new Action(Selection));
+            OnPropertyChanged(nameof(TimelineNodeDetail));
+            OnPropertyChanged(nameof(SaveTimelineNodeCommand)); OnPropertyChanged(nameof(RestoreTimelineNodeCommand));
+            OnPropertyChanged(nameof(DeleteTimelineNodeCommand));
+            if (quickSlots != null) RenderQuickSlots();
+        }
+        private void RefreshWorldlines(string? treeId = null, int? leafId = null, int? nodeId = null)
+        {
+            selectedTimelineTree = worldlines!.Library.Trees.FirstOrDefault(t => t.Id == treeId) ?? worldlines.Library.Trees.Last();
+            selectedWorldline = selectedTimelineTree.Leaves.FirstOrDefault(n => n.Id == leafId) ?? selectedTimelineTree.Leaves.Last();
+            selectedTimelineNode = selectedTimelineTree.PathTo(selectedWorldline.Id).FirstOrDefault(n => n.Id == nodeId) ?? selectedWorldline;
+            NotifyWorldlines();
+        }
+        private void StartTimeline(string movie)
+        {
+            InitializeWorldlines();
+            if (worldlines == null) throw new InvalidOperationException(TimelineTreeStatus);
+            string id = "";
+            worldlines.Update(library =>
+            {
+                var tree = library.Trees.FirstOrDefault(t => t.Nodes.Count == 1 && t.Nodes[0].Movie.Length == 0) ?? new TimelineTree();
+                if (!library.Trees.Contains(tree)) library.Trees.Add(tree);
+                tree.Nodes[0].Movie = movie;
+                if (fullRunMovies?.IsPending == true) tree.OriginalHashes = new Dictionary<string, string>(fullRunMovies.OriginalHashes);
+                id = library.ActiveTreeId = tree.Id;
+            });
+            freshTimeline = null;
+            RefreshWorldlines(id);
+        }
+        private void SaveTimelineSnapshot(FrameSave snapshot)
+        {
+            InitializeWorldlines();
+            if (worldlines == null) throw new InvalidOperationException(TimelineTreeStatus);
+            var id = worldlines.Library.ActiveTreeId;
+            int nodeId = 0;
+            worldlines.Update(library =>
+            {
+                var tree = library.Trees.FirstOrDefault(t => t.Id == id) ?? library.Trees.Last();
+                id = library.ActiveTreeId = tree.Id;
+                nodeId = tree.Add(snapshot.Frame, snapshot.Movie, snapshot.OriginalHashes).Id;
+            });
+            RefreshWorldlines(id, nodeId, nodeId);
+            GridStatus = TimelineTreeStatus = $"已保存节点 {nodeId} · Frame {snapshot.Frame}；旧世界线已保留。";
+        }
+        public void SelectTimelineNode(int id)
+        {
+            if (gridApplying || selectedTimelineTree == null) return;
+            var node = selectedTimelineTree.Nodes.Single(n => n.Id == id);
+            if (selectedWorldline == null || !selectedTimelineTree.PathTo(selectedWorldline.Id).Any(n => n.Id == id))
+                selectedWorldline = selectedTimelineTree.Leaves.Last(n => selectedTimelineTree.PathTo(n.Id).Any(p => p.Id == id));
+            selectedTimelineNode = node; NotifyWorldlines();
+        }
+        private TimelineNode? FindTimelineFrame(long frame)
+            => WorldlinePath.LastOrDefault(n => n.Frame == frame && n.Movie.Length != 0);
+
+        private async Task RestoreTimelineSelectionAsync()
+        {
+            if (gridApplying || selectedTimelineTree == null || selectedTimelineNode == null || selectedWorldline == null) return;
+            SetGridApplying(true);
+            try { await RestoreTimelineCoreAsync(selectedTimelineTree, selectedWorldline, selectedTimelineNode); }
+            catch (Exception ex) { TimelineTreeStatus = Status = ex.Message; }
+            finally { SetGridApplying(false); }
+        }
+        private async Task RestoreTimelineCoreAsync(TimelineTree tree, TimelineNode leaf, TimelineNode node)
+        {
+            if (fullRunMovies?.IsPending != true) throw new InvalidOperationException("请先从 Studio 启动受控游戏。");
+            if (!tree.PathTo(leaf.Id).Any(n => n.Id == node.Id)) throw new InvalidOperationException("节点不属于所选世界线。");
+            if (leaf.Movie.Length == 0) throw new InvalidOperationException("此起点尚未关联序列，请先新建 Movie。");
+            fullRunMovies.VerifyOriginalSavesUnchanged();
+            if (!TimelineTree.SameBaseline(tree.OriginalHashes, fullRunMovies.OriginalHashes))
+                throw new InvalidOperationException("原始存档已改变，无法恢复此时间线。");
+            if (startupBoot?.IsWaiting != true) await fullRunMovies.PauseAsync(CancellationToken.None);
+            // Keep the chosen world's future inputs even when restoring an ancestor.
+            MovieText = leaf.Movie;
+            await RestartDraftAtAsync(node.Frame);
+            worldlines!.Update(library => library.ActiveTreeId = tree.Id);
+            freshTimeline = null;
+            RefreshWorldlines(tree.Id, leaf.Id, node.Id);
+            TimelineTreeStatus = $"世界线 {leaf.Id} · 已恢复 {node.Label}。";
+        }
+        private void DeleteTimelineSelection()
+        {
+            if (gridApplying || selectedTimelineTree == null || selectedTimelineNode == null) return;
+            var tree = selectedTimelineTree; var node = selectedTimelineNode;
+            var count = tree.Subtree(node.Id).Count - (node.Id == 0 ? 1 : 0);
+            if (MessageBox.Show($"删除 {node.Label} 及其子树？将移除 {count} 个存档节点。此操作不可撤销。\n第 0 帧起点会保留；当前游戏和输入草稿不会改变。",
+                    "删除时间线子树", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            try
+            {
+                worldlines!.Update(library =>
+                {
+                    var target = library.Trees.Single(t => t.Id == tree.Id);
+                    var removed = target.Subtree(node.Id);
+                    target.Delete(node.Id);
+                    foreach (var slot in library.QuickSlots.Where(p => removed.Any(n => p.Value == tree.Id + ":" + n)).Select(p => p.Key).ToArray())
+                        library.QuickSlots.Remove(slot);
+                });
+                RefreshWorldlines(tree.Id); TimelineTreeStatus = $"已删除 {count} 个存档节点；其他世界线保留。";
+            }
+            catch (Exception ex) { TimelineTreeStatus = ex.Message; }
+        }
+
+        private async Task RunTimelineQuickSlotAsync(bool save)
+        {
+            if (gridApplying || quickSlotBusy) return;
+            quickSlotBusy = true;
+            try
+            {
+                InitializeWorldlines();
+                if (worldlines == null) throw new InvalidOperationException(TimelineTreeStatus);
+                var slot = SelectedQuickSlot;
+                if (save)
+                {
+                    var count = worldlines.Library.Trees.Sum(t => t.Nodes.Count);
+                    await FrameMenuAsync("save", -1);
+                    if (count == worldlines.Library.Trees.Sum(t => t.Nodes.Count)) throw new InvalidOperationException(GridStatus);
+                    var reference = selectedTimelineTree!.Id + ":" + selectedTimelineNode!.Id;
+                    worldlines.Update(library => library.QuickSlots[slot] = reference);
+                    RefreshWorldlines(selectedTimelineTree.Id, selectedWorldline?.Id, selectedTimelineNode.Id);
+                }
+                else
+                {
+                    if (!worldlines.Library.QuickSlots.TryGetValue(slot, out var reference)) throw new InvalidOperationException("此快捷槽尚未保存时间线节点。");
+                    var parts = reference.Split(':');
+                    var tree = worldlines.Library.Trees.Single(t => t.Id == parts[0]);
+                    var node = tree.Nodes.Single(n => n.Id == int.Parse(parts[1]));
+                    var leaf = tree.Leaves.Last(n => tree.PathTo(n.Id).Any(p => p.Id == node.Id));
+                    SetGridApplying(true);
+                    try { await RestoreTimelineCoreAsync(tree, leaf, node); }
+                    finally { SetGridApplying(false); }
+                }
+                QuickSlotStatus = $"F{slot + 1} 已{(save ? "保存" : "恢复")}时间线节点 · {selectedTimelineNode!.Label}。";
+                RenderQuickSlots();
+            }
+            catch (Exception ex) { QuickSlotStatus = ex.Message; }
+            finally { quickSlotBusy = false; }
+        }
+    }
+}

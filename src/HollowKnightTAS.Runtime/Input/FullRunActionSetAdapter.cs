@@ -15,6 +15,9 @@ namespace HollowKnightTAS.Runtime.Input
         private IReadOnlyList<GameInputSample> expected = Array.Empty<GameInputSample>();
         private long currentFrame = -1;
         private int sampleIndex;
+        private bool authored;
+        private readonly HashSet<GameInputChannel> authoredEdgeChannels = new HashSet<GameInputChannel>();
+        private readonly Dictionary<GameInputChannel, int> authoredSampleCounts = new Dictionary<GameInputChannel, int>();
         private bool recording;
         private bool replaying;
         private bool hooked;
@@ -54,6 +57,9 @@ namespace HollowKnightTAS.Runtime.Input
             if (!MovieProtocolV2.IsMouseChannel(channel) || currentFrame < 0)
                 throw new InvalidOperationException("Mouse input is outside a prepared native frame.");
             if (!replaying) return null;
+            if (authored)
+                return expected.LastOrDefault(s => s.Channel == channel)
+                    ?? new GameInputSample(channel, Array.Empty<short>(), new MouseFrameState(0, 0, 0, 0, 0, 0));
             SkipRedundantSamplesBefore(channel);
             if (sampleIndex >= expected.Count || expected[sampleIndex].Channel != channel
                 || expected[sampleIndex].Mouse == null)
@@ -93,6 +99,23 @@ namespace HollowKnightTAS.Runtime.Input
         public void StartReplay(MovieV2Document movie)
         {
             RequireFresh();
+            SetReplayMovie(movie);
+            Hook();
+        }
+
+        public void ReplaceFutureMovie(MovieV2Document movie, long frame)
+        {
+            if (disposed || !hooked || currentFrame != frame || sampleIndex != 0)
+                throw new InvalidOperationException("Input replacement requires an unconsumed frame boundary.");
+            SetReplayMovie(movie);
+            authoredSampleCounts.Clear();
+            var run = RunAt(frame);
+            authored = run.Authored;
+            expected = run.Samples;
+        }
+
+        private void SetReplayMovie(MovieV2Document movie)
+        {
             this.movie = movie ?? throw new ArgumentNullException(nameof(movie));
             var starts = new long[movie.Runs.Count];
             long total = 0;
@@ -102,8 +125,8 @@ namespace HollowKnightTAS.Runtime.Input
                 total = checked(total + movie.Runs[index].RepeatCount);
             }
             runStarts = starts;
+            recording = false;
             replaying = true;
-            Hook();
         }
 
         public void PrepareFrame(long frameIndex)
@@ -114,7 +137,10 @@ namespace HollowKnightTAS.Runtime.Input
                 throw new InvalidOperationException("Native frame preparation is not sequential.");
             currentFrame = frameIndex;
             sampleIndex = 0;
-            expected = replaying ? SamplesAt(frameIndex) : Array.Empty<GameInputSample>();
+            authoredSampleCounts.Clear();
+            var run = replaying ? RunAt(frameIndex) : null;
+            authored = run?.Authored == true;
+            expected = run?.Samples ?? Array.Empty<GameInputSample>();
         }
 
         public void CompleteFrame(long frameIndex)
@@ -124,9 +150,9 @@ namespace HollowKnightTAS.Runtime.Input
                 Fail("Native frame completion differs from prepared input frame.");
                 return;
             }
-            if (replaying)
+            if (replaying && !authored)
                 while (sampleIndex < expected.Count && IsRedundant(sampleIndex)) sampleIndex++;
-            if (replaying && sampleIndex != expected.Count)
+            if (replaying && !authored && sampleIndex != expected.Count)
                 Fail("Input sample count mismatch at native frame " + frameIndex
                     + ": expected=" + expected.Count + ";actual=" + sampleIndex);
         }
@@ -143,7 +169,7 @@ namespace HollowKnightTAS.Runtime.Input
                 throw new InvalidOperationException("Full-run input adapter is already active.");
         }
 
-        private IReadOnlyList<GameInputSample> SamplesAt(long frame)
+        private NativeFrameRun RunAt(long frame)
         {
             var starts = runStarts ?? throw new InvalidOperationException("Replay index is unavailable.");
             var runs = movie?.Runs ?? throw new InvalidOperationException("Replay movie is unavailable.");
@@ -156,7 +182,7 @@ namespace HollowKnightTAS.Runtime.Input
                 var end = start + runs[middle].RepeatCount;
                 if (frame < start) high = middle - 1;
                 else if (frame >= end) low = middle + 1;
-                else return runs[middle].Samples;
+                else return runs[middle];
             }
             throw new InvalidOperationException("Movie has no input frame at native frame " + frame + ".");
         }
@@ -186,6 +212,17 @@ namespace HollowKnightTAS.Runtime.Input
                 var redundantExtra = false;
                 if (replaying)
                 {
+                    if (authored)
+                    {
+                        var channelSamples = expected.Where(s => s.Channel == channel).ToArray();
+                        authoredSampleCounts.TryGetValue(channel, out var ordinal);
+                        desired = channelSamples.Length == 0 ? new GameInputSample(channel, new short[actions.Length], null)
+                            : channelSamples[Math.Min(ordinal, channelSamples.Length - 1)];
+                        authoredSampleCounts[channel] = ordinal + 1;
+                        authoredEdgeChannels.Add(channel);
+                    }
+                    else
+                    {
                     SkipRedundantSamplesBefore(channel);
                     if (sampleIndex >= expected.Count)
                     {
@@ -206,6 +243,7 @@ namespace HollowKnightTAS.Runtime.Input
                             throw new InvalidDataException("Input channel/order mismatch at native frame "
                                 + currentFrame + ", sample " + sampleIndex + ".");
                         desired = expected[sampleIndex];
+                    }
                     }
                     var lease = FindOrAttach(self, channel, actions);
                     lease.Prepare(desired.Values);
@@ -228,7 +266,7 @@ namespace HollowKnightTAS.Runtime.Input
                         if (Math.Abs(values[index] - desired.Values[index]) > 1)
                             throw new InvalidDataException("Input value mismatch at native frame "
                                 + currentFrame + ", sample " + sampleIndex + ", action " + index + ".");
-                    if (pressed != desired.PressedMask || released != desired.ReleasedMask)
+                    if (!authored && !authoredEdgeChannels.Remove(channel) && (pressed != desired.PressedMask || released != desired.ReleasedMask))
                         throw new InvalidDataException("Input edge mismatch at native frame "
                             + currentFrame + ", sample " + sampleIndex + ".");
                 }

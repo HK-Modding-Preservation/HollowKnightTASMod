@@ -33,17 +33,17 @@ namespace HollowKnightTAS.Companion.Services
         }
 
         public FullRunBootDescriptor StageRecording(string gateToken, string runId,
-            bool mouseEnabled)
+            bool mouseEnabled, int framesPerSecond = 50)
         {
             RequireFresh();
             pendingMovie = null;
             staged = new FullRunBootDescriptor(gateToken, runId, "Record",
-                mouseEnabled, string.Empty, string.Empty);
+                mouseEnabled, string.Empty, string.Empty, framesPerSecond);
             return staged;
         }
 
         public FullRunBootDescriptor StageReplay(string gateToken, string runId,
-            MovieV2Document movie)
+            MovieV2Document movie, long pauseAtFrame = -1)
         {
             RequireFresh();
             if (movie == null) throw new ArgumentNullException(nameof(movie));
@@ -51,7 +51,7 @@ namespace HollowKnightTAS.Companion.Services
             pendingMovie = new UTF8Encoding(false, true).GetBytes(canonical);
             var moviePath = Path.Combine(root, gateToken, "movie.hktas");
             staged = new FullRunBootDescriptor(gateToken, runId, "Replay",
-                movie.Header.MouseEnabled, moviePath, Sha256Utility.ComputeHex(pendingMovie));
+                movie.Header.MouseEnabled, moviePath, Sha256Utility.ComputeHex(pendingMovie), 50, pauseAtFrame);
             return staged;
         }
 

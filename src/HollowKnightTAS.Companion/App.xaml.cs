@@ -161,7 +161,7 @@ namespace HollowKnightTAS.Companion
                         var existingGames = System.Diagnostics.Process.GetProcessesByName("hollow_knight");
                         try
                         {
-                            if (existingGames.Length != 0)
+                            if (existingGames.Any(process => !process.HasExited))
                                 throw new InvalidOperationException("请先在游戏内正常保存并退出，然后启动 TAS 游戏。");
                         }
                         finally
@@ -211,6 +211,25 @@ namespace HollowKnightTAS.Companion
                             || startupGame == null)
                             throw new InvalidOperationException("受控游戏尚未停在可退出的启动帧。");
                         if (!startupGame.HasExited) startupGame.Kill();
+                    }, async () =>
+                    {
+                        if (startupGame == null || startupBoot?.IsWaiting != true || fullRunMovies == null)
+                            throw new InvalidOperationException("重放重启需要受控游戏停在帧边界。");
+                        fullRunMovies.VerifyOriginalSavesUnchanged();
+                        var process = startupGame;
+                        var path = process.MainModule?.FileName ?? throw new InvalidOperationException("游戏路径不可用。");
+                        startupGame = null;
+                        try
+                        {
+                            if (!process.HasExited) process.Kill();
+                            await process.WaitForExitAsync();
+                        }
+                        finally { process.Dispose(); }
+                        fullRunMovies.VerifyOriginalSavesUnchanged();
+                        startupBoot.Dispose();
+                        fullRunMovies.ClearAfterExit();
+                        automationBroker.EndFullRunEndpoint();
+                        await launchGameAsync(path);
                     });
                 automaticStartup = new AutomaticStartupHandoff(sessions, Dispatcher,
                     gamePath => Task.Run(() => VerifiedStartupProfile.Load(

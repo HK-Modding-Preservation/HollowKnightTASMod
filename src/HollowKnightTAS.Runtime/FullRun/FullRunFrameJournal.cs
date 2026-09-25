@@ -39,10 +39,10 @@ namespace HollowKnightTAS.Runtime.FullRun
             activeTicks.Add(inputTick);
         }
 
-        public void CompleteFrame(long frameIndex)
+        public void CompleteFrame(long frameIndex, int framesPerSecond = 50)
         {
             RequireActive(frameIndex);
-            pending.Add(new FrameRecord(frameIndex, active.ToArray(), activeTicks.ToArray()));
+            pending.Add(new FrameRecord(frameIndex, active.ToArray(), activeTicks.ToArray(), framesPerSecond));
             active.Clear();
             activeTicks.Clear();
             nextFrame = checked(nextFrame + 1);
@@ -58,6 +58,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             var runs = new List<NativeFrameRun>();
             IReadOnlyList<GameInputSample>? previous = null;
             long repeat = 0;
+            int previousFps = 50;
             long readFrames = 0;
             foreach (var segment in segments)
             {
@@ -65,13 +66,14 @@ namespace HollowKnightTAS.Runtime.FullRun
                 {
                     if (frame.FrameIndex != readFrames)
                         Fail("Native frame segment index is missing or duplicated.");
-                    if (previous != null && Same(previous, frame.Samples)) repeat++;
+                    if (previous != null && previousFps == frame.FramesPerSecond && Same(previous, frame.Samples)) repeat++;
                     else
                     {
                         if (previous != null)
                             runs.Add(new NativeFrameRun(repeat, previous,
-                                new MovieSourceSpan("<recording>", 1, 1, 1)));
+                                new MovieSourceSpan("<recording>", 1, 1, 1), previousFps));
                         previous = frame.Samples;
+                        previousFps = frame.FramesPerSecond;
                         repeat = 1;
                     }
                     readFrames++;
@@ -79,7 +81,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             }
             if (previous != null)
                 runs.Add(new NativeFrameRun(repeat, previous,
-                    new MovieSourceSpan("<recording>", 1, 1, 1)));
+                    new MovieSourceSpan("<recording>", 1, 1, 1), previousFps));
             if (readFrames != completedFrames)
                 Fail("Full-run journal frame count differs from its segments.");
             var movie = new MovieV2Document("<recording>", header, runs);
@@ -101,12 +103,13 @@ namespace HollowKnightTAS.Runtime.FullRun
                     FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
                 using (var writer = new BinaryWriter(stream))
                 {
-                    writer.Write(0x324a5448); // HTJ2
+                    writer.Write(0x334a5448); // HTJ2
                     writer.Write(first);
                     writer.Write(pending.Count);
                     foreach (var frame in pending)
                     {
                         writer.Write(frame.FrameIndex);
+                        writer.Write(frame.FramesPerSecond);
                         writer.Write(frame.Samples.Length);
                         for (var index = 0; index < frame.Samples.Length; index++)
                         {
@@ -151,7 +154,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (var reader = new BinaryReader(stream))
             {
-                if (stream.Length > MaximumSegmentBytes || reader.ReadInt32() != 0x324a5448)
+                if (stream.Length > MaximumSegmentBytes || reader.ReadInt32() != 0x334a5448)
                     throw new InvalidDataException("Full-run input segment is invalid.");
                 var first = reader.ReadInt64();
                 var count = reader.ReadInt32();
@@ -160,6 +163,8 @@ namespace HollowKnightTAS.Runtime.FullRun
                 for (var frameIndex = 0; frameIndex < count; frameIndex++)
                 {
                     var frame = reader.ReadInt64();
+                    var fps = reader.ReadInt32();
+                    if (fps < 1 || fps > 1000) throw new InvalidDataException("Invalid journal FPS.");
                     var sampleCount = reader.ReadInt32();
                     if (frame != first + frameIndex || sampleCount < 0
                         || sampleCount > MovieProtocolV2.MaximumSamplesPerFrame)
@@ -186,7 +191,7 @@ namespace HollowKnightTAS.Runtime.FullRun
                         samples[index] = new GameInputSample(channel, values, mouse,
                             pressedMask, releasedMask);
                     }
-                    yield return new FrameRecord(frame, samples, ticks);
+                    yield return new FrameRecord(frame, samples, ticks, fps);
                 }
                 if (stream.Position != stream.Length)
                     throw new InvalidDataException("Full-run segment has trailing bytes.");
@@ -232,12 +237,14 @@ namespace HollowKnightTAS.Runtime.FullRun
 
         private sealed class FrameRecord
         {
-            public FrameRecord(long frameIndex, GameInputSample[] samples, ulong[] ticks)
+            public FrameRecord(long frameIndex, GameInputSample[] samples, ulong[] ticks, int framesPerSecond)
             {
+                FramesPerSecond = framesPerSecond;
                 FrameIndex = frameIndex;
                 Samples = samples;
                 Ticks = ticks;
             }
+            public int FramesPerSecond { get; }
             public long FrameIndex { get; }
             public GameInputSample[] Samples { get; }
             public ulong[] Ticks { get; }

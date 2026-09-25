@@ -1220,6 +1220,20 @@ namespace HollowKnightTAS.Runtime.Ipc
             var session = fullRunSession ?? throw new InvalidOperationException("Full-run session is unavailable.");
             switch (command.MessageType)
             {
+                case IpcMessageTypes.FullRunSeek:
+                    RequireFields(command.Fields, "requestId", "targetFrame", "expectedNativeFrame");
+                    session.SetPauseTarget(long.Parse(command.Fields["targetFrame"], CultureInfo.InvariantCulture),
+                        long.Parse(command.Fields["expectedNativeFrame"], CultureInfo.InvariantCulture));
+                    return "Movie pause target set.";
+                case IpcMessageTypes.FullRunSnapshot:
+                    RequireFields(command.Fields, "requestId");
+                    Publish(IpcMessageTypes.FullRunMovieDocument, new Dictionary<string, string>
+                    {
+                        ["requestId"] = command.Fields["requestId"], ["available"] = "true",
+                        ["path"] = session.SnapshotMovie(), ["movieId"] = string.Empty,
+                        ["movieFrame"] = session.GetStatus().MovieFrame.ToString(CultureInfo.InvariantCulture)
+                    });
+                    return "Paused Movie snapshot saved.";
                 case IpcMessageTypes.FullRunStatus:
                     RequireFields(command.Fields, "requestId");
                     PublishFullRunState(command.Fields["requestId"]);
@@ -1238,6 +1252,11 @@ namespace HollowKnightTAS.Runtime.Ipc
                     RequireFields(command.Fields, "requestId");
                     PublishFullRunMovie(command.Fields["requestId"]);
                     return "Full-run movie location published.";
+                case IpcMessageTypes.FullRunUpdateMovie:
+                    RequireFields(command.Fields, "requestId", "moviePath", "expectedNativeFrame");
+                    fullRunSession!.UpdateFutureMovie(command.Fields["moviePath"],
+                        long.Parse(command.Fields["expectedNativeFrame"], CultureInfo.InvariantCulture));
+                    return "Future Movie inputs updated at the paused boundary.";
                 case IpcMessageTypes.QuitGame:
                     RequireFields(command.Fields, "requestId");
                     gameExitRequested = true;
@@ -1263,6 +1282,8 @@ namespace HollowKnightTAS.Runtime.Ipc
                 ["mode"] = status.Mode,
                 ["nativeFrame"] = status.NativeFrame.ToString(CultureInfo.InvariantCulture),
                 ["movieFrame"] = status.MovieFrame.ToString(CultureInfo.InvariantCulture),
+                ["frameRate"] = fullRunSession!.ActiveFrameRate.ToString(CultureInfo.InvariantCulture),
+                ["clockStepSeconds"] = fullRunSession.ClockStepSeconds.ToString("R", CultureInfo.InvariantCulture),
                 ["skippedLoadFrames"] = status.SkippedLoadFrames.ToString(CultureInfo.InvariantCulture),
                 ["frameBoundary"] = status.FrameBoundary,
                 ["runtimeInputReady"] = status.RuntimeInputReady ? "true" : "false",

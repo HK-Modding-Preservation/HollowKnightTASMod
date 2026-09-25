@@ -58,15 +58,59 @@
       <Setter Property="Background" Value="{StaticResource PanelBrush}" />
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
     </Style>
+    <Style TargetType="ContextMenu">
+      <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ContextMenu">
+        <Border Background="{TemplateBinding Background}" BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1" Padding="3">
+          <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+        </Border>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style TargetType="MenuItem">
       <Setter Property="Background" Value="{StaticResource PanelBrush}" />
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-      <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}" />
-      <Setter Property="Padding" Value="7,4" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem">
+        <Grid>
+          <Border x:Name="ItemBorder" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <TextBlock x:Name="Check" Text="✓" Width="18" Visibility="Collapsed" Foreground="{StaticResource AccentBrush}" />
+              <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}" Margin="14,0,0,0" Foreground="{StaticResource MutedTextBrush}" />
+              <TextBlock x:Name="Arrow" Grid.Column="3" Text="›" Margin="12,0,0,0" Visibility="Collapsed" />
+            </Grid>
+          </Border>
+          <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="-1" AllowsTransparency="True"
+                 IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}" Focusable="False" PopupAnimation="Fade">
+            <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource ControlBorderBrush}" BorderThickness="1" Padding="3">
+              <ScrollViewer CanContentScroll="True" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Cycle" />
+              </ScrollViewer>
+            </Border>
+          </Popup>
+        </Grid>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="ItemBorder" Property="Background" Value="#29384A" /></Trigger>
+          <Trigger Property="IsSubmenuOpen" Value="True"><Setter TargetName="ItemBorder" Property="Background" Value="#29384A" /></Trigger>
+          <Trigger Property="IsCheckable" Value="True"><Setter TargetName="Check" Property="Visibility" Value="Hidden" /></Trigger>
+          <Trigger Property="IsChecked" Value="True"><Setter TargetName="Check" Property="Visibility" Value="Visible" /></Trigger>
+          <Trigger Property="HasItems" Value="True"><Setter TargetName="Arrow" Property="Visibility" Value="Visible" /></Trigger>
+          <Trigger Property="Role" Value="TopLevelHeader"><Setter TargetName="PART_Popup" Property="Placement" Value="Bottom" /><Setter TargetName="Arrow" Property="Visibility" Value="Collapsed" /></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="#6C7B8B" /></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style TargetType="Separator">
-      <Setter Property="Background" Value="{StaticResource ControlBorderBrush}" />
-      <Setter Property="Foreground" Value="{StaticResource ControlBorderBrush}" />
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Separator">
+        <Border Height="1" Background="{StaticResource ControlBorderBrush}" Margin="4,3" />
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style TargetType="ToolTip">
+      <Setter Property="Background" Value="{StaticResource PanelBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource ControlBorderBrush}" />
     </Style>
     <Style TargetType="TextBox">
       <Setter Property="Background" Value="#0D131B" />

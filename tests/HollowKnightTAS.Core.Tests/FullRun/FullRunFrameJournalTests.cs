@@ -10,6 +10,23 @@ namespace HollowKnightTAS.Core.Tests.FullRun
     public sealed class FullRunFrameJournalTests
     {
         [TestMethod]
+        public void SnapshotCanContinueAndDoesNotMergeDifferentFrameRates()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "HKTAS-FullRunJournalTests", Guid.NewGuid().ToString("N"));
+            var journal = new FullRunFrameJournal(root);
+            var header = new MovieV2Header("game", "api", "mod", MovieProtocolV2.NativeProfileId,
+                MovieProtocolV2.ActionSchemaId, false, "none", 800, 450);
+            journal.CompleteFrame(0, 50);
+            var first = journal.Freeze(header, 1);
+            journal.CompleteFrame(1, 100);
+            var second = journal.Freeze(header, 2);
+            Assert.AreEqual(1, first.Runs.Count);
+            Assert.AreEqual(2, second.Runs.Count);
+            Assert.AreEqual(50, second.Runs[0].FramesPerSecond);
+            Assert.AreEqual(100, second.Runs[1].FramesPerSecond);
+        }
+
+        [TestMethod]
         public void Freeze_PreservesZeroSamplePrefixAndMergesRepeatedMenuFrames()
         {
             var parent = Path.GetFullPath(Path.Combine(Path.GetTempPath(),

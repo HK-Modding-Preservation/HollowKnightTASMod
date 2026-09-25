@@ -49,6 +49,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private readonly AutomationBroker automationBroker;
         private readonly Func<string, Task>? launchGame;
         private readonly Action? exitProtectedGameProcess;
+        private readonly Func<Task>? restartProtectedGame;
         private readonly StartupBootController? startupBoot;
         private readonly FullRunMovieCoordinator? fullRunMovies;
         private readonly HashSet<string> warmedSessions =
@@ -117,7 +118,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             Func<string, Task>? launchGame = null,
             StartupBootController? startupBoot = null,
             FullRunMovieCoordinator? fullRunMovies = null,
-            Action? exitProtectedGameProcess = null)
+            Action? exitProtectedGameProcess = null, Func<Task>? restartProtectedGame = null)
         {
             this.registry = registry;
             this.movieEditor = movieEditor;
@@ -125,6 +126,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             this.nativeHostLauncher = nativeHostLauncher;
             this.automationBroker = automationBroker;
             this.exitProtectedGameProcess = exitProtectedGameProcess;
+            this.restartProtectedGame = restartProtectedGame;
             automationBroker.ColdRestoreChanged += (_, args) => Dispatch(() =>
             {
                 var record = args.Snapshot.Latest;
@@ -147,6 +149,8 @@ namespace HollowKnightTAS.Companion.ViewModels
                 OnPropertyChanged(nameof(FrameCounterText));
                 OnPropertyChanged(nameof(PlaybackStateText));
                 OnPropertyChanged(nameof(PlayPauseLabel));
+                OnPropertyChanged(nameof(SaveTimelineNodeCommand));
+                OnPropertyChanged(nameof(RestoreTimelineNodeCommand));
                 foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
                 Status = startupBoot.IsWaiting
                     ? fullRunMovies?.IsArmed == true
@@ -155,7 +159,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                             ? "全流程 Movie 已在第 " + startupBoot.NativeCompletedFrames
                                 + " 帧完成。"
                             : startupBoot.NativeCompletedFrames == 0
-                                ? "已停在第 0 帧；请选择 New Movie 或打开 v2 Movie。"
+                                ? "已停在第 0 帧；直接播放或逐帧会自动新建 Movie，也可打开已有序列。"
                                 : "全流程 Movie 已在第 " + startupBoot.NativeCompletedFrames
                                     + " 帧停止。"
                     : startupBoot.IsPending ? "等待下一启动帧边界…" : "启动门闩已释放；等待 Runtime 连接。";
@@ -241,8 +245,8 @@ namespace HollowKnightTAS.Companion.ViewModels
                 {
                     if (fullRunMovies?.IsPending == true)
                     {
-                        if (!fullRunMovies.IsArmed)
-                            throw new InvalidOperationException("先在第 0 帧选择 New Movie 或打开 v2 Movie。");
+                        if (fullRunMovies.Mode == "Unarmed") NewFullRunMovie();
+                        await ApplyPendingInputsAsync();
                         var boundary = await fullRunMovies.RunAsync(
                             this.startupBoot.NativeCompletedFrames, CancellationToken.None);
                         if (boundary.Mode == "Fault") throw new InvalidOperationException(boundary.Error);
@@ -270,6 +274,8 @@ namespace HollowKnightTAS.Companion.ViewModels
                         {
                             if (fullRunMovies?.IsPending == true)
                             {
+                                if (fullRunMovies.Mode == "Unarmed") NewFullRunMovie();
+                                await ApplyPendingInputsAsync();
                                 var boundary = await fullRunMovies.StepAsync(
                                     this.startupBoot.NativeCompletedFrames, CancellationToken.None);
                                 if (boundary.Mode == "Fault") throw new InvalidOperationException(boundary.Error);
@@ -475,7 +481,8 @@ namespace HollowKnightTAS.Companion.ViewModels
                 Set(ref movieText, value);
                 if (gridSource != value)
                 {
-                    InputRows.Clear();
+                    InputRows = new VirtualInputRows();
+                    OnPropertyChanged(nameof(InputRows));
                     GridStatus = "文本已改变；刷新表格后继续编辑。";
                 }
             }
@@ -887,13 +894,13 @@ namespace HollowKnightTAS.Companion.ViewModels
                         Status = exception.Message;
                     }
                 },
-                () => startupBoot?.IsPending == true
+                () => !gridApplying && (startupBoot?.IsPending == true
                     ? fullRunMovies?.IsPending == true
-                        ? fullRunMovies.IsArmed && !startupBoot.IsCommandPending && (allowStartupContinue
+                        ? (fullRunMovies.IsArmed || fullRunMovies.Mode == "Unarmed") && !startupBoot.IsCommandPending && (allowStartupContinue
                             || (allowStartupStep && startupBoot.CanStep))
                         : (allowStartupContinue && startupBoot.IsWaiting)
                             || (allowStartupStep && startupBoot.CanStep)
-                    : !requireConnected || SelectedSession?.Client.IsConnected == true);
+                    : !requireConnected || SelectedSession?.Client.IsConnected == true));
             runtimeCommands.Add(command);
             return command;
         }
@@ -1020,6 +1027,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 if (!candidate.Success || candidate.V2Document == null)
                     throw new InvalidDataException("第 0 帧只能预置有效的 v2 全流程 Movie；v1 文件仍可查看。 ");
                 fullRunMovies.ArmReplay(candidate.V2Document);
+                StartTimeline(MovieText);
                 OnPropertyChanged(nameof(PlaybackStateText));
                 foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
                 Status = "v2 Movie 已在原生第 0 帧预置；可单步或播放。";

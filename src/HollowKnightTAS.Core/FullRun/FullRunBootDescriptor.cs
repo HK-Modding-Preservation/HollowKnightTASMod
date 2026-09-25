@@ -13,7 +13,7 @@ namespace HollowKnightTAS.Core.FullRun
         private const string Format = "hktas-full-run-boot-v1";
 
         public FullRunBootDescriptor(string gateToken, string runId, string mode,
-            bool mouseEnabled, string moviePath, string movieSha256)
+            bool mouseEnabled, string moviePath, string movieSha256, int framesPerSecond = 50, long pauseAtFrame = -1)
         {
             if (!IsGateToken(gateToken)) throw new ArgumentException("Invalid gate token.", nameof(gateToken));
             if (!ProtectedSaveDescriptor.IsSafeRunId(runId))
@@ -31,6 +31,10 @@ namespace HollowKnightTAS.Core.FullRun
                     StringComparison.OrdinalIgnoreCase)
                 || !MovieProtocolV1.IsLowerSha256(movieSha256))
                 throw new ArgumentException("Replay movie path or hash is invalid.");
+            if (framesPerSecond < 1 || framesPerSecond > 1000 || pauseAtFrame < -1 || pauseAtFrame > MovieProtocolV2.MaximumExpandedFrames)
+                throw new ArgumentOutOfRangeException(nameof(framesPerSecond));
+            FramesPerSecond = framesPerSecond;
+            PauseAtFrame = pauseAtFrame;
             GateToken = gateToken;
             RunId = runId;
             Mode = mode;
@@ -39,6 +43,8 @@ namespace HollowKnightTAS.Core.FullRun
             MovieSha256 = movieSha256;
         }
 
+        public int FramesPerSecond { get; }
+        public long PauseAtFrame { get; }
         public string GateToken { get; }
         public string RunId { get; }
         public string Mode { get; }
@@ -51,6 +57,7 @@ namespace HollowKnightTAS.Core.FullRun
             if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
             var record = new Record
             {
+                FramesPerSecond = descriptor.FramesPerSecond, PauseAtFrame = descriptor.PauseAtFrame,
                 Format = Format, GateToken = descriptor.GateToken,
                 RunId = descriptor.RunId, Mode = descriptor.Mode,
                 MouseEnabled = descriptor.MouseEnabled,
@@ -77,7 +84,7 @@ namespace HollowKnightTAS.Core.FullRun
             return new FullRunBootDescriptor(record.GateToken ?? string.Empty,
                 record.RunId ?? string.Empty, record.Mode ?? string.Empty,
                 record.MouseEnabled, record.MoviePath ?? string.Empty,
-                record.MovieSha256 ?? string.Empty);
+                record.MovieSha256 ?? string.Empty, record.FramesPerSecond == 0 ? 50 : record.FramesPerSecond, record.PauseAtFrame ?? -1);
         }
 
         public static bool IsGateToken(string token)
@@ -92,6 +99,8 @@ namespace HollowKnightTAS.Core.FullRun
         [DataContract]
         private sealed class Record
         {
+            [DataMember(Name = "fps", Order = 7)] public int FramesPerSecond { get; set; }
+            [DataMember(Name = "pauseAtFrame", Order = 8)] public long? PauseAtFrame { get; set; }
             [DataMember(Name = "format", Order = 0)] public string? Format { get; set; }
             [DataMember(Name = "gateToken", Order = 1)] public string? GateToken { get; set; }
             [DataMember(Name = "runId", Order = 2)] public string? RunId { get; set; }

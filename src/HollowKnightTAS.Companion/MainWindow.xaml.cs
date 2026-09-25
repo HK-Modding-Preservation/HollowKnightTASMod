@@ -76,12 +76,15 @@ namespace HollowKnightTAS.Companion
         {
             if (MainTabs.SelectedItem != InputGridTab || DataContext is not MainViewModel vm)
                 return;
-            var row = vm.InputRows.FirstOrDefault(candidate => candidate.Tick == frame);
+            var row = frame >= 0 && frame < vm.InputRows.Count ? vm.InputRows[(int)frame] : null;
             if (row != null) InputGrid.ScrollIntoView(row);
         }
 
         private void OnMainTabsSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (e.Source == MainTabs && MainTabs.SelectedItem == SavesTab
+                && DataContext is MainViewModel savesVm)
+                savesVm.InitializeWorldlines();
             if (e.Source == MainTabs && MainTabs.SelectedItem == InputGridTab
                 && DataContext is MainViewModel { AutoFollowGrid: true } vm)
                 vm.ShowCurrentGridFrame();
@@ -96,8 +99,9 @@ namespace HollowKnightTAS.Companion
             try
             {
                 InputGrid.SelectedItems.Clear();
-                foreach (var row in vm.InputRows.Where(row => row.Tick >= start && row.Tick - start < count))
-                    InputGrid.SelectedItems.Add(row);
+                // Keep large range edits in the range fields instead of materializing millions of selected rows.
+                for (long i = start; i < Math.Min(vm.InputRows.Count, start + Math.Min(count, 2048)); i++)
+                    InputGrid.SelectedItems.Add(vm.InputRows[(int)i]);
             }
             finally { restoringGridSelection = false; }
         }
@@ -125,6 +129,7 @@ namespace HollowKnightTAS.Companion
         {
             if (restoringGridSelection || DataContext is not MainViewModel vm || InputGrid.SelectedItems.Count == 0) return;
             var rows = InputGrid.SelectedItems.Cast<InputGridRow>().OrderBy(r => r.Tick).ToArray();
+            vm.SelectedGridFrames = rows.Select(r => r.Tick).ToArray();
             // Selection gaps are not silently converted into edits of unselected rows.
             vm.GridStart = rows[0].Tick.ToString(System.Globalization.CultureInfo.InvariantCulture);
             vm.GridCount = rows.Length == rows[^1].Tick - rows[0].Tick + 1 ? rows.Length.ToString() : "非连续选区";
@@ -137,7 +142,6 @@ namespace HollowKnightTAS.Companion
             while (element != null && element is not DataGridCell)
                 element = VisualTreeHelper.GetParent(element);
             if (element is not DataGridCell cell || cell.DataContext is not InputGridRow row) return;
-            if (row.IsV2) return;
             // This preview handler consumes button cells before DataGrid can move focus.
             // Keep subsequent transport/editor shortcuts on the grid, not the last text box.
             cell.Focus();
@@ -150,19 +154,110 @@ namespace HollowKnightTAS.Companion
                 e.Handled = true;
                 return;
             }
-            if (!Enum.TryParse<TasAction>(cell.Column.SortMemberPath, out var action)) return;
+            var action = cell.Column.SortMemberPath;
+            if (action != "Submit" && action != "Cancel" && !Enum.TryParse<TasAction>(action, out _)) return;
+            InputGrid.SelectedItem = row;
+            paintStart = paintEnd = row.Tick;
+            paintAction = action;
+            paintHeld = !row.HasAction(action);
+            vm.InputRows.Preview(paintStart, paintEnd, paintAction, paintHeld);
+            InputGrid.CaptureMouse();
+            e.Handled = true;
+        }
+
+        private long paintStart, paintEnd;
+        private string? paintAction;
+        private bool paintHeld;
+        private static T? Ancestor<T>(DependencyObject? item) where T : DependencyObject
+        {
+            while (item != null && item is not T) item = VisualTreeHelper.GetParent(item);
+            return item as T;
+        }
+        private void OnInputGridMouseMove(object sender, MouseEventArgs e)
+        {
+            if (paintAction == null || e.LeftButton != MouseButtonState.Pressed) return;
+            var position = e.GetPosition(InputGrid);
+            var hit = InputGrid.InputHitTest(position) as DependencyObject;
+            var row = Ancestor<DataGridRow>(hit)?.Item as InputGridRow;
+            if (row != null) paintEnd = row.Tick;
+            if (DataContext is MainViewModel vm)
+            {
+                vm.GridStart = Math.Min(paintStart, paintEnd).ToString();
+                vm.GridCount = (Math.Abs(paintEnd - paintStart) + 1).ToString();
+                if (position.Y < 24 && paintEnd > 0) ScrollGridToFrame(--paintEnd);
+                else if (position.Y > InputGrid.ActualHeight - 24 && paintEnd + 1 < vm.InputRows.Count) ScrollGridToFrame(++paintEnd);
+                vm.GridStart = Math.Min(paintStart, paintEnd).ToString();
+                vm.GridCount = (Math.Abs(paintEnd - paintStart) + 1).ToString();
+                RestoreGridSelection(vm, EventArgs.Empty);
+                vm.InputRows.Preview(paintStart, paintEnd, paintAction, paintHeld);
+            }
+            e.Handled = true;
+        }
+        private void OnInputGridMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (paintAction == null) return;
+            var action = paintAction; paintAction = null;
+            InputGrid.ReleaseMouseCapture();
+            if (DataContext is MainViewModel vm) vm.PaintGrid(paintStart, paintEnd, action, paintHeld);
+            InputGrid.Focus(); e.Handled = true;
+        }
+        private void OnInputGridLostCapture(object sender, MouseEventArgs e)
+        {
+            paintAction = null;
+            if (DataContext is MainViewModel vm) vm.InputRows.Preview(0, 0, null, false);
+        }
+        private void OnInputGridWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (DataContext is not MainViewModel vm) return;
+            vm.AutoFollowGrid = false;
+            if (e.Delta >= 0) return;
+            var scroll = FindScroll(InputGrid);
+            if (scroll != null && scroll.VerticalOffset >= scroll.ScrollableHeight - 1)
+            {
+                var offset = scroll.VerticalOffset;
+                vm.AppendGridBlankFrames();
+                Dispatcher.BeginInvoke(new Action(() => scroll.ScrollToVerticalOffset(offset + 3)));
+                e.Handled = true;
+            }
+        }
+        private static ScrollViewer? FindScroll(DependencyObject item)
+        {
+            if (item is ScrollViewer scroll) return scroll;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(item); i++)
+            {
+                var child = FindScroll(VisualTreeHelper.GetChild(item, i));
+                if (child != null) return child;
+            }
+            return null;
+        }
+
+        private void OnInputGridRightClick(object sender, MouseButtonEventArgs e)
+        {
+            var row = Ancestor<DataGridRow>(e.OriginalSource as DependencyObject)?.Item as InputGridRow;
+            if (row == null || DataContext is not MainViewModel vm) return;
             if (!InputGrid.SelectedItems.Contains(row)) InputGrid.SelectedItem = row;
-            vm.GridAction = action;
-            if (vm.ToggleGridCommand.CanExecute(null)) vm.ToggleGridCommand.Execute(null);
-            // RefreshInputGrid replaces the rows and removes the focused cell.
-            InputGrid.Focus();
+            var menu = new ContextMenu();
+            void FrameItem(string title, string action, bool enabled = true)
+            {
+                var item = new MenuItem { Header = title, IsEnabled = enabled };
+                item.Click += async (_, _) => await vm.FrameMenuAsync(action, row.Tick);
+                menu.Items.Add(item);
+            }
+            FrameItem($"播放到第 {row.Tick} 帧并暂停", "seek");
+            FrameItem($"保存第 {row.Tick} 帧", "save");
+            FrameItem($"恢复第 {row.Tick} 帧存档", "load", vm.HasFrameSave(row.Tick));
+            menu.Items.Add(new Separator());
+            foreach (var entry in new[] { ("复制选区", vm.CopyGridCommand), ("粘贴到选区", vm.PasteGridCommand),
+                ("插入空帧", vm.InsertGridCommand), ("删除选区", vm.DeleteGridCommand), ("应用选区 FPS", vm.SetFrameRateCommand) })
+                menu.Items.Add(new MenuItem { Header = entry.Item1, Command = entry.Item2 });
+            menu.PlacementTarget = InputGrid; menu.IsOpen = true;
             e.Handled = true;
         }
 
         private void OnEditGridAxes(object sender, RoutedEventArgs e)
         {
             if (DataContext is not MainViewModel vm) return;
-            var first = vm.InputRows.FirstOrDefault(r => r.Tick.ToString(System.Globalization.CultureInfo.InvariantCulture) == vm.GridStart);
+            var first = int.TryParse(vm.GridStart, out var index) && index >= 0 && index < vm.InputRows.Count ? vm.InputRows[index] : null;
             if (first?.IsV2 == true) return;
             new AxisEditorWindow(vm, first?.Input) { Owner = this }.ShowDialog();
         }

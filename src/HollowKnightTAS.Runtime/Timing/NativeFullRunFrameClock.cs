@@ -32,6 +32,10 @@ namespace HollowKnightTAS.Runtime.Timing
         private readonly NativeInt reportMovieFrameCompleted;
         private readonly NativeInt requestPause;
         private readonly NativeInt finish;
+        private NativeFault setFrameRate = null!;
+        private NativeFrame stepTicks = null!;
+        private NativeFrame frequency = null!;
+        public double StepSeconds => (double)stepTicks() / frequency();
         private readonly NativeFault fault;
         private readonly NativeCopyHash copyHash;
         private NativeCompleted? nativeCallback;
@@ -96,6 +100,9 @@ namespace HollowKnightTAS.Runtime.Timing
                 Load<NativeInt>("HktasClockBridge_FinishFullRun"),
                 Load<NativeFault>("HktasClockBridge_FaultFullRun"),
                 Load<NativeCopyHash>("HktasClockBridge_CopyFullRunDescriptorHash"));
+            clock.setFrameRate = Load<NativeFault>("HktasClockBridge_SetFullRunFrameRate");
+            clock.stepTicks = Load<NativeFrame>("HktasClockBridge_GetDeterministicClockStepTicks");
+            clock.frequency = Load<NativeFrame>("HktasClockBridge_GetDeterministicClockFrequency");
             if (clock.CurrentFrameIndex < 0)
                 throw new InvalidOperationException("Native full-run frame count is invalid.");
             return clock;
@@ -110,6 +117,11 @@ namespace HollowKnightTAS.Runtime.Timing
                     throw new InvalidOperationException("Native frame count overflowed.");
                 return (long)value;
             }
+        }
+
+        public void SetFrameRate(int fps)
+        {
+            if (setFrameRate(fps) != 1) throw new InvalidOperationException("Native frame rate rejected.");
         }
 
         public bool IsPaused => getMode() == 0 || getMode() == 4;

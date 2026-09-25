@@ -1177,3 +1177,12 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
 
     return TRUE;
 }
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_SetFullRunFrameRate(LONG fps)
+{
+    if (fps < 1 || fps > 1000 || !g_deterministic_clock_enabled) return 0;
+    AcquireSRWLockExclusive(&g_clock_lock);
+    g_deterministic_clock_step_ticks = (g_deterministic_clock_frequency + fps / 2) / fps;
+    ReleaseSRWLockExclusive(&g_clock_lock);
+    return 1;
+}

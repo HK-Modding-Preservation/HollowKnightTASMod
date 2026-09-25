@@ -155,6 +155,68 @@ namespace HollowKnightTAS.Runtime.FullRun
             : Path.Combine(sessionDirectory, "full-run", "movie.hktas");
         public bool MouseEnabled => mouseEnabled;
         public string Mode => mode;
+        public double ClockStepSeconds => clock.StepSeconds;
+        public int ActiveFrameRate => activeFrameRate;
+
+        private int recordingFrameRate = 50;
+        private int activeFrameRate = 50;
+        private long pauseAtMovieFrame = -1;
+        private int timingRunIndex;
+        private long timingRunStart;
+        public void ConfigureTiming(int fps, long target)
+        {
+            if (fps < 1 || fps > 1000 || target < -1 || target > MovieProtocolV2.MaximumExpandedFrames)
+                throw new ArgumentOutOfRangeException(nameof(fps));
+            recordingFrameRate = fps;
+            pauseAtMovieFrame = target;
+        }
+        public void SetPauseTarget(long target, long expectedNativeFrame)
+        {
+            if (!clock.IsPaused || clock.CurrentFrameIndex != expectedNativeFrame || target <= movieFrame)
+                throw new InvalidOperationException("Target requires a paused boundary and a future Movie frame.");
+            pauseAtMovieFrame = target;
+        }
+
+        public string SnapshotMovie()
+        {
+            if (!clock.IsPaused) throw new InvalidOperationException("Movie snapshot requires a paused boundary.");
+            var movie = mode == "Recording" ? journal!.Freeze(recordingHeader!, movieFrame) : replayMovie ?? recordedMovie;
+            if (movie == null) throw new InvalidOperationException("No Movie is available.");
+            var path = Path.Combine(sessionDirectory, "full-run", "snapshot-" + new MovieV2Codec().ComputeMovieId(movie).Substring(0, 32) + ".hktas");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            if (!File.Exists(path)) File.WriteAllText(path, new MovieV2Codec().WriteCanonical(movie), new UTF8Encoding(false));
+            return path;
+        }
+
+        public void UpdateFutureMovie(string path, long expectedNativeFrame)
+        {
+            if (!clock.IsPaused || clock.CurrentFrameIndex != expectedNativeFrame || !inputReady
+                || (mode != "Recording" && mode != "Replay"))
+                throw new InvalidOperationException("Pause at an input-ready boundary before updating the Movie.");
+            var root = Path.GetFullPath(Path.Combine(sessionDirectory, "..", "..")) + Path.DirectorySeparatorChar;
+            path = Path.GetFullPath(path);
+            if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase)
+                || new FileInfo(path).Length > MovieProtocolV2.MaximumSourceUtf8Bytes)
+                throw new InvalidDataException("Movie update must be inside the protected session.");
+            MovieV2Document candidate;
+            using (var reader = File.OpenText(path))
+                candidate = new MovieV2Codec().Parse(reader, path).Document
+                    ?? throw new InvalidDataException("Invalid Movie update.");
+            var validation = new MovieV2Validator().Validate(candidate, MovieV2ValidationContext.CreateDefault());
+            if (!validation.Success || CountFrames(candidate) <= movieFrame)
+                throw new InvalidDataException("Updated Movie must contain the next input frame.");
+            var original = mode == "Recording" ? journal!.Freeze(recordingHeader!, movieFrame) : replayMovie!;
+            if (!MovieV2Prefix.Matches(original, candidate, movieFrame))
+                throw new InvalidOperationException("过去的输入已经改变，请使用应用并重放到 Frame。");
+            input.ReplaceFutureMovie(candidate, movieFrame);
+            input.Sampled -= OnSampled;
+            mouse.UseReplayInputs();
+            replayMovie = candidate;
+            replayLength = CountFrames(candidate);
+            timingRunIndex = 0;
+            timingRunStart = 0;
+            mode = "Replay";
+        }
 
         public FullRunResult BeginRecording(bool mouseEnabled, long expectedFrame)
         {
@@ -325,6 +387,14 @@ namespace HollowKnightTAS.Runtime.FullRun
                         randomSeedHandshakePending = false;
                     }
                 }
+                activeFrameRate = recordingFrameRate;
+                if (replayMovie != null)
+                {
+                    while (timingRunIndex + 1 < replayMovie.Runs.Count && movieFrame >= timingRunStart + replayMovie.Runs[timingRunIndex].RepeatCount)
+                        timingRunStart += replayMovie.Runs[timingRunIndex++].RepeatCount;
+                    activeFrameRate = replayMovie.Runs[timingRunIndex].FramesPerSecond;
+                }
+                clock.SetFrameRate(ready ? activeFrameRate : 50);
                 frameInputEnabled = ready;
                 frameBoundary = boundary;
                 input.SetFrameInputEnabled(ready);
@@ -418,9 +488,10 @@ namespace HollowKnightTAS.Runtime.FullRun
                     return;
                 }
                 ObserveBoss();
-                if (mode == "Recording") journal!.CompleteFrame(movieFrame);
+                if (mode == "Recording") journal!.CompleteFrame(movieFrame, activeFrameRate);
                 movieFrame++;
                 clock.ReportMovieFrameCompleted();
+                if (movieFrame == pauseAtMovieFrame) { pauseAtMovieFrame = -1; clock.RequestPause(); }
                 if (mode == "Replay" && movieFrame == replayLength)
                 {
                     if (bossTraceEnabled)

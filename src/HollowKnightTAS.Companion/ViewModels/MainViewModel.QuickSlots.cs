@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -17,6 +18,8 @@ namespace HollowKnightTAS.Companion.ViewModels
         private int selectedQuickSlot;
         private string quickSlotStatus = "窗口内 Shift+F1…F10 保存，F1…F10 恢复；恢复需要输入重放。";
         private string quickSlotCatalog = "[]";
+        private bool ShowsTimelineQuickSlots => fullRunMovies?.IsPending == true
+            || (worldlines != null && MovieText.Length == 0);
         public ObservableCollection<string> QuickSlotLabels { get; } = new ObservableCollection<string>();
         public int SelectedQuickSlot { get => selectedQuickSlot; set => Set(ref selectedQuickSlot, value); }
         public string QuickSlotStatus { get => quickSlotStatus; private set => Set(ref quickSlotStatus, value); }
@@ -33,8 +36,8 @@ namespace HollowKnightTAS.Companion.ViewModels
                     Environment.SpecialFolder.LocalApplicationData), "HollowKnightTAS", "studio-quick-slots.json"));
             }
             catch (Exception e) { QuickSlotStatus = "快捷槽不可用：" + e.Message; }
-            SaveQuickSlotCommand = Command(() => RunQuickSlotAsync(true));
-            LoadQuickSlotCommand = Command(() => RunQuickSlotAsync(false));
+            SaveQuickSlotCommand = Command(() => RunQuickSlotAsync(true), allowStartupContinue: true);
+            LoadQuickSlotCommand = Command(() => RunQuickSlotAsync(false), allowStartupContinue: true);
             RefreshQuickSlotsCommand = Command(RefreshQuickSlotCatalogAsync);
             ForgetPendingQuickSlotCommand = new RelayCommand(() =>
             {
@@ -60,6 +63,21 @@ namespace HollowKnightTAS.Companion.ViewModels
             using var catalog = JsonDocument.Parse(quickSlotCatalog);
             for (var i = 0; i < 10; i++)
             {
+                if (ShowsTimelineQuickSlots && worldlines != null)
+                {
+                    var timelineLabel = $"F{i + 1} · 空时间线槽";
+                    if (worldlines.Library.QuickSlots.TryGetValue(i, out var reference))
+                    {
+                        var parts = reference.Split(':');
+                        if (parts.Length == 2 && int.TryParse(parts[1], out var nodeId))
+                        {
+                            var node = worldlines.Library.Trees.FirstOrDefault(t => t.Id == parts[0])?.Nodes.FirstOrDefault(n => n.Id == nodeId);
+                            if (node != null) timelineLabel = $"F{i + 1} · {node.Label}";
+                        }
+                    }
+                    if (QuickSlotLabels.Count <= i) QuickSlotLabels.Add(timelineLabel); else QuickSlotLabels[i] = timelineLabel;
+                    continue;
+                }
                 var slot = quickSlots?.Slots[i];
                 var availability = slot == null || slot.SaveId.Length == 0 ? "空槽" : "未在当前目录确认";
                 if (slot != null)
@@ -96,6 +114,11 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private async Task RunQuickSlotAsync(bool save)
         {
+            if (ShowsTimelineQuickSlots)
+            {
+                await RunTimelineQuickSlotAsync(save);
+                return;
+            }
             if (quickSlotBusy) { QuickSlotStatus = "快捷槽操作处理中，请勿重复提交。"; return; }
             if (quickSlots == null) throw new InvalidOperationException(QuickSlotStatus);
             var index = SelectedQuickSlot;

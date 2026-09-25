@@ -1,3 +1,20 @@
+2026-09-26 D08 空白会话展示修复：旧帧存档和旧 F1 快捷槽本来保存在本地，上版默认选中历史树并混显旧槽。现在空 Movie 打开时间线只显示未存档 Frame 0；历史树可主动切换，Savestates 显示空时间线槽。定向 18/18、安装版 UI 验证通过，历史时间线与快捷槽文件哈希未变。详见 artifacts/studio-worldlines/blank-start/REPORT.md。
+
+2026-09-25 D08 时间线世界线已实现并安装：新增可滚动树图，初始 Frame 0、每次存档新增节点；按已执行输入前缀自动分叉，叶子选择世界线、祖先选择恢复位置；支持删除子树及本地原子持久化。右键存档／页面存档／Shift+Fn 共用节点路径，旧索引存档一次性导入。定向测试 19/19；实机验证 0→1→2 与 0→1→3、两条世界线恢复共同祖先后完整 Movie 分别一致、重开持久化和 F1 快捷恢复。恢复仍为冷启动重放。Spec：mydocs/specs/tasks/D08_时间线世界线.md；证据：artifacts/studio-worldlines/REPORT.md。
+
+2026-09-25 右键播放到帧后控件禁用已修复并安装：定位完成时解除 gridApplying 未触发 CanExecuteChanged，现统一刷新门闩、文字和按钮可用性，含异常收尾及应用重放。修复前实机复现第 10 帧已暂停却按钮禁用；修复后同路径第 10 帧 Play/Step 可用，逐帧到 11，再 Play 完成 500。定向 10/10 通过，签名安装验证通过。详见 artifacts/studio-seek-controls/REPORT.md。
+
+2026-09-25 Studio 三项反馈已修复：未来帧修改在播放／逐帧前校验已执行前缀并同步当前 Runtime；暂停确认即时刷新按钮；拖动实时预览并在释放时一次提交。22/22 定向测试通过，安装版同进程未来第 3 帧执行、两轮 Play/Pause/继续、过去帧拒绝直接推进实测通过。详见 `artifacts/studio-input-fixes/REPORT.md`；中途拖动反馈由模型测试与事件路径验证，非中途截图证据。原始 user* 31 文件差异 0，测试进程关闭，源码未提交。
+
+# 当前进度：Studio 七项交互优化已实现并安装
+
+2026-09-25 回放速度初测：10892 帧假骑士序列，安装版约 20.4–21.7 秒回放（约 10–10.7 倍速）；解除限速并将相机 cullingMask 设 0，约 17.1–17.4 秒（12.5–12.7 倍速），含启动约 24 秒。有效试验战斗至终点 2828 行位置/血量/Boss/RNG/deltaTime 对比差异 0；全局或战斗场景 OnDemandRendering 间隔 1000 会改变结果，淘汰。使用外部计时器及无 UI 的现有控制路径，尚非正式快进功能、非绝对性能上限。实验源码还原、安装版未替换且验签通过，原始 user* 31 文件差异 0，测试进程关闭。详见 `artifacts/replay-speed/REPORT.md`。先前仅凭 targetFrameRate 推断实际限速的判断已被实测修正。
+
+2026-09-25 D07：无 Movie 播放／逐帧自动新建；整段虚拟序列表格（最多 1000 万帧、有界 2048 行缓存）、末尾补空帧及录制增长；右键存读档／精确定位；锁定起始列的拖动输入；19 像素行高；默认及选区 FPS；深色弹出菜单均已实现。详见 `mydocs/specs/tasks/D07_Studio交互体验.md` 与操作手册。定向 Companion 22/22、Core 18/18、原生 19/19 通过，Release 构建和安装验签通过。
+
+实机覆盖无 Movie 启动、跨 500 行、拖动 Left 3–13、区间 100 FPS、默认 120 FPS、存档及重开 Studio 后恢复 13 帧（输入偏差 0）、跨帧率区间逐帧至 15。长录制 628 帧暂停后正常同步，实际 120 FPS 时钟步长 0.0083333 秒；恢复 13 时 100 FPS 为 0.01 秒。此次未重跑完整战斗矩阵，不继承历史构建的战斗 PASS。定位和帧读档采用冷启动重放，非瞬时内存快照。证据见 `artifacts/studio-ux/`。原始 user* 31 文件集合及哈希差异 0；默认 FPS 恢复 50，测试游戏和 Studio 已关闭。当前源码未提交。
+
+---
 # 当前进度：全流程 Movie、加载省帧与新版假骑士示范已通过冷启动回放
 
 2026-09-25 原生第 0 帧窗口卡死修复：已清理用户残留 PID 11896。匹配 Unity PDB 将卡死栈定位到标题栏定时器重入 PerformMainLoop 后等待 SwapChain 提交；旧 PlayerLoop 内层 guard 不足。现在同时保护 TitleBarTimerUpdateCallback→PerformMainLoop 的尾跳转（PDB 身份与原五字节指令校验），暂停继续处理窗口消息而不嵌套执行主循环。原生消息泵回归 19/19；安装版经 Steam→Modding 手动启动，第 0 帧停留数分钟、拖动/系统移动菜单后仍响应，再打开旧 Movie 完整播放 10892/10892 Completed（原生11422）。原始 user* 31 文件集合/哈希无变化；测试进程均关闭。当前 ClockBridge `c4fb720637ad3ab5c0ab80d48751317f97a89a8b256cc70e7234cc6ac9896767`，manifest `92641a99e3047aee3e708c17ae36974f95b3f3bc81152ca658bb4a6b48fe2fd1`；Runtime/Core/ClockPayload 未变化。证据、旧组件备份及签名更新包见 `artifacts/startup-window-reentry/`。前一轮只修复 Studio 命令确认的验证不再被视为原生卡死已解决的证据。

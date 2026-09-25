@@ -69,12 +69,17 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 var coordinator = fullRunMovies
                     ?? throw new InvalidOperationException("全流程启动器不可用。");
-                coordinator.ArmRecording(GameMouseEnabled);
+                coordinator.ArmRecording(GameMouseEnabled, ParseFrameRate(DefaultFrameRate));
                 var header = new MovieV2Header("unknown", "unknown", "unknown",
                     MovieProtocolV2.NativeProfileId, MovieProtocolV2.ActionSchemaId,
                     GameMouseEnabled, "none", 0, 0);
                 MovieText = new MovieV2Codec().WriteCanonical(new MovieV2Document(
                     "<studio-draft>", header, Array.Empty<NativeFrameRun>()));
+                AppendGridBlankFrames();
+                gridHasUserEdits = false;
+                earliestGridEdit = long.MaxValue;
+                recordingGridNativeFrame = -1;
+                StartTimeline(MovieText);
                 ValidationOutput = "v2 recording armed at startup frame 0; Movie frame 0 begins at the first input-ready PlayerLoop.";
                 OnPropertyChanged(nameof(PlaybackStateText));
                 foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
