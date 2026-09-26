@@ -1276,7 +1276,7 @@ namespace HollowKnightTAS.Runtime.Ipc
         private void PublishFullRunState(string requestId)
         {
             var status = fullRunSession!.GetStatus();
-            Publish(IpcMessageTypes.FullRunState, new Dictionary<string, string>
+            var fields = new Dictionary<string, string>
             {
                 ["requestId"] = requestId,
                 ["mode"] = status.Mode,
@@ -1301,7 +1301,9 @@ namespace HollowKnightTAS.Runtime.Ipc
                 ["bossSceneCompleteObserved"] = status.BossSceneCompleteObserved ? "true" : "false",
                 ["bossDeathFrame"] = status.BossDeathFrame.ToString(CultureInfo.InvariantCulture),
                 ["bossSceneEntryMovieFrame"] = status.BossSceneEntryMovieFrame.ToString(CultureInfo.InvariantCulture)
-            });
+            };
+            foreach (var binding in fullRunSession.ReadBindingLabels()) fields[binding.Key] = binding.Value;
+            Publish(IpcMessageTypes.FullRunState, fields);
         }
 
         private void PublishFullRunMovie(string requestId)

@@ -36,6 +36,12 @@ namespace HollowKnightTAS.Companion.ViewModels
             public Dictionary<string, string> OriginalHashes { get; set; } = new();
         }
 
+        public bool CanNavigateFrame(long frame, bool forward)
+            => !gridApplying && fullRunMovies?.IsPending == true
+                && currentFullRunMovieFrame >= 0 && frame >= 0 && frame <= gridTotalFrames
+                && (forward ? frame > currentFullRunMovieFrame && fullRunMovies.Mode != "Completed"
+                    : frame < currentFullRunMovieFrame);
+
         public async Task FrameMenuAsync(string action, long frame)
         {
             if (gridApplying) return;
@@ -52,7 +58,17 @@ namespace HollowKnightTAS.Companion.ViewModels
                     var node = FindTimelineFrame(frame) ?? throw new InvalidOperationException("所选世界线此帧尚未存档，请到时间线选择其他分支。");
                     await RestoreTimelineCoreAsync(selectedTimelineTree!, selectedWorldline!, node);
                 }
-                else if (action == "seek") await SeekFrameAsync(frame);
+                else if (action == "seek" || action == "restore")
+                {
+                    if (frame < 0 || frame > gridTotalFrames)
+                        throw new InvalidOperationException("目标帧超出序列。");
+                    var snapshot = await ReadReadyFrameSnapshotAsync();
+                    if (action == "seek" ? frame <= snapshot.Frame : frame >= snapshot.Frame)
+                        throw new InvalidOperationException(action == "seek"
+                            ? "播放到帧只能选择当前帧之后的未来帧。" : "恢复到帧只能选择当前帧之前的过去帧。");
+                    if (action == "seek") await PlayForwardToFrameAsync(frame);
+                    else await RestartDraftAtAsync(frame);
+                }
                 else if (action == "save")
                 {
                     // Query the actual paused frame, never label a stale UI selection as a save.
@@ -101,8 +117,54 @@ namespace HollowKnightTAS.Companion.ViewModels
         private async Task SeekFrameAsync(long frame)
         {
             if (frame < 0 || frame > gridTotalFrames) throw new InvalidOperationException("目标帧超出序列。");
-            // Rebuild from the draft so edits in the past are applied consistently.
-            await RestartDraftAtAsync(frame);
+            var current = (await ReadReadyFrameSnapshotAsync()).Frame;
+            if (frame > current) await PlayForwardToFrameAsync(frame);
+            else if (frame < current) await RestartDraftAtAsync(frame);
+        }
+
+        private async Task PlayForwardToFrameAsync(long frame)
+        {
+            if (startupBoot!.NativeCompletedFrames == 0)
+            {
+                if (gridHasUserEdits && earliestGridEdit == 0)
+                    throw new InvalidOperationException("启动第 0 帧的输入已修改，请先应用草稿；播放到未来帧不会自动重启。");
+                var first = await fullRunMovies!.StepAsync(0, CancellationToken.None);
+                if (first.Mode == "Fault") throw new InvalidOperationException(first.Error);
+                var initialized = await ReadReadyFrameSnapshotAsync();
+                if (initialized.Frame == frame)
+                {
+                    currentFullRunMovieFrame = frame;
+                    TrackGridFrame(frame, true);
+                    GridStatus = $"已从当前进度播放到第 {frame} 帧并暂停。";
+                    return;
+                }
+            }
+            if (fullRunMovies!.Mode == "Completed")
+                throw new InvalidOperationException("固定回放已结束；未来帧播放不会自动重启游戏。");
+            await ApplyPendingInputsAsync(withinGridOperation: true);
+            var result = await automationBroker.ExecuteHumanAsync(AutomationCommandIds.FullRunSeek,
+                AutomationScope.ControlPlayback, new Dictionary<string, string>
+                {
+                    ["targetFrame"] = frame.ToString(CultureInfo.InvariantCulture),
+                    ["expectedNativeFrame"] = startupBoot!.NativeCompletedFrames.ToString(CultureInfo.InvariantCulture)
+                }, "Paused", null, CancellationToken.None);
+            RequireAutomationSuccess(result);
+            var started = await fullRunMovies.RunAsync(startupBoot.NativeCompletedFrames, CancellationToken.None);
+            if (started.Mode == "Fault") throw new InvalidOperationException(started.Error);
+            var deadline = DateTime.UtcNow.AddMinutes(10);
+            while (true)
+            {
+                startupBoot.Refresh();
+                if (startupBoot.FullRunFaultCode != 0) throw new InvalidOperationException("播放遇到原生错误：" + startupBoot.FullRunFaultCode);
+                if (startupBoot.IsWaiting) break;
+                if (DateTime.UtcNow >= deadline) throw new TimeoutException("播放到指定帧超时。");
+                await Task.Delay(100);
+            }
+            var snapshot = await ReadReadyFrameSnapshotAsync();
+            if (snapshot.Frame != frame) throw new InvalidOperationException($"播放停在 {snapshot.Frame}，未到达目标 {frame}。");
+            currentFullRunMovieFrame = frame;
+            TrackGridFrame(frame, true);
+            GridStatus = $"已从当前进度播放到第 {frame} 帧并暂停。";
         }
 
         private async Task RestartDraftAtAsync(long frame)

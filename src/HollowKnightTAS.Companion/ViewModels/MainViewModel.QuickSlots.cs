@@ -19,9 +19,9 @@ namespace HollowKnightTAS.Companion.ViewModels
         private string quickSlotStatus = "窗口内 Shift+F1…F10 保存，F1…F10 恢复；恢复需要输入重放。";
         private string quickSlotCatalog = "[]";
         private bool ShowsTimelineQuickSlots => fullRunMovies?.IsPending == true
-            || (worldlines != null && MovieText.Length == 0);
+            || worldlines != null;
         public ObservableCollection<string> QuickSlotLabels { get; } = new ObservableCollection<string>();
-        public int SelectedQuickSlot { get => selectedQuickSlot; set => Set(ref selectedQuickSlot, value); }
+        public int SelectedQuickSlot { get => selectedQuickSlot; set { Set(ref selectedQuickSlot, value); OnPropertyChanged(nameof(BindTimelineQuickSlotCommand)); } }
         public string QuickSlotStatus { get => quickSlotStatus; private set => Set(ref quickSlotStatus, value); }
         public ICommand SaveQuickSlotCommand { get; private set; } = null!;
         public ICommand LoadQuickSlotCommand { get; private set; } = null!;
@@ -37,7 +37,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             }
             catch (Exception e) { QuickSlotStatus = "快捷槽不可用：" + e.Message; }
             SaveQuickSlotCommand = Command(() => RunQuickSlotAsync(true), allowStartupContinue: true);
-            LoadQuickSlotCommand = Command(() => RunQuickSlotAsync(false), allowStartupContinue: true);
+            LoadQuickSlotCommand = Command(() => RunQuickSlotAsync(false), allowStartupContinue: true, allowCompletedReplay: true);
             RefreshQuickSlotsCommand = Command(RefreshQuickSlotCatalogAsync);
             ForgetPendingQuickSlotCommand = new RelayCommand(() =>
             {
@@ -69,10 +69,12 @@ namespace HollowKnightTAS.Companion.ViewModels
                     if (worldlines.Library.QuickSlots.TryGetValue(i, out var reference))
                     {
                         var parts = reference.Split(':');
-                        if (parts.Length == 2 && int.TryParse(parts[1], out var nodeId))
+                        if (parts.Length >= 2 && int.TryParse(parts[1], out var nodeId))
                         {
-                            var node = worldlines.Library.Trees.FirstOrDefault(t => t.Id == parts[0])?.Nodes.FirstOrDefault(n => n.Id == nodeId);
-                            if (node != null) timelineLabel = $"F{i + 1} · {node.Label}";
+                            var tree = worldlines.Library.Trees.FirstOrDefault(t => t.Id == parts[0]);
+                            var node = tree?.Nodes.FirstOrDefault(n => n.Id == nodeId);
+                            if (node != null) timelineLabel = $"F{i + 1} · {tree!.Name} · {node.Label}"
+                                + (parts.Length >= 3 ? " · 世界线 " + parts[2] : "");
                         }
                     }
                     if (QuickSlotLabels.Count <= i) QuickSlotLabels.Add(timelineLabel); else QuickSlotLabels[i] = timelineLabel;

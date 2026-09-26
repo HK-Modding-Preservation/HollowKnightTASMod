@@ -51,6 +51,30 @@ namespace HollowKnightTAS.Companion.Tests
                     vm.RefreshGridCommand.Execute(null);
                     var window = new MainWindow();
                     window.DataContext = vm;
+                    var bindingUpdate = typeof(MainViewModel).GetMethod("UpdateInputBindingLabels",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+                    var grid = (DataGrid)window.FindName("InputGrid");
+                    var attackColumn = grid.Columns.Single(column => column.SortMemberPath == "Attack");
+                    Assert.AreEqual("?", ((TextBlock)attackColumn.Header).Text);
+                    bindingUpdate.Invoke(vm, new object[] { new System.Collections.Generic.Dictionary<string, string>
+                    {
+                        ["inputBinding.Attack"] = "J", ["inputBinding.Jump"] = "Space",
+                        ["inputBinding.Left"] = "A", ["inputBinding.Right"] = "D",
+                        ["inputBinding.Up"] = "W", ["inputBinding.Down"] = "S",
+                        ["inputBinding.Submit"] = "Return", ["inputBinding.Cancel"] = "Escape",
+                        ["inputBinding.Dash"] = "K", ["inputBinding.Cast"] = "U",
+                        ["inputBinding.QuickCast"] = "I", ["inputBinding.SuperDash"] = "L",
+                        ["inputBinding.DreamNail"] = "O"
+                    } });
+                    Assert.AreEqual("J", ((TextBlock)attackColumn.Header).Text);
+                    Assert.AreEqual("Attack", attackColumn.SortMemberPath, "Changing key labels must not change editing semantics.");
+                    Assert.IsTrue(((TextBlock)attackColumn.Header).ToolTip.ToString()!.Contains("Attack"));
+                    Assert.AreEqual(DataGridLengthUnitType.Pixel, attackColumn.Width.UnitType);
+                    var compactWidth = attackColumn.Width.Value;
+                    var boundKeys = vm.InputBindingLabels;
+                    bindingUpdate.Invoke(vm, new object[] { new System.Collections.Generic.Dictionary<string, string>() });
+                    bindingUpdate.Invoke(vm, new object[] { boundKeys.ToDictionary(pair => "inputBinding." + pair.Key, pair => pair.Value) });
+                    Assert.AreEqual(compactWidth, attackColumn.Width.Value, "Reconnecting after restore must preserve compact widths.");
                     var root = (FrameworkElement)window.Content;
                     var tabs = Find<TabControl>(root).Single();
                     var visibleTabs = tabs.Items.OfType<TabItem>()
@@ -58,7 +82,8 @@ namespace HollowKnightTAS.Companion.Tests
                         .Select(tab => tab.Header?.ToString())
                         .ToArray();
                     CollectionAssert.AreEquivalent(
-                        new[] { "Input Editor", "Timeline 时间线", "Movie Text", "Savestates" }, visibleTabs);
+                        new[] { "Input Editor", "Timeline 时间线", "Movie Text" }, visibleTabs);
+                    Assert.IsNull(window.FindName("SavesTab"));
                     Assert.IsTrue(tabs.Items.OfType<TabItem>()
                         .Where(tab => !visibleTabs.Contains(tab.Header?.ToString()))
                         .All(tab => tab.Visibility == Visibility.Collapsed),
@@ -117,7 +142,7 @@ namespace HollowKnightTAS.Companion.Tests
                             $"studio-theme-{(int)(scale * 100)}.png"));
                         scaledEncoder.Save(output);
                     }
-                    foreach (var name in new[] { "MovieTextTab", "SavesTab", "HelpTab" })
+                    foreach (var name in new[] { "MovieTextTab", "WorldlinesTab", "HelpTab" })
                     {
                         var commonTab = (TabItem)window.FindName(name);
                         tabs.SelectedItem = commonTab;
@@ -131,9 +156,9 @@ namespace HollowKnightTAS.Companion.Tests
                                 && bounds.Bottom <= root.ActualHeight + 0.5 && bounds.Top >= 0,
                                 $"{name}: '{button.Content}' is clipped at minimum size.");
                         }
-                        if (name == "SavesTab")
+                        if (name == "WorldlinesTab")
                             Assert.IsTrue(Find<ListBox>(commonTab).Single().ActualHeight >= 40,
-                                "The save catalog must remain usable at minimum size.");
+                                "The timeline node list must remain usable at minimum size.");
                         else if (name == "MovieTextTab")
                             Assert.IsTrue(Find<TextBox>(commonTab).Single(box => box.AcceptsReturn).ActualHeight >= 50,
                                 "The movie editor must remain usable at minimum size.");
@@ -164,7 +189,7 @@ namespace HollowKnightTAS.Companion.Tests
                     menus.Single(menu => menu.Header.ToString()!.StartsWith("Close Tool Panels"))
                         .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                     Assert.AreSame(window.FindName("InputGridTab"), tabs.SelectedItem);
-                    Assert.AreEqual(4, tabs.Items.OfType<TabItem>().Count(item => item.Visibility == Visibility.Visible));
+                    Assert.AreEqual(3, tabs.Items.OfType<TabItem>().Count(item => item.Visibility == Visibility.Visible));
                     vm.GridStart = "0";
                     vm.GridCount = "2";
                     vm.RefreshGridCommand.Execute(null);

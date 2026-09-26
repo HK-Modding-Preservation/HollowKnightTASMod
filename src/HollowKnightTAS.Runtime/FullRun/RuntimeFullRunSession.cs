@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Reflection;
@@ -92,6 +93,7 @@ namespace HollowKnightTAS.Runtime.FullRun
         private readonly string sessionDirectory;
         private FullRunFrameJournal? journal;
         private MovieV2Document? replayMovie;
+        private bool editableReplay;
         private MovieV2Header? recordingHeader;
         private MovieV2Document? recordedMovie;
         private string recordedCanonical = string.Empty;
@@ -143,6 +145,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
             this.input = input ?? throw new ArgumentNullException(nameof(input));
             this.mouse = mouse ?? throw new ArgumentNullException(nameof(mouse));
+            input.SetNativeFrameRunning(() => !clock.IsPaused);
             if (string.IsNullOrWhiteSpace(sessionDirectory))
                 throw new ArgumentException("Full-run session directory is required.", nameof(sessionDirectory));
             this.sessionDirectory = Path.GetFullPath(sessionDirectory);
@@ -212,6 +215,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             input.Sampled -= OnSampled;
             mouse.UseReplayInputs();
             replayMovie = candidate;
+            editableReplay = true;
             replayLength = CountFrames(candidate);
             timingRunIndex = 0;
             timingRunStart = 0;
@@ -271,6 +275,8 @@ namespace HollowKnightTAS.Runtime.FullRun
                 throw new InvalidOperationException("Recording metadata requires an active full-run recording.");
             recordingHeader = header;
         }
+
+        public IReadOnlyDictionary<string, string> ReadBindingLabels() => input.ReadBindingLabels();
 
         public FullRunStatus GetStatus()
         {
@@ -350,6 +356,8 @@ namespace HollowKnightTAS.Runtime.FullRun
             if (!inputReady || (mode != "Recording" && mode != "Replay")) return;
             try
             {
+                if (mode == "Replay" && movieFrame >= replayLength)
+                    throw new InvalidOperationException("Extend the editable Movie before continuing past its end.");
                 if (completed != expectedNativeStart)
                     throw new InvalidDataException("Native frame start was not sequential.");
                 var ready = IsMovieFrameReady(out var boundary);
@@ -399,6 +407,10 @@ namespace HollowKnightTAS.Runtime.FullRun
                 frameBoundary = boundary;
                 input.SetFrameInputEnabled(ready);
                 mouse.SetFrameInputEnabled(ready);
+                // Loading and RNG synchronization still execute a native frame.
+                // Keep the hook chain alive so the clock can acknowledge the seed;
+                // SetFrameInputEnabled above separately suppresses Movie samples.
+                input.SetNativeFrameActive(true);
             }
             catch (Exception exception)
             {
@@ -466,6 +478,7 @@ namespace HollowKnightTAS.Runtime.FullRun
         private void OnNativeCompleted(long completed)
         {
             if (mode != "Recording" && mode != "Replay") return;
+            input.SetNativeFrameActive(false);
             try
             {
                 if (!inputReady && completed - 1 == bootstrapFrame)
@@ -494,6 +507,14 @@ namespace HollowKnightTAS.Runtime.FullRun
                 if (movieFrame == pauseAtMovieFrame) { pauseAtMovieFrame = -1; clock.RequestPause(); }
                 if (mode == "Replay" && movieFrame == replayLength)
                 {
+                    if (editableReplay)
+                    {
+                        // Live edits must stay resumable in this process. Finished is
+                        // terminal and used to force a cold restart on the next Play.
+                        clock.RequestPause();
+                        input.PrepareFrame(movieFrame, atReplayEnd: true);
+                        return;
+                    }
                     if (bossTraceEnabled)
                         File.WriteAllText(Path.Combine(sessionDirectory, "boss-trace.csv"),
                             bossTrace.ToString(), new UTF8Encoding(false));

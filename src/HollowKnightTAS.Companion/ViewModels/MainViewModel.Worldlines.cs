@@ -66,6 +66,29 @@ namespace HollowKnightTAS.Companion.ViewModels
         public ICommand SaveTimelineNodeCommand => new AsyncRelayCommand(() => FrameMenuAsync("save", -1), () => !gridApplying && fullRunMovies?.IsPending == true && fullRunMovies.Mode != "Unarmed");
         public ICommand RestoreTimelineNodeCommand => new AsyncRelayCommand(RestoreTimelineSelectionAsync, () => !gridApplying && selectedTimelineNode != null && selectedTimelineTree != freshTimeline && fullRunMovies?.IsPending == true);
         public ICommand DeleteTimelineNodeCommand => new RelayCommand(DeleteTimelineSelection, () => !gridApplying && selectedTimelineNode != null && selectedTimelineTree != freshTimeline);
+        public ICommand BindTimelineQuickSlotCommand => new RelayCommand(BindSelectedTimelineQuickSlot,
+            () => !gridApplying && !quickSlotBusy && SelectedQuickSlot >= 0 && SelectedQuickSlot < 10
+                && selectedTimelineTree != freshTimeline && selectedTimelineNode?.Movie.Length > 0);
+
+        private void BindSelectedTimelineQuickSlot()
+        {
+            try
+            {
+                if (!BindTimelineQuickSlotCommand.CanExecute(null)) return;
+                BindTimelineSlot(SelectedQuickSlot);
+                QuickSlotStatus = $"F{SelectedQuickSlot + 1} 已绑定世界线 {selectedWorldline!.Id} · {selectedTimelineNode!.Label}。";
+            }
+            catch (Exception ex) { QuickSlotStatus = "绑定失败：" + ex.Message; }
+        }
+
+        private void BindTimelineSlot(int slot)
+        {
+            var treeId = selectedTimelineTree!.Id;
+            var nodeId = selectedTimelineNode!.Id;
+            var leafId = selectedWorldline!.Id;
+            worldlines!.Update(library => library.QuickSlots[slot] = $"{treeId}:{nodeId}:{leafId}");
+            RefreshWorldlines(treeId, leafId, nodeId);
+        }
         public void InitializeWorldlines()
         {
             if (worldlines != null) return;
@@ -131,6 +154,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             OnPropertyChanged(nameof(TimelineNodeDetail));
             OnPropertyChanged(nameof(SaveTimelineNodeCommand)); OnPropertyChanged(nameof(RestoreTimelineNodeCommand));
             OnPropertyChanged(nameof(DeleteTimelineNodeCommand));
+            OnPropertyChanged(nameof(BindTimelineQuickSlotCommand));
             if (quickSlots != null) RenderQuickSlots();
         }
         private void RefreshWorldlines(string? treeId = null, int? leafId = null, int? nodeId = null)
@@ -221,7 +245,11 @@ namespace HollowKnightTAS.Companion.ViewModels
                     var target = library.Trees.Single(t => t.Id == tree.Id);
                     var removed = target.Subtree(node.Id);
                     target.Delete(node.Id);
-                    foreach (var slot in library.QuickSlots.Where(p => removed.Any(n => p.Value == tree.Id + ":" + n)).Select(p => p.Key).ToArray())
+                    foreach (var slot in library.QuickSlots.Where(p =>
+                    {
+                        var parts = p.Value.Split(':');
+                        return parts[0] == tree.Id && parts.Skip(1).Any(id => int.TryParse(id, out var n) && removed.Contains(n));
+                    }).Select(p => p.Key).ToArray())
                         library.QuickSlots.Remove(slot);
                 });
                 RefreshWorldlines(tree.Id); TimelineTreeStatus = $"已删除 {count} 个存档节点；其他世界线保留。";
@@ -243,9 +271,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     var count = worldlines.Library.Trees.Sum(t => t.Nodes.Count);
                     await FrameMenuAsync("save", -1);
                     if (count == worldlines.Library.Trees.Sum(t => t.Nodes.Count)) throw new InvalidOperationException(GridStatus);
-                    var reference = selectedTimelineTree!.Id + ":" + selectedTimelineNode!.Id;
-                    worldlines.Update(library => library.QuickSlots[slot] = reference);
-                    RefreshWorldlines(selectedTimelineTree.Id, selectedWorldline?.Id, selectedTimelineNode.Id);
+                    BindTimelineSlot(slot);
                 }
                 else
                 {
@@ -253,7 +279,11 @@ namespace HollowKnightTAS.Companion.ViewModels
                     var parts = reference.Split(':');
                     var tree = worldlines.Library.Trees.Single(t => t.Id == parts[0]);
                     var node = tree.Nodes.Single(n => n.Id == int.Parse(parts[1]));
-                    var leaf = tree.Leaves.Last(n => tree.PathTo(n.Id).Any(p => p.Id == node.Id));
+                    var leaf = parts.Length >= 3
+                        ? tree.Nodes.Single(n => n.Id == int.Parse(parts[2]))
+                        : tree.Leaves.Last(n => tree.PathTo(n.Id).Any(p => p.Id == node.Id));
+                    if (!tree.PathTo(leaf.Id).Any(p => p.Id == node.Id))
+                        throw new InvalidOperationException("快捷槽节点已不属于绑定的世界线，请重新绑定。");
                     SetGridApplying(true);
                     try { await RestoreTimelineCoreAsync(tree, leaf, node); }
                     finally { SetGridApplying(false); }

@@ -17,11 +17,14 @@ namespace HollowKnightTAS.Runtime.Input
         private int sampleIndex;
         private bool authored;
         private readonly HashSet<GameInputChannel> authoredEdgeChannels = new HashSet<GameInputChannel>();
+        private readonly HashSet<GameInputChannel> transitionedEdgeChannels = new HashSet<GameInputChannel>();
         private readonly Dictionary<GameInputChannel, int> authoredSampleCounts = new Dictionary<GameInputChannel, int>();
         private bool recording;
         private bool replaying;
         private bool hooked;
         private bool suspended = true;
+        private bool nativeFrameActive;
+        private Func<bool>? nativeFrameRunning;
         private bool disposed;
         private string fault = string.Empty;
 
@@ -32,7 +35,40 @@ namespace HollowKnightTAS.Runtime.Input
         public string Fault => fault;
         public int ConsumedSamples => sampleIndex;
         public int ExpectedSamples => expected.Count;
+        public IReadOnlyDictionary<string, string> ReadBindingLabels()
+        {
+            var result = new Dictionary<string, string>();
+            var hero = InputHandler.Instance?.inputActions;
+            if (hero == null) return result;
+            var actions = GetActions(hero, GameInputChannel.Hero);
+            var names = new[] { "Left", "Right", "Up", "Down", "", "", "", "",
+                "Submit", "Cancel", "Jump", "", "Dash", "SuperDash", "DreamNail",
+                "Attack", "Cast" };
+            var lease = leases.FirstOrDefault(value => ReferenceEquals(value.Set, hero));
+            for (var index = 0; index < names.Length; index++)
+            {
+                if (names[index].Length == 0) continue;
+                Add(names[index], index);
+            }
+            Add("QuickCast", 19);
+            return result;
+
+            void Add(string name, int index)
+            {
+                // Playback leases replace live bindings; publish the originals, never TAS sources.
+                var bindings = lease == null ? actions[index].UnfilteredBindings.ToArray()
+                    : lease.OriginalBindings(index);
+                var keyboard = bindings.OfType<KeyBindingSource>().Select(value => value.Name).Distinct().ToArray();
+                result["inputBinding." + name] = string.Join(" / ", keyboard.Length != 0
+                    ? keyboard : bindings.Select(value => value.Name).Distinct().ToArray());
+            }
+        }
         public bool IsFrameInputEnabled => !suspended;
+        public bool IsNativeFrameActive => nativeFrameActive && (nativeFrameRunning?.Invoke() ?? true);
+
+        public void SetNativeFrameActive(bool active) => nativeFrameActive = active;
+        public void SetNativeFrameRunning(Func<bool> running)
+            => nativeFrameRunning = running ?? throw new ArgumentNullException(nameof(running));
 
         public void SetFrameInputEnabled(bool enabled)
         {
@@ -129,7 +165,7 @@ namespace HollowKnightTAS.Runtime.Input
             replaying = true;
         }
 
-        public void PrepareFrame(long frameIndex)
+        public void PrepareFrame(long frameIndex, bool atReplayEnd = false)
         {
             if (!recording && !replaying)
                 throw new InvalidOperationException("Full-run input adapter has not started.");
@@ -138,13 +174,17 @@ namespace HollowKnightTAS.Runtime.Input
             currentFrame = frameIndex;
             sampleIndex = 0;
             authoredSampleCounts.Clear();
-            var run = replaying ? RunAt(frameIndex) : null;
+            var run = replaying && !atReplayEnd ? RunAt(frameIndex) : null;
             authored = run?.Authored == true;
             expected = run?.Samples ?? Array.Empty<GameInputSample>();
         }
 
         public void CompleteFrame(long frameIndex)
         {
+            // InControl can report the same edge on multiple updates in one frame.
+            // Retire an authored-to-recorded transition only after the whole frame.
+            foreach (var channel in transitionedEdgeChannels) authoredEdgeChannels.Remove(channel);
+            transitionedEdgeChannels.Clear();
             if (frameIndex != currentFrame)
             {
                 Fail("Native frame completion differs from prepared input frame.");
@@ -190,6 +230,9 @@ namespace HollowKnightTAS.Runtime.Input
         private void OnPlayerActionSetUpdate(On.InControl.PlayerActionSet.orig_Update original,
             PlayerActionSet self, ulong updateTick, float deltaTime)
         {
+            // Window messages can update InControl after the PlayerLoop has completed.
+            // They belong to no Movie frame and must not consume the prepared next frame.
+            if (!IsNativeFrameActive) return;
             var originalCalled = false;
             try
             {
@@ -266,7 +309,8 @@ namespace HollowKnightTAS.Runtime.Input
                         if (Math.Abs(values[index] - desired.Values[index]) > 1)
                             throw new InvalidDataException("Input value mismatch at native frame "
                                 + currentFrame + ", sample " + sampleIndex + ", action " + index + ".");
-                    if (!authored && !authoredEdgeChannels.Remove(channel) && (pressed != desired.PressedMask || released != desired.ReleasedMask))
+                    if (!authored && authoredEdgeChannels.Contains(channel)) transitionedEdgeChannels.Add(channel);
+                    if (!authored && !authoredEdgeChannels.Contains(channel) && (pressed != desired.PressedMask || released != desired.ReleasedMask))
                         throw new InvalidDataException("Input edge mismatch at native frame "
                             + currentFrame + ", sample " + sampleIndex + ".");
                 }
@@ -412,6 +456,7 @@ namespace HollowKnightTAS.Runtime.Input
 
             public PlayerActionSet Set { get; }
             public GameInputChannel Channel { get; }
+            public BindingSource[] OriginalBindings(int index) => originals[index];
 
             public static ActionSetLease Attach(PlayerActionSet set, GameInputChannel channel,
                 PlayerAction[] actions)

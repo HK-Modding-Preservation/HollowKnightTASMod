@@ -10,6 +10,7 @@ namespace HollowKnightTAS.Companion.Services
         private StartupBootGate? gate;
         private bool waiting;
         private bool commandPending;
+        private int faultCode;
         private int completedFrames = -1;
         public event EventHandler? Changed;
         public bool IsPending => gate != null;
@@ -76,10 +77,13 @@ namespace HollowKnightTAS.Companion.Services
             var next = gate?.IsWaiting == true;
             var pending = IsCommandPending;
             var frames = gate?.CompletedFrames ?? -1;
-            if (waiting == next && completedFrames == frames && commandPending == pending) return;
+            var fault = FullRunFaultCode;
+            if (waiting == next && completedFrames == frames && commandPending == pending
+                && faultCode == fault) return;
             waiting = next;
             commandPending = pending;
             completedFrames = frames;
+            faultCode = fault;
             Changed?.Invoke(this, EventArgs.Empty);
         }
 
@@ -108,6 +112,7 @@ namespace HollowKnightTAS.Companion.Services
             gate = null;
             waiting = false;
             commandPending = false;
+            faultCode = 0;
             completedFrames = -1;
             Changed?.Invoke(this, EventArgs.Empty);
         }

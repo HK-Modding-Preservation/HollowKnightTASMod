@@ -152,12 +152,13 @@ namespace HollowKnightTAS.Companion.ViewModels
                 OnPropertyChanged(nameof(SaveTimelineNodeCommand));
                 OnPropertyChanged(nameof(RestoreTimelineNodeCommand));
                 foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
-                Status = startupBoot.IsWaiting
+                Status = startupBoot.FullRunFaultCode != 0
+                    ? "全流程已失败（" + startupBoot.FullRunFaultCode + "）；请重新启动会话。"
+                    : startupBoot.IsWaiting
                     ? fullRunMovies?.IsArmed == true
                         ? "全流程 Movie 已就绪；可按原生帧步进或播放。"
                         : fullRunMovies?.Mode == "Completed"
-                            ? "全流程 Movie 已在第 " + startupBoot.NativeCompletedFrames
-                                + " 帧完成。"
+                            ? "序列已到末尾；Play／逐帧将重放恢复到末尾后接续草稿。"
                             : startupBoot.NativeCompletedFrames == 0
                                 ? "已停在第 0 帧；直接播放或逐帧会自动新建 Movie，也可打开已有序列。"
                                 : "全流程 Movie 已在第 " + startupBoot.NativeCompletedFrames
@@ -265,7 +266,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     throw new InvalidOperationException("等待最新运行状态后再切换播放/暂停。");
                 await ExecuteHumanAsync(currentControlMode == "Paused"
                     ? AutomationCommandIds.Resume : AutomationCommandIds.Pause, AutomationScope.ControlPlayback);
-            }, allowStartupContinue: true);
+            }, allowStartupContinue: true, allowCompletedReplay: true);
             StepCommand =
                 Command(
                     async () =>
@@ -290,7 +291,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                         Fields(
                             "count",
                             "1"));
-                    }, allowStartupStep: true);
+                    }, allowStartupStep: true, allowCompletedReplay: true);
             ResumeCommand =
                 Command(
                     () => ExecuteHumanAsync(
@@ -456,6 +457,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 }
 
                 selectedSession = value;
+                UpdateInputBindingLabels(new Dictionary<string, string>());
                 currentMovieTick = -1;
                 currentFullRunMovieFrame = -1;
                 gridProgressRequestId = null;
@@ -551,7 +553,8 @@ namespace HollowKnightTAS.Companion.ViewModels
                 : "Native frame running"
             : string.IsNullOrEmpty(currentControlMode) ? "No runtime" : currentControlMode;
         public string PlayPauseLabel => startupBoot?.IsPending == true
-            ? startupBoot.IsCommandPending ? "等待确认…"
+            ? startupBoot.FullRunFaultCode != 0 ? "已失败 · 需重启"
+                : startupBoot.IsCommandPending ? "等待确认…"
                 : startupBoot.IsWaiting ? "Play 继续" : "Pause 暂停"
             : currentControlMode == "Paused" ? "Play 继续" : "Pause 暂停";
 
@@ -880,7 +883,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             return null;
         }
 
-        private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true, bool allowStartupContinue = false, bool allowStartupStep = false)
+        private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true, bool allowStartupContinue = false, bool allowStartupStep = false, bool allowCompletedReplay = false)
         {
             var command = new AsyncRelayCommand(
                 async () =>
@@ -894,9 +897,10 @@ namespace HollowKnightTAS.Companion.ViewModels
                         Status = exception.Message;
                     }
                 },
-                () => !gridApplying && (startupBoot?.IsPending == true
+                () => !gridApplying && (startupBoot?.FullRunFaultCode ?? 0) == 0 && (startupBoot?.IsPending == true
                     ? fullRunMovies?.IsPending == true
-                        ? (fullRunMovies.IsArmed || fullRunMovies.Mode == "Unarmed") && !startupBoot.IsCommandPending && (allowStartupContinue
+                        ? (fullRunMovies.IsArmed || fullRunMovies.Mode == "Unarmed"
+                            || (allowCompletedReplay && fullRunMovies.Mode == "Completed" && restartProtectedGame != null)) && !startupBoot.IsCommandPending && (allowStartupContinue
                             || (allowStartupStep && startupBoot.CanStep))
                         : (allowStartupContinue && startupBoot.IsWaiting)
                             || (allowStartupStep && startupBoot.CanStep)
@@ -2178,6 +2182,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (string.Equals(messageType, IpcMessageTypes.FullRunState,
                     StringComparison.Ordinal))
             {
+                UpdateInputBindingLabels(fields);
                 if (fields.TryGetValue("movieFrame", out var frameText)
                     && long.TryParse(frameText, NumberStyles.None,
                         CultureInfo.InvariantCulture, out var frame))

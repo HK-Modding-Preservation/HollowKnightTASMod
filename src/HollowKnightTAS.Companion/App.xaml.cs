@@ -278,6 +278,20 @@ namespace HollowKnightTAS.Companion
             shutdown.Cancel();
             automaticStartup?.Dispose();
             startupBootTimer?.Stop();
+            // Close the exact process owned by this Studio before releasing its gate.
+            // A paused Unity process cannot reliably service WM_CLOSE.
+            if (startupGame != null)
+            {
+                try
+                {
+                    if (!startupGame.HasExited)
+                    {
+                        startupGame.Kill();
+                        startupGame.WaitForExit(5000);
+                    }
+                }
+                catch (InvalidOperationException) { /* Already exited. */ }
+            }
             startupBoot?.Dispose();
             startupGame?.Dispose();
             if (controlServer != null)

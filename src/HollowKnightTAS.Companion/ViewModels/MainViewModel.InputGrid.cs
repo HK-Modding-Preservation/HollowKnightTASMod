@@ -171,8 +171,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             });
             UndoGridCommand = Local(() => RestoreGridHistory(gridUndo, gridRedo));
             RedoGridCommand = Local(() => RestoreGridHistory(gridRedo, gridUndo));
-            ApplyGridCommand = Command(() => ApplyGridAsync(false), allowStartupContinue: true);
-            ApplyGridAndSeekCommand = Command(() => ApplyGridAsync(true), allowStartupContinue: true);
+            ApplyGridCommand = Command(() => ApplyGridAsync(false), allowStartupContinue: true, allowCompletedReplay: true);
+            ApplyGridAndSeekCommand = Command(() => ApplyGridAsync(true), allowStartupContinue: true, allowCompletedReplay: true);
         }
 
         private MovieAnyEditorResult GridAny()

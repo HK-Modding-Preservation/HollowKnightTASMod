@@ -137,7 +137,7 @@ namespace HollowKnightTAS.Runtime.Input
 
         private void OnProviderUpdate(IMouseProvider original)
         {
-            if (!Enabled || suspended) return;
+            if (!Enabled || suspended || input?.IsNativeFrameActive != true) return;
             try
             {
                 var desired = replaying
@@ -160,6 +160,7 @@ namespace HollowKnightTAS.Runtime.Input
             On.InControl.HollowKnightInputModule.orig_UpdateModule original,
             HollowKnightInputModule module)
         {
+            if (input?.IsNativeFrameActive != true) return;
             var originalCalled = false;
             try
             {

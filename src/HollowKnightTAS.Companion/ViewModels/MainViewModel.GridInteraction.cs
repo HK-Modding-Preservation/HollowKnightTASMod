@@ -125,14 +125,33 @@ namespace HollowKnightTAS.Companion.ViewModels
             finally { recordingGridSync = false; }
         }
 
-        private async System.Threading.Tasks.Task ApplyPendingInputsAsync()
+        private async System.Threading.Tasks.Task ApplyPendingInputsAsync(bool withinGridOperation = false)
         {
-            if (!gridHasUserEdits || fullRunMovies?.IsPending != true) return;
-            if (gridApplying) throw new InvalidOperationException("正在同步序列，请稍候。");
+            if (fullRunMovies?.IsPending != true) return;
+            var completed = fullRunMovies.Mode == "Completed";
+            if (!gridHasUserEdits && !completed)
+            {
+                if (startupBoot!.NativeCompletedFrames == 0) return;
+                var boundary = await ReadReadyFrameSnapshotAsync();
+                if (boundary.Frame < InputGridEditor.Count(GridAny().V2Document!)) return;
+                AppendGridBlankFrames(boundary.Frame + 500, withinGridOperation);
+            }
+            if (gridApplying && !withinGridOperation) throw new InvalidOperationException("正在同步序列，请稍候。");
             SetGridApplying(true);
             try
             {
-                if (startupBoot!.NativeCompletedFrames == 0)
+                if (completed)
+                {
+                    // The native Finished gate is terminal. Rebuild the unchanged
+                    // executed prefix through the normal protected replay path.
+                    var snapshot = await ReadReadyFrameSnapshotAsync();
+                    var original = movieEditor.ValidateAny(snapshot.Movie).V2Document!;
+                    var draft = GridAny().V2Document!;
+                    if (!MovieV2Prefix.Matches(original, draft, snapshot.Frame))
+                        throw new InvalidOperationException("已修改过去的帧，请先点击应用并重放到 Frame。");
+                    await RestartDraftAtAsync(snapshot.Frame);
+                }
+                else if (startupBoot!.NativeCompletedFrames == 0)
                 {
                     await RestartDraftAtAsync(0);
                 }
@@ -171,13 +190,13 @@ namespace HollowKnightTAS.Companion.ViewModels
                 earliestGridEdit = long.MaxValue;
                 GridStatus = "未来帧输入已同步，将按表格执行。";
             }
-            finally { SetGridApplying(false); }
+            finally { if (!withinGridOperation) SetGridApplying(false); }
         }
-        public void AppendGridBlankFrames(long minimumTotal = 0)
+        public void AppendGridBlankFrames(long minimumTotal = 0, bool withinGridOperation = false)
         {
             try
             {
-                if (gridApplying) return;
+                if (gridApplying && !withinGridOperation) return;
                 var source = GridAny();
                 if (source.V2Document == null) return;
                 var total = InputGridEditor.Count(source.V2Document);
@@ -187,8 +206,9 @@ namespace HollowKnightTAS.Companion.ViewModels
                 var previousEarliest = earliestGridEdit;
                 EditGrid(new MovieV2TimelineEditor().InsertFrames(source.V2Document, total,
                     new[] { new NativeFrameRun(count, Array.Empty<GameInputSample>(), new MovieSourceSpan("<blank>", 1, 1, 1), ParseFrameRate(DefaultFrameRate), true) }));
-                gridHasUserEdits = wasEdited;
-                earliestGridEdit = previousEarliest;
+                var replay = fullRunMovies?.Mode == "Replay" || fullRunMovies?.Mode == "Completed";
+                gridHasUserEdits = wasEdited || replay;
+                earliestGridEdit = replay ? Math.Min(previousEarliest, total) : previousEarliest;
             }
             catch (Exception ex) { GridStatus = ex.Message; }
         }

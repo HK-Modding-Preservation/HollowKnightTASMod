@@ -23,7 +23,6 @@
         <Separator />
         <MenuItem Header="Hotkeys 快捷键…" Tag="ShortcutSettingsTab" Click="OnNavigate" />
         <MenuItem Header="Runtime 运行控制…" Tag="ControlTab" Click="OnNavigate" />
-        <MenuItem Header="Autosave 自动存档…" Tag="SavesTab" Click="OnNavigate" />
       </MenuItem>
       <MenuItem Header="_Movie 序列">
         <MenuItem Header="New full-run Movie 从第 0 帧新建" Command="{Binding NewFullRunMovieCommand}"
@@ -33,7 +32,6 @@
         <Separator />
         <MenuItem Header="Input Editor 输入编辑器" Tag="InputGridTab" Click="OnNavigate" />
         <MenuItem Header="Movie Text 文本脚本" Tag="MovieTextTab" Click="OnNavigate" />
-        <MenuItem Header="Savestates 存档管理" Tag="SavesTab" Click="OnNavigate" />
         <MenuItem Header="Timeline 时间线" Tag="WorldlinesTab" Click="OnNavigate" />
         <Separator />
         <MenuItem Header="Encode to MP4 导出视频…" Command="{Binding StartVideoExportCommand}" />
@@ -211,6 +209,14 @@
               <Button Content="恢复所选节点" Command="{Binding RestoreTimelineNodeCommand}" />
               <Button Content="删除节点及子树…" Command="{Binding DeleteTimelineNodeCommand}" />
             </WrapPanel>
+            <WrapPanel Margin="0,0,0,6">
+              <ComboBox Width="340" ItemsSource="{Binding QuickSlotLabels}" SelectedIndex="{Binding SelectedQuickSlot}"
+                        AutomationProperties.AutomationId="HktasStudio.TimelineQuickSlot" />
+              <Button Content="将所选节点绑定到快捷键" Command="{Binding BindTimelineQuickSlotCommand}"
+                      AutomationProperties.AutomationId="HktasStudio.BindTimelineQuickSlot" />
+              <Button Content="恢复快捷槽" Command="{Binding LoadQuickSlotCommand}" />
+            </WrapPanel>
+            <TextBlock Text="{Binding QuickSlotStatus}" Margin="4,0,4,6" TextWrapping="Wrap" />
             <TextBlock Text="点击叶子选择世界线，再点击其路径上的节点。绿色连线为所选世界线，粗边框为所选节点。" Foreground="{StaticResource MutedTextBrush}" Margin="4,0,4,8" TextWrapping="Wrap" />
           </StackPanel>
           <TextBlock DockPanel.Dock="Bottom" Text="{Binding TimelineTreeStatus}" Margin="4,8" TextWrapping="Wrap" />
@@ -514,55 +520,6 @@
                  VerticalScrollBarVisibility="Auto" />
       </TabItem>
 
-      <TabItem x:Name="SavesTab" Header="Savestates">
-        <Grid Margin="8">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="120" />
-          </Grid.RowDefinitions>
-          <StackPanel>
-          <WrapPanel>
-            <TextBlock Text="TAS 快捷槽 " VerticalAlignment="Center" />
-            <ComboBox Width="320" ItemsSource="{Binding QuickSlotLabels}" SelectedIndex="{Binding SelectedQuickSlot}" />
-            <Button Content="Save 保存（Shift+Fn）" Command="{Binding SaveQuickSlotCommand}" />
-            <Button Content="Load 恢复（Fn）" Command="{Binding LoadQuickSlotCommand}" />
-            <Button Content="Refresh 快捷槽" Command="{Binding RefreshQuickSlotsCommand}" />
-            <Button Content="解除待确认关联…" Command="{Binding ForgetPendingQuickSlotCommand}" />
-          </WrapPanel>
-          <TextBlock Text="{Binding QuickSlotStatus}" TextWrapping="Wrap" Margin="0,4,0,6" />
-          <WrapPanel>
-            <Button Content="Refresh" Command="{Binding RefreshReplaySavesCommand}" />
-            <Button Content="Create Manual Save" Command="{Binding CreateReplaySaveCommand}" />
-            <Button Content="Restore Selected" Command="{Binding RestoreReplaySaveCommand}" />
-            <Button Content="Approve Overwrite" Command="{Binding ApproveReplaySaveOverwriteCommand}" />
-            <Button Content="Deny Overwrite" Command="{Binding DenyReplaySaveOverwriteCommand}" />
-            <Button Content="Resume" Command="{Binding ResumeReplaySaveRestoreCommand}" />
-            <Button Content="Cancel Restore" Command="{Binding CancelReplaySaveRestoreCommand}" />
-          </WrapPanel>
-          <WrapPanel Margin="0,6,0,0">
-            <Button Content="读取当前策略" Command="{Binding RefreshAutoSavePolicyCommand}" />
-            <CheckBox Content="自动存档" IsChecked="{Binding AutoSaveEnabled}" VerticalAlignment="Center" />
-            <TextBlock Text=" 间隔（有效帧） " VerticalAlignment="Center" />
-            <TextBox Width="90" Text="{Binding AutoSaveInterval, UpdateSourceTrigger=PropertyChanged}" />
-            <TextBlock Text=" 保留自动存档数 " VerticalAlignment="Center" />
-            <TextBox Width="55" Text="{Binding AutoSaveRetention, UpdateSourceTrigger=PropertyChanged}" />
-            <Button Content="应用自动存档策略" Command="{Binding SetAutoSavePolicyCommand}"
-                    ToolTip="立即应用，正常退出后保留设置。仅按推进的 Movie 帧计时；只淘汰自动存档，不删除手动存档。" />
-          </WrapPanel>
-          </StackPanel>
-          <ListBox Grid.Row="1"
-                   Margin="0,8,0,0"
-                   ItemsSource="{Binding ReplaySaves}"
-                   SelectedItem="{Binding SelectedReplaySave}" />
-          <TextBox Grid.Row="2"
-                   Text="{Binding RestoreStatus, Mode=OneWay}"
-                   Margin="0,8,0,0"
-                   IsReadOnly="True"
-                   TextWrapping="Wrap"
-                   VerticalScrollBarVisibility="Auto" />
-        </Grid>
-      </TabItem>
 
       <TabItem x:Name="HelpTab" Header="操作手册" Visibility="Collapsed"
                AutomationProperties.AutomationId="HktasStudio.HelpTab">
@@ -574,7 +531,7 @@
 
             <TextBlock Text="播放已有 TAS" FontSize="17" FontWeight="SemiBold" />
             <TextBlock Margin="0,6,0,16" TextWrapping="Wrap"
-                       Text="1. 在 Movie → Open Movie 打开 .hktas。&#10;2. 到 Savestates 选择与该序列匹配且显示 Compatible / Ready 的存档，点 Restore Selected，等待状态变成 Completed。&#10;3. 回到 Movie Text，依次点 Validate、Upload、Start Replay。Pause 暂停；V 前进一帧。" />
+                       Text="1. 在 Movie → Open Movie 打开 .hktas。&#10;2. 到 Timeline 选择所需世界线与节点，点击恢复所选节点，等待恢复完成。&#10;3. 回到 Movie Text，依次点 Validate、Upload、Start Replay。Pause 暂停；V 前进一帧。" />
 
             <TextBlock Text="编辑输入" FontSize="17" FontWeight="SemiBold" />
             <TextBlock Margin="0,6,0,16" TextWrapping="Wrap"
@@ -582,7 +539,7 @@
 
             <TextBlock Text="存档与回档" FontSize="17" FontWeight="SemiBold" />
             <TextBlock Margin="0,6,0,16" TextWrapping="Wrap"
-                       Text="Shift+F1…F10 保存到快捷槽，F1…F10 恢复。也可以在 Savestates 创建手动存档。恢复时若要求覆盖原版存档，先核对提示，再选择 Approve Overwrite 或 Deny Overwrite。" />
+                       Text="Timeline 中选中已存档节点，再选择 F1…F10 并点击绑定。F1…F10 恢复绑定节点；Shift+F1…F10 保存当前帧到对应快捷槽。恢复需要重放。" />
 
             <TextBlock Text="导出 MP4" FontSize="17" FontWeight="SemiBold" />
             <TextBlock Margin="0,6,0,16" TextWrapping="Wrap"

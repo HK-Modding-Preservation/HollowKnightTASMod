@@ -40,6 +40,7 @@ namespace HollowKnightTAS.Companion
                 {
                     vm.InputGridRefreshed -= RestoreGridSelection;
                     vm.InputGridPositionChanged -= ScrollGridToFrame;
+                    vm.PropertyChanged -= OnInputBindingsChanged;
                 }
             };
         }
@@ -63,11 +64,14 @@ namespace HollowKnightTAS.Companion
             {
                 oldVm.InputGridRefreshed -= RestoreGridSelection;
                 oldVm.InputGridPositionChanged -= ScrollGridToFrame;
+                oldVm.PropertyChanged -= OnInputBindingsChanged;
             }
             if (e.NewValue is MainViewModel vm)
             {
                 vm.InputGridRefreshed += RestoreGridSelection;
                 vm.InputGridPositionChanged += ScrollGridToFrame;
+                vm.PropertyChanged += OnInputBindingsChanged;
+                RefreshInputBindingHeaders(vm);
                 RestoreGridSelection(vm, EventArgs.Empty);
             }
         }
@@ -82,7 +86,7 @@ namespace HollowKnightTAS.Companion
 
         private void OnMainTabsSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (e.Source == MainTabs && MainTabs.SelectedItem == SavesTab
+            if (e.Source == MainTabs && MainTabs.SelectedItem == WorldlinesTab
                 && DataContext is MainViewModel savesVm)
                 savesVm.InitializeWorldlines();
             if (e.Source == MainTabs && MainTabs.SelectedItem == InputGridTab
@@ -206,10 +210,49 @@ namespace HollowKnightTAS.Companion
             paintAction = null;
             if (DataContext is MainViewModel vm) vm.InputRows.Preview(0, 0, null, false);
         }
+
+        private void OnInputBindingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.InputBindingLabels) && sender is MainViewModel vm)
+                RefreshInputBindingHeaders(vm);
+        }
+
+        private void RefreshInputBindingHeaders(MainViewModel vm)
+        {
+            foreach (var column in InputGrid.Columns.OfType<DataGridCheckBoxColumn>())
+            {
+                var action = column.SortMemberPath;
+                var known = vm.InputBindingLabels.TryGetValue(action, out var keys);
+                var label = known ? (string.IsNullOrWhiteSpace(keys) ? "—" : keys!) : "?";
+                var header = new TextBlock { Text = string.Join("/", label.Split(new[] { " / " }, StringSplitOptions.None).Select(CompactKeyLabel)),
+                    FontFamily = InputGrid.FontFamily, FontSize = InputGrid.FontSize,
+                    ToolTip = action + " · " + (known ? (label == "—" ? "未绑定" : keys) : "等待游戏按键设置") };
+                header.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                column.Header = header;
+                column.MinWidth = 32;
+                // SizeToHeader retains WPF's measured width across recycled headers.
+                // Recompute a pixel width from the key label so reloads cannot grow it.
+                column.Width = new DataGridLength(Math.Max(32, Math.Ceiling(header.DesiredSize.Width) + 20));
+            }
+        }
+
+        private static string CompactKeyLabel(string key) => key switch
+        {
+            "Left Arrow" or "LeftArrow" => "←",
+            "Right Arrow" or "RightArrow" => "→",
+            "Up Arrow" or "UpArrow" => "↑",
+            "Down Arrow" or "DownArrow" => "↓",
+            "Return" or "Enter" => "↵",
+            "Escape" => "Esc",
+            "Left Shift" or "LeftShift" => "LShift",
+            "Right Shift" or "RightShift" => "RShift",
+            "Left Control" or "LeftControl" => "LCtrl",
+            "Right Control" or "RightControl" => "RCtrl",
+            _ => key
+        };
         private void OnInputGridWheel(object sender, MouseWheelEventArgs e)
         {
             if (DataContext is not MainViewModel vm) return;
-            vm.AutoFollowGrid = false;
             if (e.Delta >= 0) return;
             var scroll = FindScroll(InputGrid);
             if (scroll != null && scroll.VerticalOffset >= scroll.ScrollableHeight - 1)
@@ -243,9 +286,9 @@ namespace HollowKnightTAS.Companion
                 item.Click += async (_, _) => await vm.FrameMenuAsync(action, row.Tick);
                 menu.Items.Add(item);
             }
-            FrameItem($"播放到第 {row.Tick} 帧并暂停", "seek");
+            FrameItem($"播放到第 {row.Tick} 帧并暂停", "seek", vm.CanNavigateFrame(row.Tick, true));
+            FrameItem($"恢复到第 {row.Tick} 帧并暂停", "restore", vm.CanNavigateFrame(row.Tick, false));
             FrameItem($"保存第 {row.Tick} 帧", "save");
-            FrameItem($"恢复第 {row.Tick} 帧存档", "load", vm.HasFrameSave(row.Tick));
             menu.Items.Add(new Separator());
             foreach (var entry in new[] { ("复制选区", vm.CopyGridCommand), ("粘贴到选区", vm.PasteGridCommand),
                 ("插入空帧", vm.InsertGridCommand), ("删除选区", vm.DeleteGridCommand), ("应用选区 FPS", vm.SetFrameRateCommand) })
@@ -296,7 +339,7 @@ namespace HollowKnightTAS.Companion
                 e.Handled = true;
                 if (e.IsRepeat) return;
                 viewModel.SelectedQuickSlot = quickSlot;
-                MainTabs.SelectedItem = SavesTab;
+                MainTabs.SelectedItem = WorldlinesTab;
                 var slotCommand = Keyboard.Modifiers == ModifierKeys.Shift
                     ? viewModel.SaveQuickSlotCommand : viewModel.LoadQuickSlotCommand;
                 if (slotCommand.CanExecute(null)) slotCommand.Execute(null);
