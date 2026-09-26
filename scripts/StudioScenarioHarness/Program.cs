@@ -14,11 +14,13 @@ using HollowKnightTAS.Companion.ViewModels;
 
 // Opt-in integration harness: the real App/VM/IPC/verified launcher, no UIA client.
 // Run with --headless --scenario-output=<absolute-directory> only with no game/Studio running.
-internal static class StudioScenarioHarness
+internal static partial class StudioScenarioHarness
 {
     static string output = "";
     static App app = null!;
     static int finished;
+    static bool videoExportScenarios;
+    static bool battleVideoScenarios;
     static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name,
         BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(owner)!;
     static void Log(string text) { File.AppendAllText(Path.Combine(output, "scenario.log"), DateTime.Now.ToString("O") + " " + text + "\n"); }
@@ -43,6 +45,8 @@ internal static class StudioScenarioHarness
     {
         output = args.Single(a => a.StartsWith("--scenario-output=")).Split('=', 2)[1];
         Directory.CreateDirectory(output);
+        videoExportScenarios = args.Contains("--video-export");
+        battleVideoScenarios = videoExportScenarios && args.Any(a => a.StartsWith("--video-movie=", StringComparison.Ordinal));
         if (!args.Contains("--headless") || Process.GetProcessesByName("hollow_knight").Length != 0
             || Process.GetProcessesByName("HollowKnightTAS.Companion").Length != 0) return 12;
         app = new App(); app.InitializeComponent();
@@ -52,7 +56,8 @@ internal static class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (args.Contains("--reopen-only")) await Reopen();
+                if (videoExportScenarios) await RunVideoExportAsync(args);
+                else if (args.Contains("--reopen-only")) await Reopen();
                 else await Run();
                 Log("ALL SCENARIOS PASSED");
                 // Exercise the actual async Closing save handler and App-owned game exit.
@@ -169,7 +174,7 @@ internal static class StudioScenarioHarness
     [DllImport("kernel32.dll")] static extern bool GlobalMemoryStatusEx(ref Memory memory);
     static void Guard()
     {
-        var deadline = DateTime.UtcNow.AddMinutes(4);
+        var deadline = DateTime.UtcNow.AddMinutes(battleVideoScenarios ? 20 : videoExportScenarios ? 8 : 4);
         while (Volatile.Read(ref finished) == 0)
         {
             try
