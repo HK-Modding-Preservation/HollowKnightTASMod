@@ -179,7 +179,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 {
                     token.ThrowIfCancellationRequested();
                     var status = await automationBroker.ExecuteHumanAsync(AutomationCommandIds.FullRunStatus,
-                        AutomationScope.ObserveStateSummary, null, string.Empty, null, CancellationToken.None);
+                        AutomationScope.ObserveStatus, null, string.Empty, null, CancellationToken.None);
                     RequireAutomationSuccess(status);
                     if (!status.Data.TryGetValue("videoExport.operationId", out var observedId) || observedId != operationId)
                         throw new InvalidOperationException("导出会话已断开或发生改变。");
@@ -212,7 +212,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                         if (startRequested && operationId == null)
                         {
                             var observed = await automationBroker.ExecuteHumanAsync(AutomationCommandIds.FullRunStatus,
-                                AutomationScope.ObserveStateSummary, null, string.Empty, null, CancellationToken.None);
+                                AutomationScope.ObserveStatus, null, string.Empty, null, CancellationToken.None);
                             if (observed.Success && observed.Data.TryGetValue("videoExport.state", out var phase)
                                 && (phase == "Capturing" || phase == "Finalizing")
                                 && observed.Data.TryGetValue("videoExport.operationId", out var accepted)) operationId = accepted;
@@ -272,7 +272,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (startupBoot!.IsWaiting)
             {
                 var status = await automationBroker.ExecuteHumanAsync(AutomationCommandIds.FullRunStatus,
-                    AutomationScope.ObserveStateSummary, null, string.Empty, null, CancellationToken.None);
+                    AutomationScope.ObserveStatus, null, string.Empty, null, CancellationToken.None);
                 RequireAutomationSuccess(status);
                 if (!status.Data.TryGetValue("videoExport.state", out var phase) || phase != "Capturing") return;
                 var boundary = await fullRunMovies.RunAsync(startupBoot.NativeCompletedFrames, CancellationToken.None);
