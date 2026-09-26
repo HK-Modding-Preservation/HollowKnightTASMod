@@ -4,6 +4,8 @@ using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Threading;
 using HollowKnightTAS.Companion.Services;
 using HollowKnightTAS.Core.Ipc;
 
@@ -14,10 +16,19 @@ namespace HollowKnightTAS.Companion.ViewModels
         private bool colliderOverlayEnabled;
         private string colliderOverlayStatus = "碰撞箱显示未启用。";
         private ColliderOverlayController? colliderOverlayController;
+        private Window? colliderOverlayOwnerWindow;
+        private EventHandler? colliderOverlayOwnerClosed;
+
+        // Kept internal so offline Companion tests can use an isolated file.
+        internal static string? ColliderOverlaySettingPathOverride { get; set; }
 
         private static string ColliderOverlaySettingPath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "HollowKnightTAS", "studio-collider-overlay.txt");
+            ColliderOverlaySettingPathOverride != null
+                ? Path.GetDirectoryName(ColliderOverlaySettingPathOverride) ?? string.Empty
+                : Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            ColliderOverlaySettingPathOverride != null
+                ? Path.GetFileName(ColliderOverlaySettingPathOverride)
+                : Path.Combine("HollowKnightTAS", "studio-collider-overlay.txt"));
 
         public bool ColliderOverlayEnabled
         {
@@ -76,7 +87,23 @@ namespace HollowKnightTAS.Companion.ViewModels
                 () => SelectedSession?.Client,
                 RequestRuntimeAsync,
                 message => ColliderOverlayStatus = message);
+            AttachColliderOverlayLifecycle();
             if (colliderOverlayEnabled) colliderOverlayController.SetEnabled(true);
+        }
+
+        private void AttachColliderOverlayLifecycle()
+        {
+            var application = Application.Current;
+            if (application == null) return;
+            application.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+            {
+                if (colliderOverlayController == null
+                    || application.MainWindow == null
+                    || colliderOverlayOwnerClosed != null) return;
+                colliderOverlayOwnerWindow = application.MainWindow;
+                colliderOverlayOwnerClosed = (_, _) => DisposeColliderOverlay();
+                colliderOverlayOwnerWindow.Closed += colliderOverlayOwnerClosed;
+            }));
         }
 
         private async Task<IReadOnlyDictionary<string, string>> RequestRuntimeAsync(
@@ -125,6 +152,10 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         internal void DisposeColliderOverlay()
         {
+            if (colliderOverlayOwnerWindow != null && colliderOverlayOwnerClosed != null)
+                colliderOverlayOwnerWindow.Closed -= colliderOverlayOwnerClosed;
+            colliderOverlayOwnerWindow = null;
+            colliderOverlayOwnerClosed = null;
             colliderOverlayController?.Dispose();
             colliderOverlayController = null;
         }

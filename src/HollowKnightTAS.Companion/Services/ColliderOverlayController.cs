@@ -25,6 +25,7 @@ namespace HollowKnightTAS.Companion.Services
         private int requestInFlight;
         private long generation;
         private int disposed;
+        private bool studioWasVisible;
 
         public ColliderOverlayController(
             Func<RuntimeSessionClient?> sessionProvider,
@@ -38,6 +39,8 @@ namespace HollowKnightTAS.Companion.Services
             this.status = status;
             pollTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(150),
                 DispatcherPriority.Background, OnPoll, dispatcher ?? Dispatcher.CurrentDispatcher);
+            // The event-handler constructor starts the timer immediately; the setting is opt-in.
+            pollTimer.Stop();
             if (System.Windows.Application.Current != null)
                 System.Windows.Application.Current.Exit += OnApplicationExit;
         }
@@ -68,6 +71,14 @@ namespace HollowKnightTAS.Companion.Services
         {
             if (!enabled || Volatile.Read(ref disposed) != 0
                 || Interlocked.Exchange(ref requestInFlight, 1) != 0) return;
+            var studio = System.Windows.Application.Current?.MainWindow;
+            if (studio?.IsVisible == true) studioWasVisible = true;
+            if (studioWasVisible && (studio == null || !studio.IsVisible))
+            {
+                Dispose();
+                Interlocked.Exchange(ref requestInFlight, 0);
+                return;
+            }
             var localGeneration = Volatile.Read(ref generation);
             var session = sessionProvider();
             if (session == null || !session.IsConnected)

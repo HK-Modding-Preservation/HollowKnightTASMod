@@ -83,31 +83,40 @@ namespace HollowKnightTAS.Companion.Services
             {
                 if (objectElement.ValueKind != JsonValueKind.Object) continue;
                 var id = TryString(objectElement, "id") ?? string.Empty;
-                var paths = new List<ColliderOverlayPath>();
-                var classification = TryString(objectElement, "classification")
-                    ?? TryString(objectElement, "kind")
-                    ?? "other";
+                var objectClassification = TryString(objectElement, "classification")
+                    ?? TryString(objectElement, "kind") ?? "other";
 
                 if (objectElement.TryGetProperty("colliders", out var colliders)
                     && colliders.ValueKind == JsonValueKind.Array)
                 {
+                    var componentIndex = 0;
                     foreach (var collider in colliders.EnumerateArray())
                     {
                         if (collider.ValueKind != JsonValueKind.Object) continue;
+                        var paths = new List<ColliderOverlayPath>();
                         var colliderClassification = TryString(collider, "classification");
-                        if (!string.IsNullOrWhiteSpace(colliderClassification))
-                            classification = colliderClassification!;
+                        var classification = string.IsNullOrWhiteSpace(colliderClassification)
+                            ? objectClassification : colliderClassification!;
                         if (collider.TryGetProperty("screenPaths", out var screenPaths))
                             ReadPaths(screenPaths, paths);
+                        if (paths.Count != 0)
+                        {
+                            var suffix = TryInt(collider, "componentIndex", out var index)
+                                ? index.ToString(CultureInfo.InvariantCulture)
+                                : componentIndex.ToString(CultureInfo.InvariantCulture);
+                            objects.Add(new ColliderOverlayObject(id + ":" + suffix,
+                                classification, paths));
+                        }
+                        componentIndex++;
                     }
                 }
                 else if (objectElement.TryGetProperty("screenPaths", out var screenPaths))
                 {
+                    var paths = new List<ColliderOverlayPath>();
                     ReadPaths(screenPaths, paths);
+                    if (paths.Count != 0)
+                        objects.Add(new ColliderOverlayObject(id, objectClassification, paths));
                 }
-
-                if (paths.Count != 0)
-                    objects.Add(new ColliderOverlayObject(id, classification, paths));
             }
 
             return new ColliderOverlaySnapshot(snapshotId, nextOffset, objects);
@@ -125,8 +134,7 @@ namespace HollowKnightTAS.Companion.Services
                 foreach (var point in points.EnumerateArray())
                 {
                     if (!TryPoint(point, out var result)) continue;
-                    decoded.Add(new ColliderOverlayPoint(
-                        Math.Clamp(result.X, 0d, 1d), Math.Clamp(result.Y, 0d, 1d)));
+                    decoded.Add(result);
                 }
                 if (decoded.Count >= 2)
                 {
