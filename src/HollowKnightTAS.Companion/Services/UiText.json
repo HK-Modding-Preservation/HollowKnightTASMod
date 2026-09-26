@@ -1924,5 +1924,65 @@
     "Source": "已保存第 {0} 帧的恢复节点；游戏位置未改变。",
     "En": "Saved a restore node for frame {0}. Game position unchanged.",
     "Zh": "已保存第 {0} 帧的恢复节点；游戏位置未改变。"
+  },
+  {
+    "Key": "colliderOverlayEnabled",
+    "Source": "显示游戏碰撞箱",
+    "Zh": "显示游戏碰撞箱",
+    "En": "Show game colliders"
+  },
+  {
+    "Key": "colliderOverlayHelp",
+    "Source": "使用暂停帧的世界快照在游戏窗口上绘制轮廓；仅在 Runtime 就绪且游戏窗口可见时显示。",
+    "Zh": "使用暂停帧的世界快照在游戏窗口上绘制轮廓；仅在 Runtime 就绪且游戏窗口可见时显示。",
+    "En": "Draw world-snapshot outlines over the game window when Runtime is ready and the game is visible."
+  },
+  {
+    "Key": "colliderOverlayDisabledStatus",
+    "Source": "碰撞箱显示已关闭。",
+    "Zh": "碰撞箱显示已关闭。",
+    "En": "Collider overlay is off."
+  },
+  {
+    "Key": "colliderOverlayInitialStatus",
+    "Source": "碰撞箱显示未启用。",
+    "Zh": "碰撞箱显示未启用。",
+    "En": "Collider overlay is disabled."
+  },
+  {
+    "Key": "colliderOverlayWaitingStatus",
+    "Source": "正在等待游戏画面…",
+    "Zh": "正在等待游戏画面…",
+    "En": "Waiting for the game surface…"
+  },
+  {
+    "Key": "colliderOverlayRuntimeStatus",
+    "Source": "等待 Runtime 连接…",
+    "Zh": "等待 Runtime 连接…",
+    "En": "Waiting for Runtime…"
+  },
+  {
+    "Key": "colliderOverlayHiddenStatus",
+    "Source": "游戏窗口不可见或已最小化。",
+    "Zh": "游戏窗口不可见或已最小化。",
+    "En": "The game window is hidden or minimized."
+  },
+  {
+    "Key": "colliderOverlayReadError",
+    "Source": "碰撞箱读取失败：{0}",
+    "Zh": "碰撞箱读取失败：{0}",
+    "En": "Could not read colliders: {0}"
+  },
+  {
+    "Key": "colliderOverlayObjectsStatus",
+    "Source": "碰撞箱 {0} 个对象。",
+    "Zh": "碰撞箱 {0} 个对象。",
+    "En": "Collider overlay: {0} objects."
+  },
+  {
+    "Key": "colliderOverlayEmptyStatus",
+    "Source": "当前场景没有可显示的碰撞箱。",
+    "Zh": "当前场景没有可显示的碰撞箱。",
+    "En": "The current scene has no visible colliders."
   }
 ]

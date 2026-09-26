@@ -173,6 +173,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             InitializeQuickSlots();
             InitializeShortcutSettings();
             InitializeFullRunSettings();
+            InitializeColliderOverlay();
             LaunchGameCommand = new AsyncRelayCommand(LaunchGameAsync, () => this.launchGame != null);
             NewFullRunMovieCommand = new RelayCommand(NewFullRunMovie);
             OpenMovieCommand = new AsyncRelayCommand(OpenMovieAsync);

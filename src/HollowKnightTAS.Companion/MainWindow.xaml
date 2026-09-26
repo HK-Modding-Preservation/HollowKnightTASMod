@@ -201,6 +201,9 @@
           <WrapPanel Margin="0,0,0,14"><TextBlock Text="{ui:Text t65}" Width="140" VerticalAlignment="Center" /><TextBlock Text="{Binding DefaultFrameRate}" Width="60" VerticalAlignment="Center" /><Button Content="{ui:Text t66}" Click="OnDefaultFrameRate" /></WrapPanel>
           <CheckBox Content="{ui:Text t67}" IsChecked="{Binding GameMouseEnabled, Mode=TwoWay}" Margin="0,0,0,10" AutomationProperties.AutomationId="HktasStudio.GameMouseEnabled" />
           <TextBlock Text="{ui:Text t68}" TextWrapping="Wrap" Margin="0,0,0,24" />
+          <CheckBox Content="{ui:Text colliderOverlayEnabled}" IsChecked="{Binding ColliderOverlayEnabled, Mode=TwoWay}" Margin="0,0,0,6" AutomationProperties.AutomationId="HktasStudio.ColliderOverlayEnabled" />
+          <TextBlock Text="{ui:Text colliderOverlayHelp}" TextWrapping="Wrap" Margin="0,0,0,6" />
+          <TextBlock Text="{ui:TextBinding ColliderOverlayStatus}" TextWrapping="Wrap" Foreground="#FFAA88" Margin="0,0,0,18" />
           <CheckBox Content="{ui:Text globalEnabled}" IsChecked="{Binding GlobalHotkeysEnabled, Mode=TwoWay}" AutomationProperties.AutomationId="HktasStudio.GlobalHotkeys" />
           <TextBlock Text="{ui:Text globalHelp}" TextWrapping="Wrap" Margin="0,6,0,10" />
           <TextBlock Text="{ui:TextBinding GlobalHotkeyStatus}" TextWrapping="Wrap" Foreground="#FFAA88" />
