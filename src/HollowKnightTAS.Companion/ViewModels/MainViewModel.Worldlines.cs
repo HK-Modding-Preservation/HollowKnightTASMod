@@ -251,9 +251,11 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (leaf.Movie.Length == 0) throw new InvalidOperationException("此起点尚未关联序列，请先新建 Movie。");
             fullRunMovies.VerifyOriginalSavesUnchanged();
             var initialSaves = GetTimelineInitialSaves(tree);
+            var changedTree = activeDraftTree != tree.Id;
             if (startupBoot?.IsWaiting != true) await fullRunMovies.PauseAsync(CancellationToken.None);
             // Keep the chosen world's future inputs even when restoring an ancestor.
             await RestartDraftAtAsync(node.Frame, leaf.Movie, switchSequence: true, sourceSaves: initialSaves);
+            if (changedTree) ResetSequenceSaveTarget(null);
             worldlines!.Update(library => library.ActiveTreeId = tree.Id);
             freshTimeline = null;
             RefreshWorldlines(tree.Id, leaf.Id, node.Id);

@@ -97,6 +97,7 @@ public sealed class SequenceBindingTests
         var method = typeof(MainViewModel).GetMethod("SwitchWorldlineAsync", Flags)!;
         await (Task)method.Invoke(f.Vm, new object[] { treeId!, 0 })!;
         Assert.AreEqual(Snapshot(1).Id, f.Coordinator.SequenceInitialSaves!.Id);
+        Assert.IsTrue(Get<bool>(f.Vm, "draftRequiresRestart"));
         Assert.IsNull(Get<string?>(f.Vm, "sequenceSavePath"));
     }
 

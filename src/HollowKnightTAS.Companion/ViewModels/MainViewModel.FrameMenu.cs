@@ -185,7 +185,6 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (switchSequence)
             {
                 SetSequenceInitialSaves(sourceSaves);
-                ResetSequenceSaveTarget(null);
             }
             SetRestorePresentationFrozen(true);
             var completed = false;

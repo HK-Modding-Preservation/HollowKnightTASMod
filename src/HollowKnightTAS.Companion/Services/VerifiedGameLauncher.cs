@@ -525,7 +525,9 @@ namespace HollowKnightTAS.Companion.Services
             var existingGames = Process.GetProcessesByName("hollow_knight");
             try
             {
-                if (existingGames.Length != 0)
+                // Windows can still enumerate an exited process while another
+                // observer holds its handle during a protected cold restart.
+                if (existingGames.Any(game => !game.HasExited))
                     throw new InvalidOperationException("A game is already running. No additional game was started.");
             }
             finally

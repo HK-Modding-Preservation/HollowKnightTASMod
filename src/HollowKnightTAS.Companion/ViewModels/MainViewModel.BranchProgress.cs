@@ -103,7 +103,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (MovieText == movie && !changedTree) return;
             MovieText = gridSource = movie;
             gridHasUserEdits = false; earliestGridEdit = long.MaxValue;
-            draftRequiresRestart = fullRunMovies?.IsPending == true;
+            draftRequiresRestart = true;
             lastSavedBranchMovie = null;
             RefreshInputGrid();
             Status = "已切换世界线；播放从起点开始，恢复节点可回到该位置。";
