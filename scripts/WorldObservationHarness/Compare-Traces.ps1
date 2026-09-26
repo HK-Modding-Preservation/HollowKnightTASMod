@@ -13,9 +13,9 @@ $TraceFields = @(
     'bossHp', 'bossX', 'bossY', 'bossDead',
     'deltaTime', 'rngSha256'
 )
-$TimingFields = @('nativeFrame', 'time', 'fixedTime', 'deltaTime', 'frameCount')
-$ComparedFields = @($TraceFields + @('nativeFrame', 'time', 'fixedTime', 'frameCount'))
-$RequiredFields = @('nativeFrame', 'movieFrame') + $TraceFields
+$TimingFields = @('nativeFrame', 'time', 'fixedTime', 'frameCount')
+$ComparedFields = @($TraceFields + $TimingFields)
+$RequiredFields = @('movieFrame') + $TraceFields + $TimingFields
 
 function Read-RequiredReport([string] $Path) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
@@ -78,8 +78,20 @@ $result = [ordered]@{
     hashMatch = $false
     rowSetMatch = $false
     duplicateMovieFrames = @()
+    acceptance = [ordered]@{
+        semanticFields = $TraceFields
+        informationalTimingFields = $TimingFields
+        requiresMatchingAssemblyHashes = $true
+        requiresIdenticalMovieFrameRows = $true
+        timingDifferencesAllowed = $true
+    }
+    semanticDifferences = @()
+    timingDifferences = @()
     differences = @()
     rows = @()
+    semanticEqual = $false
+    allColumnsEqual = $false
+    success = $false
     equal = $false
 }
 
@@ -126,14 +138,23 @@ try {
     foreach ($movieFrame in $allKeys) {
         $left = $baselineMap[$movieFrame]
         $right = $observeMap[$movieFrame]
-        $fieldDifferences = @()
-        foreach ($field in $ComparedFields) {
+        $semanticFieldDifferences = @()
+        foreach ($field in $TraceFields) {
             $leftValue = if ($null -eq $left) { $null } else { [string] $left.$field }
             $rightValue = if ($null -eq $right) { $null } else { [string] $right.$field }
             if ($leftValue -cne $rightValue) {
-                $fieldDifferences += [ordered]@{ field = $field; baseline = $leftValue; observe = $rightValue }
+                $semanticFieldDifferences += [ordered]@{ field = $field; baseline = $leftValue; observe = $rightValue }
             }
         }
+        $timingFieldDifferences = @()
+        foreach ($field in $TimingFields) {
+            $leftValue = if ($null -eq $left) { $null } else { [string] $left.$field }
+            $rightValue = if ($null -eq $right) { $null } else { [string] $right.$field }
+            if ($leftValue -cne $rightValue) {
+                $timingFieldDifferences += [ordered]@{ field = $field; baseline = $leftValue; observe = $rightValue }
+            }
+        }
+        $fieldDifferences = @($semanticFieldDifferences + $timingFieldDifferences)
         $nativeLeft = if ($null -eq $left) { $null } else { Convert-Number ([string] $left.nativeFrame) }
         $nativeRight = if ($null -eq $right) { $null } else { Convert-Number ([string] $right.nativeFrame) }
         $timeLeft = if ($null -eq $left) { $null } else { Convert-Number ([string] $left.time) }
@@ -147,23 +168,34 @@ try {
             fixedTime = [ordered]@{ baseline = $fixedLeft; observe = $fixedRight; delta = if ($null -ne $fixedLeft -and $null -ne $fixedRight) { $fixedRight - $fixedLeft } else { $null } }
             deltaTime = [ordered]@{ baseline = if ($null -eq $left) { $null } else { [string] $left.deltaTime }; observe = if ($null -eq $right) { $null } else { [string] $right.deltaTime } }
             frameCount = [ordered]@{ baseline = if ($null -eq $left) { $null } else { [string] $left.frameCount }; observe = if ($null -eq $right) { $null } else { [string] $right.frameCount } }
+            semanticDifferences = $semanticFieldDifferences
+            timingDifferences = $timingFieldDifferences
             differences = $fieldDifferences
-            equal = ($fieldDifferences.Count -eq 0 -and $null -ne $left -and $null -ne $right)
+            semanticEqual = ($semanticFieldDifferences.Count -eq 0 -and $null -ne $left -and $null -ne $right)
+            allColumnsEqual = ($fieldDifferences.Count -eq 0 -and $null -ne $left -and $null -ne $right)
         }
         $result.rows += $row
+        if ($semanticFieldDifferences.Count -gt 0) { $result.semanticDifferences += $row }
+        if ($timingFieldDifferences.Count -gt 0) { $result.timingDifferences += $row }
         if ($fieldDifferences.Count -gt 0) { $result.differences += $row }
     }
-    $result.equal = ($result.hashMatch -and $result.rowSetMatch -and $result.differences.Count -eq 0)
+    $result.semanticEqual = ($result.hashMatch -and $result.rowSetMatch -and $result.semanticDifferences.Count -eq 0)
+    $result.allColumnsEqual = ($result.hashMatch -and $result.rowSetMatch -and $result.differences.Count -eq 0)
+    $result.success = $result.semanticEqual
+    $result.equal = $result.semanticEqual
 }
 catch {
     $result.error = $_.Exception.Message
+    $result.success = $false
+    $result.semanticEqual = $false
+    $result.allColumnsEqual = $false
     $result.equal = $false
 }
 
 $outputDirectory = Split-Path -Parent ([IO.Path]::GetFullPath($Output))
 if ($outputDirectory) { New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null }
 $result | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $Output -Encoding UTF8
-if ($result.equal) {
+if ($result.success) {
     Write-Host "Trace comparison PASS: $Output"
     exit 0
 }

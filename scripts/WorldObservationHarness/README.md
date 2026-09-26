@@ -12,6 +12,8 @@ Build against the installed Companion/Core bundle:
 dotnet build scripts/WorldObservationHarness/WorldObservationHarness.csproj -p:SkipHKTASInstall=true
 ```
 
+`Author-Fixture.py` only produces a candidate input fixture for acceptance runs. If it copies a header from an older environment, confirm that header against a real installed run before treating the fixture as valid. `--mode=probe` is available for exploratory runs and relaxes the final-scene enemy assertion; `--boss-frame=<movieFrame>` overrides the default boss observation frame.
+
 Run from the repository root after the build (the root agent performs the real-game run):
 
 ```powershell
@@ -31,6 +33,6 @@ pwsh -File scripts/WorldObservationHarness/Compare-Traces.ps1 `
   -Output "$PWD/artifacts/world-observation-trace-compare.json"
 ```
 
-The comparison requires equal Runtime/Core assembly hashes, unique and identical `movieFrame` row sets, and equal scene, hero, boss, timing, delta-time, and RNG fields. It records native-frame/time deltas for every row and exits `0` only when the complete comparison passes; missing traces, duplicate rows, or any difference exit nonzero.
+The comparison requires equal Runtime/Core assembly hashes, unique and identical `movieFrame` row sets, and equal semantic fields: scene, hero, boss, `deltaTime`, and RNG. `nativeFrame`, `time`, `fixedTime`, and `frameCount` are recorded as informational timing fields because normal loading loops may shift them; their differences appear under `timingDifferences` and do not fail acceptance. The report exposes `semanticEqual`, `allColumnsEqual`, and `success`; `success` follows the semantic acceptance boundary. Missing traces, duplicate rows, or semantic differences exit nonzero.
 
 With `--overlay` on an `observe` run, the harness records `sanctum-overlay-live.png` and verifies that the click-through collider window becomes visible, hides, and shows again while the paused native frame remains unchanged. Overlay is opt-in and independent of the world snapshot protocol.
