@@ -1299,281 +1299,41 @@ namespace HollowKnightTAS.Companion.Tests
 
         [TestMethod]
         [Timeout(60000)]
-        public async Task TypedMutationUsesLeaseCasAndTwoPhaseCommit()
+        public async Task RemovedMutationsAreRejectedEvenWhenLegacySessionEnablesThem()
         {
-            var fixture = CreateFixture(
-                AutomationMode.ApprovedControl,
-                debugMutationEnabled: true);
+            var fixture = CreateFixture(AutomationMode.ApprovedControl, debugMutationEnabled: true);
             fixture.ControlMode = "Paused";
-            using var cancellation =
-                new CancellationTokenSource(
-                    TimeSpan.FromSeconds(50));
-            var fakeRuntime = RunFakeRuntimeAsync(
-                fixture,
-                cancellation.Token);
-            using var sessions =
-                new SessionRegistry("automation-mutation");
-            Assert.IsTrue(
-                await sessions.RegisterAsync(
-                    fixture.Registration,
-                    cancellation.Token));
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(50));
+            var fakeRuntime = RunFakeRuntimeAsync(fixture, cancellation.Token);
+            using var sessions = new SessionRegistry("automation-mutation-removed");
+            Assert.IsTrue(await sessions.RegisterAsync(fixture.Registration, cancellation.Token));
             using var broker = CreateBroker(sessions);
-            await using (var client = new AutomationClient())
-            {
-                await client.ConnectAsync(
-                    new AutomationConnectOptions
-                    {
-                        ClientId = "mutation-sdk",
-                        BootstrapPath = broker.BootstrapPath
-                    },
-                    cancellation.Token);
-                var arguments = HeroPoseArguments();
-                var noLease = await client.ExecuteAsync(
-                    client.CreateCommand(
-                        AutomationCommandIds.SetHeroPose,
-                        AutomationScope.DebugStatePose,
-                        arguments,
-                        expectedRuntimeMode: "Paused",
-                        expectedMovieTick: 42),
-                    cancellation.Token);
-                Assert.AreEqual(
-                    "LeaseRequired",
-                    noLease.ResultCode);
-
-                var acquired = await client.ExecuteAsync(
-                    client.CreateCommand(
-                        AutomationCommandIds.AcquireControl,
-                        AutomationScope.DebugStatePose,
-                        new Dictionary<string, string>
-                        {
-                            ["scopes"] =
-                                AutomationScope.DebugStatePose
-                                + ","
-                                + AutomationScope
-                                    .DebugStateResources
-                        }),
-                    cancellation.Token);
-                Assert.IsTrue(acquired.Success);
-                var leaseId = acquired.Data["leaseId"];
-                var missingMode = await client.ExecuteAsync(
-                    client.CreateCommand(
-                        AutomationCommandIds.SetHeroPose,
-                        AutomationScope.DebugStatePose,
-                        arguments,
-                        leaseId,
-                        expectedMovieTick: 42),
-                    cancellation.Token);
-                Assert.AreEqual(
-                    "MissingPrecondition",
-                    missingMode.ResultCode);
-                var staleTickArguments = HeroPoseArguments();
-                staleTickArguments["expectedMovieTick"] = "41";
-                var staleTick = await client.ExecuteAsync(
-                    client.CreateCommand(
-                        AutomationCommandIds.SetHeroPose,
-                        AutomationScope.DebugStatePose,
-                        staleTickArguments,
-                        leaseId,
-                        "Paused",
-                        41),
-                    cancellation.Token);
-                Assert.AreEqual(
-                    "PreconditionFailed",
-                    staleTick.ResultCode);
-
-                var staleArguments = HeroPoseArguments();
-                staleArguments["expectedSnapshotSha256"] =
-                    new string('c', 64);
-                var staleHash = await client.ExecuteAsync(
-                    client.CreateCommand(
-                        AutomationCommandIds.SetHeroPose,
-                        AutomationScope.DebugStatePose,
-                        staleArguments,
-                        leaseId,
-                        "Paused",
-                        42),
-                    cancellation.Token);
-                Assert.AreEqual(
-                    "PreconditionFailed",
-                    staleHash.ResultCode);
-
-                var nanArguments = HeroPoseArguments();
-                nanArguments["positionX"] = "NaN";
-                var nonFinite = await client.ExecuteAsync(
-                    client.CreateCommand(
-                        AutomationCommandIds.SetHeroPose,
-                        AutomationScope.DebugStatePose,
-                        nanArguments,
-                        leaseId,
-                        "Paused",
-                        42),
-                    cancellation.Token);
-                Assert.AreEqual(
-                    "InvalidArguments",
-                    nonFinite.ResultCode);
-
-                fixture.RejectNextMutationCommit = true;
-                var rolledBack = await client.ExecuteAsync(
-                    client.CreateCommand(
-                        AutomationCommandIds.SetHeroPose,
-                        AutomationScope.DebugStatePose,
-                        arguments,
-                        leaseId,
-                        "Paused",
-                        42),
-                    cancellation.Token);
-                Assert.IsFalse(rolledBack.Success);
-                Assert.AreEqual(1, fixture.RollbackCount);
-                Assert.AreEqual(0, fixture.MutationCommitCount);
-
-                var committed = await client.ExecuteAsync(
-                    client.CreateCommand(
-                        AutomationCommandIds.SetHeroPose,
-                        AutomationScope.DebugStatePose,
-                        arguments,
-                        leaseId,
-                        "Paused",
-                        42),
-                    cancellation.Token);
-                Assert.IsTrue(committed.Success);
-                Assert.AreEqual(
-                    "true",
-                    committed.Data["committed"]);
-                Assert.AreEqual(
-                    "NonVerifiableDebugMutation",
-                    committed.Data[
-                        "verificationEligibility"]);
-                Assert.AreEqual(1, fixture.MutationCommitCount);
-
-                var resources = await client.ExecuteAsync(
-                    client.CreateCommand(
-                        AutomationCommandIds.SetPlayerResources,
-                        AutomationScope.DebugStateResources,
-                        new Dictionary<string, string>
-                        {
-                            ["expectedMovieTick"] = "42",
-                            ["expectedSnapshotSha256"] =
-                                SemanticHash,
-                            ["health"] = "5",
-                            ["soul"] = "33"
-                        },
-                        leaseId,
-                        "Paused",
-                        42),
-                    cancellation.Token);
-                Assert.IsTrue(resources.Success);
-                Assert.AreEqual(2, fixture.MutationCommitCount);
-            }
-
-            var cliAssembly =
-                typeof(HollowKnightTAS.Cli.Program)
-                    .Assembly.Location;
-            var cliStart = DotnetStart(cliAssembly);
-            foreach (var argument in new[]
-                     {
-                         "automation",
-                         "call",
-                         AutomationCommandIds.SetPlayerResources,
-                         AutomationScope.DebugStateResources,
-                         "expectedMovieTick=42",
-                         "expectedSnapshotSha256="
-                         + SemanticHash,
-                         "health=4",
-                         "soul=22",
-                         "--expected-mode=Paused",
-                         "--expected-tick=42",
-                         "--bootstrap=" + broker.BootstrapPath
-                     })
-            {
-                cliStart.ArgumentList.Add(argument);
-            }
-
-            using (var cli = Process.Start(cliStart)
-                             ?? throw new InvalidOperationException(
-                                 "CLI mutation did not start."))
-            {
-                var stdout =
-                    await cli.StandardOutput.ReadToEndAsync();
-                var stderr =
-                    await cli.StandardError.ReadToEndAsync();
-                await cli.WaitForExitAsync(cancellation.Token);
-                Assert.AreEqual(0, cli.ExitCode, stderr);
-                using var result = JsonDocument.Parse(stdout);
-                Assert.AreEqual(
-                    "true",
-                    result.RootElement
-                        .GetProperty("success")
-                        .GetString());
-            }
-
-            var bridgeAssembly =
-                typeof(HollowKnightTAS.AgentBridge.McpStdioServer)
-                    .Assembly.Location;
-            var bridgeStart = DotnetStart(bridgeAssembly);
-            bridgeStart.ArgumentList.Add(
-                "--bootstrap=" + broker.BootstrapPath);
-            using (var bridge = Process.Start(bridgeStart)
-                                ?? throw new InvalidOperationException(
-                                    "MCP mutation bridge did not start."))
-            {
-                await bridge.StandardInput.WriteLineAsync(
-                    "{\"jsonrpc\":\"2.0\",\"id\":1,"
-                    + "\"method\":\"initialize\",\"params\":{"
-                    + "\"protocolVersion\":\"2025-11-25\","
-                    + "\"capabilities\":{},\"clientInfo\":{"
-                    + "\"name\":\"mutation-test\",\"version\":\"1\"}}}");
-                await bridge.StandardInput.WriteLineAsync(
-                    "{\"jsonrpc\":\"2.0\",\"method\":"
-                    + "\"notifications/initialized\"}");
-                await bridge.StandardInput.WriteLineAsync(
-                    "{\"jsonrpc\":\"2.0\",\"id\":2,"
-                    + "\"method\":\"tools/call\",\"params\":{"
-                    + "\"name\":\"hktas_acquire_control\","
-                    + "\"arguments\":{\"scopes\":"
-                    + "[\"debug.state.pose\"]}}}");
-                await bridge.StandardInput.WriteLineAsync(
-                    "{\"jsonrpc\":\"2.0\",\"id\":3,"
-                    + "\"method\":\"tools/call\",\"params\":{"
-                    + "\"name\":\"hktas_set_hero_pose\","
-                    + "\"arguments\":{"
-                    + "\"expectedSnapshotSha256\":"
-                    + "\"" + SemanticHash + "\","
-                    + "\"expectedMovieTick\":42,"
-                    + "\"positionX\":1.5,"
-                    + "\"positionY\":2.5,"
-                    + "\"velocityX\":0,"
-                    + "\"velocityY\":0}}}");
-                bridge.StandardInput.Close();
-                var stdout =
-                    await bridge.StandardOutput.ReadToEndAsync();
-                var stderr =
-                    await bridge.StandardError.ReadToEndAsync();
-                await bridge.WaitForExitAsync(cancellation.Token);
-                Assert.AreEqual(0, bridge.ExitCode, stderr);
-                var lines = stdout.Split(
-                    new[] { '\r', '\n' },
-                    StringSplitOptions.RemoveEmptyEntries);
-                Assert.AreEqual(3, lines.Length);
-                using var result =
-                    JsonDocument.Parse(lines[2]);
-                Assert.IsFalse(
-                    result.RootElement
-                        .GetProperty("result")
-                        .GetProperty("isError")
-                        .GetBoolean());
-            }
-
-            Assert.AreEqual(4, fixture.MutationCommitCount);
-            Assert.AreEqual(
-                "NonVerifiableDebugMutation",
-                fixture.VerificationEligibility);
-            cancellation.Cancel();
+            await using var client = new AutomationClient();
             try
             {
-                await fakeRuntime;
+                await client.ConnectAsync(new AutomationConnectOptions
+                {
+                    ClientId = "legacy-mutation-sdk", BootstrapPath = broker.BootstrapPath
+                }, cancellation.Token);
+                foreach (var (command, scope, arguments) in new[]
+                {
+                    (AutomationCommandIds.SetHeroPose, AutomationScope.DebugStatePose, HeroPoseArguments()),
+                    (AutomationCommandIds.SetPlayerResources, AutomationScope.DebugStateResources,
+                        new Dictionary<string, string> { ["health"] = "9", ["soul"] = "99",
+                            ["expectedMovieTick"] = "42", ["expectedSnapshotSha256"] = SemanticHash })
+                })
+                {
+                    var result = await client.ExecuteAsync(client.CreateCommand(command, scope, arguments,
+                        expectedRuntimeMode: "Paused", expectedMovieTick: 42), cancellation.Token);
+                    Assert.IsFalse(result.Success);
+                    Assert.AreEqual("CapabilityMismatch", result.ResultCode);
+                }
+                Assert.AreEqual(0, fixture.MutationCommitCount);
             }
-            catch (OperationCanceledException)
+            finally
             {
+                cancellation.Cancel();
+                try { await fakeRuntime; } catch (OperationCanceledException) { }
             }
         }
 

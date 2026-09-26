@@ -20,13 +20,9 @@ Hollow Knight Runtime
 
 ## 模式
 
-| 模式 | 行为 |
-|---|---|
-| `Disabled` | 不创建 pipe，不保留 bootstrap |
-| `ReadOnly` | 默认；只读状态与离线 movie validate/propose |
-| `ApprovedControl` | 用户设置启用；写命令还必须持有短期独占 lease |
+当前版本在 Runtime 注册与 Studio 启动阶段都固定使用 `ApprovedControl`。写命令仍需短期独占 lease、对应 scope 和状态前置条件。本地身份认证与令牌校验保持不变。
 
-`ExternalAutomationMode` 非法值归一化为 `ReadOnly`。`DebugMutationEnabled` 是独立开关，不能由客户端、movie、MCP 或 NativeHost 修改。
+游戏菜单不再提供外部自动化和调试状态修改选项；旧配置中的 `ExternalAutomationMode`、`DebugMutationEnabled` 被忽略，保存配置时不再写出。协议枚举仍保留 `Disabled`／`ReadOnly` 以解析旧版本会话。
 
 ## 传输与 canonicalization
 
@@ -102,16 +98,9 @@ hktas://session/current/restore-strategy
 覆盖批准需求、语义/验证 hash 与恢复等价性，均来自 Runtime 结构化状态，不依赖
 截图、OCR 或像素识别。
 
-## Typed mutation
+## 已移除的调试写入
 
-v1 只有：
-
-- `setHeroPose`：position x/y 与 Rigidbody/current velocity x/y；
-- `setPlayerResources`：health 与 soul。
-
-前置条件固定为 `ApprovedControl + DebugMutationEnabled + 相应 scope lease + Paused + Idle playback + 无过场/死亡/restore + 非 verification mode + expected tick/hash`。position 绝对值不超过 10000、单次位移不超过 20、速度绝对值不超过 100；所有浮点必须 finite。health/soul 不得超出当前合法上限。
-
-adapter 在 Unity 主线程读取 before、应用、重新采样 after；任何中途失败都回滚并要求 before hash 逐位恢复。首次成功后当前进程永久变为 `NonVerifiableDebugMutation`，T07/T16 evidence 创建与完成都会拒绝；只有无 mutation 的新进程可恢复资格。
+内置 `setHeroPose`、`setPlayerResources` 及其 Runtime adapter、事务执行代码已移除，能力目录和 MCP 工具列表不再公开它们。旧客户端发来的命令会被拒绝，即使旧会话注册中的调试开关为 true。协议中的旧命令标识和状态字段仅作兼容保留，不代表支持写入；当前 Runtime 的 `debugMutationEnabled` 与 `mutationTransactionPending` 固定为 false。
 
 ## 审计与数据边界
 

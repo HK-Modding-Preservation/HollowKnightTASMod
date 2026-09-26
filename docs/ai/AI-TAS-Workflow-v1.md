@@ -56,7 +56,7 @@ $s = Read-TasState
 3. 生成完整 canonical movie 候选及 `baseMovieId/reason/expectedMilestone`。
 4. 调用 `validateMoviePatch`；非法候选在 Runtime 执行前停止。
 5. 调用 `proposeMoviePatch` 创建独立 content-addressed branch；此时 current movie 不变。
-6. 用户启用 `ApprovedControl` 后，客户端显式申请所需 scope 的短 lease。
+6. 当前版本固定为 `ApprovedControl`；客户端仍需显式申请所需 scope 的短 lease。
 7. 显式 `applyMovieBranch`，再从干净的 T09 起点 start replay。
 8. 读取 milestone、endpoint semantic hash、ledger、RNG 与 desync；与基线做结构化比较。
 9. 若未达到目标，基于首个差异提出新分支；不得修改 expected hash、manifest、baseline 或 verdict。

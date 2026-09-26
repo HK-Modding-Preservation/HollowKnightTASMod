@@ -508,44 +508,6 @@ namespace HollowKnightTAS.AgentBridge
                             ("count", Integer(1))),
                         new[] { "baseMovieId", "startTick", "count" }),
                     false,
-                    false),
-                Tool(
-                    "hktas_set_hero_pose",
-                    "Debug-only typed hero position and velocity mutation; permanently non-verifiable.",
-                    Schema(
-                        Props(
-                            ("expectedSnapshotSha256", String(64)),
-                            ("expectedMovieTick", Integer(0)),
-                            ("positionX", Number(-10000, 10000)),
-                            ("positionY", Number(-10000, 10000)),
-                            ("velocityX", Number(-100, 100)),
-                            ("velocityY", Number(-100, 100))),
-                        new[]
-                        {
-                            "expectedSnapshotSha256",
-                            "expectedMovieTick",
-                            "positionX",
-                            "positionY",
-                            "velocityX",
-                            "velocityY"
-                        }),
-                    false),
-                Tool(
-                    "hktas_set_player_resources",
-                    "Debug-only typed health and soul mutation; permanently non-verifiable.",
-                    Schema(
-                        Props(
-                            ("expectedSnapshotSha256", String(64)),
-                            ("expectedMovieTick", Integer(0)),
-                            ("health", Integer(1)),
-                            ("soul", Integer(0))),
-                        new[]
-                        {
-                            "expectedSnapshotSha256",
-                            "expectedMovieTick",
-                            "health",
-                            "soul"
-                        }),
                     false)
             };
 

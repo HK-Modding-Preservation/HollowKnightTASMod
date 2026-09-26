@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using HollowKnightTAS.Core.Automation;
 using HollowKnightTAS.Core.ReplaySave;
 using HollowKnightTAS.Runtime.ReplaySave;
 using HollowKnightTAS.Runtime.FullRun;
@@ -139,7 +138,6 @@ namespace HollowKnightTAS.Runtime
                     Description = new DescriptionInfo { Text = "仅标题界面可用；重启后暂停在第 0 帧。" }
                 }, out var button);
                 startupLabel = button.GetComponentInChildren<UnityEngine.UI.Text>();
-                MenuUtils.AddModMenuContent(GetMenuData(null), content, modListMenu);
             });
             return builder.Build();
         }
@@ -183,101 +181,6 @@ namespace HollowKnightTAS.Runtime
                 SetStartupMessage("启动失败，点击重试");
                 LogError("Manual Studio launch failed: " + error);
             }
-        }
-
-        public List<IMenuMod.MenuEntry> GetMenuData(
-            IMenuMod.MenuEntry? toggleButtonEntry)
-        {
-            settings ??= new TasGlobalSettings();
-            settings.Normalize();
-            return new List<IMenuMod.MenuEntry>
-            {
-                new IMenuMod.MenuEntry(
-                    "External automation",
-                    new[]
-                    {
-                        "Disabled",
-                        "Read-only",
-                        "Approved control"
-                    },
-                    "Local non-visual SDK/CLI/MCP access. "
-                    + "Approved control enables leased typed commands. "
-                    + "Restart Hollow Knight after changing this setting.",
-                    SaveAutomationMode,
-                    LoadAutomationMode),
-                new IMenuMod.MenuEntry(
-                    "Debug state mutation",
-                    new[] { "Disabled", "Enabled" },
-                    "Experimental pose/resource writers. Requires "
-                    + "Approved control and restart; any successful "
-                    + "mutation permanently makes that process "
-                    + "ineligible for verification evidence.",
-                    SaveDebugMutation,
-                    () => settings.DebugMutationEnabled ? 1 : 0)
-            };
-        }
-
-        private void SaveAutomationMode(int valueIndex)
-        {
-            settings ??= new TasGlobalSettings();
-            switch (valueIndex)
-            {
-                case 0:
-                    settings.ExternalAutomationMode =
-                        nameof(AutomationMode.Disabled);
-                    break;
-                case 1:
-                    settings.ExternalAutomationMode =
-                        nameof(AutomationMode.ReadOnly);
-                    break;
-                case 2:
-                    settings.ExternalAutomationMode =
-                        nameof(AutomationMode.ApprovedControl);
-                    LogWarn(
-                        "T15 ApprovedControl selected by the user; "
-                        + "a Hollow Knight restart is required.");
-                    break;
-                default:
-                    settings.ExternalAutomationMode =
-                        nameof(AutomationMode.ReadOnly);
-                    LogWarn(
-                        "T15 invalid automation menu value failed "
-                        + "closed to ReadOnly.");
-                    break;
-            }
-
-            settings.Normalize();
-            Log(
-                "T15 external automation setting changed to "
-                + settings.ExternalAutomationMode
-                + "; takes effect after restart.");
-        }
-
-        private int LoadAutomationMode()
-        {
-            settings ??= new TasGlobalSettings();
-            switch (AutomationModeCodec.Normalize(
-                        settings.ExternalAutomationMode))
-            {
-                case AutomationMode.Disabled:
-                    return 0;
-                case AutomationMode.ApprovedControl:
-                    return 2;
-                default:
-                    return 1;
-            }
-        }
-
-        private void SaveDebugMutation(int valueIndex)
-        {
-            settings ??= new TasGlobalSettings();
-            settings.DebugMutationEnabled = valueIndex == 1;
-            LogWarn(
-                "T15 DebugMutationEnabled changed to "
-                + (settings.DebugMutationEnabled
-                    ? "true"
-                    : "false")
-                + " by the user; a Hollow Knight restart is required.");
         }
 
         private void OnFinishedLoadingMods()

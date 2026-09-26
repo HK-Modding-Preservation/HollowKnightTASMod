@@ -16,6 +16,8 @@ namespace HollowKnightTAS.Companion.Automation
             bool debugMutationEnabled,
             bool fullRunOnly = false)
         {
+            // The legacy registration flag is accepted for wire compatibility only.
+            // Debug state writers are no longer part of the capability catalog.
             var items = new[]
             {
                 Read(
@@ -186,17 +188,7 @@ namespace HollowKnightTAS.Companion.Automation
                 Write(
                     AutomationCommandIds.ResumeReplaySaveRestore,
                     AutomationScope.ControlReplaySave,
-                    mode),
-                Mutation(
-                    AutomationCommandIds.SetHeroPose,
-                    AutomationScope.DebugStatePose,
-                    mode,
-                    debugMutationEnabled),
-                Mutation(
-                    AutomationCommandIds.SetPlayerResources,
-                    AutomationScope.DebugStateResources,
-                    mode,
-                    debugMutationEnabled)
+                    mode)
             };
             var selected = fullRunOnly ? items.Where(item =>
                 item.CommandId == AutomationCommandIds.GetStatus
@@ -326,23 +318,5 @@ namespace HollowKnightTAS.Companion.Automation
                 "content-addressed isolated proposal branch only");
         }
 
-        private static AutomationCapability Mutation(
-            string command,
-            string scope,
-            AutomationMode mode,
-            bool debugMutationEnabled)
-        {
-            return new AutomationCapability(
-                command,
-                scope,
-                false,
-                true,
-                mode == AutomationMode.ApprovedControl
-                && debugMutationEnabled
-                    ? "experimental"
-                    : "disabled",
-                "paused safe point; compare-and-set; debug approval",
-                "permanently NonVerifiableDebugMutation");
-        }
     }
 }

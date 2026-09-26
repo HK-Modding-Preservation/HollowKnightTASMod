@@ -170,7 +170,6 @@ namespace HollowKnightTAS.Core.Tests.Verification
             StringAssert.Contains(quit, "controls.ControlMode != SimulationControlMode.Paused");
             StringAssert.Contains(quit, "controls.PlaybackMode != PlaybackMode.Idle");
             StringAssert.Contains(quit, "saves.PendingCount != 0 || saves.IsRestoreActive");
-            StringAssert.Contains(quit, "pendingStateMutation != null");
             StringAssert.Contains(quit, "gameExitRequested = true");
             Assert.IsFalse(quit.Contains(".Resume("));
             Assert.IsFalse(quit.Contains(".Step("));

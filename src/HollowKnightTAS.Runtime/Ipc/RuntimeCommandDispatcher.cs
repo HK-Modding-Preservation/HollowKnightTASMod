@@ -23,7 +23,6 @@ using HollowKnightTAS.Core.Serialization;
 using HollowKnightTAS.Core.State;
 using HollowKnightTAS.Runtime.Companion;
 using HollowKnightTAS.Runtime.Control;
-using HollowKnightTAS.Runtime.Automation.Mutation;
 using HollowKnightTAS.Runtime.Inspector;
 using HollowKnightTAS.Runtime.Input;
 using HollowKnightTAS.Runtime.FullRun;
@@ -44,8 +43,6 @@ namespace HollowKnightTAS.Runtime.Ipc
 
         private const int MaximumMovieBytes = 32 * 1024 * 1024;
         private const int MaximumMovieChunks = 1024;
-        private static readonly long MutationCommitTimeoutTicks =
-            Stopwatch.Frequency * 10L;
 
         private readonly RuntimeCommandQueue commands;
         private readonly NamedPipeRuntimeServer server;
@@ -60,7 +57,6 @@ namespace HollowKnightTAS.Runtime.Ipc
         private readonly string manifestSha256;
         private readonly bool nativeCapabilitiesRequested;
         private readonly AutomationMode automationMode;
-        private readonly bool debugMutationEnabled;
         private readonly bool verificationModeRequested;
         private readonly string gameVersion;
         private readonly string apiVersion;
@@ -89,7 +85,6 @@ namespace HollowKnightTAS.Runtime.Ipc
         private long frameCount;
         private long? runUntilMovieTick;
         private bool recordingActive;
-        private PendingStateMutation? pendingStateMutation;
         private string claimedColdIntentSha256 = string.Empty;
         private string claimedColdClaimId = string.Empty;
         private ColdRestoreIntent? preparedColdIntent;
@@ -179,7 +174,6 @@ namespace HollowKnightTAS.Runtime.Ipc
             string manifestSha256,
             bool nativeCapabilitiesRequested,
             AutomationMode automationMode,
-            bool debugMutationEnabled,
             bool verificationModeRequested,
             bool replayDeterministicRngEnabled,
             int replayDeterministicRngSeed,
@@ -203,7 +197,6 @@ namespace HollowKnightTAS.Runtime.Ipc
             this.nativeCapabilitiesRequested =
                 nativeCapabilitiesRequested;
             this.automationMode = automationMode;
-            this.debugMutationEnabled = debugMutationEnabled;
             this.verificationModeRequested =
                 verificationModeRequested;
             this.gameVersion = gameVersion
@@ -303,8 +296,6 @@ namespace HollowKnightTAS.Runtime.Ipc
             controls.Dispose();
             subscriptions.Clear();
             upload = null;
-            TryRollbackPendingStateMutation(
-                "dispatcher-dispose");
             if (runner != null)
             {
                 UnityEngine.Object.Destroy(runner.gameObject);
@@ -378,8 +369,6 @@ namespace HollowKnightTAS.Runtime.Ipc
                 FailSourceLifecycleReload("Companion disconnected during native reload.");
                 subscriptions.Clear();
                 upload = null;
-                TryRollbackPendingStateMutation(
-                    "companion-disconnect");
                 if (restoreHandle.HasValue
                     && replaySaves != null)
                 {
@@ -414,14 +403,6 @@ namespace HollowKnightTAS.Runtime.Ipc
                 });
             }
 
-            if (pendingStateMutation != null
-                && Stopwatch.GetTimestamp()
-                   >= pendingStateMutation.CommitDeadlineTimestamp)
-            {
-                TryRollbackPendingStateMutation(
-                    "commit-timeout");
-            }
-
             PollPendingColdBaseline();
             var started = Stopwatch.GetTimestamp();
             var processed = 0;
@@ -433,10 +414,6 @@ namespace HollowKnightTAS.Runtime.Ipc
                 {
                     ExitApprovedGameProcess();
                     return;
-                }
-                if (pendingStateMutation != null)
-                {
-                    break;
                 }
 
                 if (Stopwatch.GetTimestamp() - started >= budgetTicks)
@@ -548,8 +525,6 @@ namespace HollowKnightTAS.Runtime.Ipc
                 FailSourceLifecycleReload("Companion disconnected during native reload.");
                 subscriptions.Clear();
                 upload = null;
-                TryRollbackPendingStateMutation(
-                    "companion-disconnect-at-paused-boundary");
                 restoreHandle = null;
                 lastRestorePhase = null;
                 lastRestoreProgress = null;
@@ -588,8 +563,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                     return;
                 }
 
-                if (pendingStateMutation != null
-                    || Stopwatch.GetTimestamp() - started >= budgetTicks)
+                if (Stopwatch.GetTimestamp() - started >= budgetTicks)
                 {
                     break;
                 }
@@ -737,14 +711,6 @@ namespace HollowKnightTAS.Runtime.Ipc
                     "The fresh process is frozen at a cold-restore boundary; this command is not safe there.");
             }
 
-            if (pendingStateMutation != null
-                && command.MessageType
-                   != IpcMessageTypes.CommitStateMutation)
-            {
-                throw new InvalidOperationException(
-                    "A debug mutation is awaiting broker commit.");
-            }
-
             switch (command.MessageType)
             {
                 case IpcMessageTypes.StartVideoExport:
@@ -793,8 +759,6 @@ namespace HollowKnightTAS.Runtime.Ipc
                         videoCapture.Finish();
                     }
                     return videoCapture.OperationId;
-                case IpcMessageTypes.CommitStateMutation:
-                    return CommitStateMutation(command.Fields);
                 case IpcMessageTypes.UploadMovieBegin:
                     BeginUpload(command.Fields);
                     return "Movie upload started.";
@@ -1024,11 +988,10 @@ namespace HollowKnightTAS.Runtime.Ipc
                         "recorded");
                     return "Recording stopped and movie loaded.";
                 case IpcMessageTypes.SetHeroPose:
-                    ApplyHeroPose(command.Fields);
-                    return "Hero pose mutation applied.";
                 case IpcMessageTypes.SetPlayerResources:
-                    ApplyPlayerResources(command.Fields);
-                    return "Player resource mutation applied.";
+                case IpcMessageTypes.CommitStateMutation:
+                    throw new RuntimeCommandRejectionException(
+                        "CapabilityRemoved", "Built-in debug state mutation has been removed.");
                 case IpcMessageTypes.CreateReplaySave:
                     RequireFields(
                         command.Fields,
@@ -1669,9 +1632,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                     journal.CurrentSceneEpoch.ToString(
                         CultureInfo.InvariantCulture),
                 ["mutationTransactionPending"] =
-                    pendingStateMutation != null
-                        ? "true"
-                        : "false",
+                    "false",
                 ["phase"] = TickPhase.LateUpdateEnd.ToString(),
                 ["playbackMode"] =
                     controls.PlaybackMode.ToString(),
@@ -1762,9 +1723,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                         controls.AuthoritativeMovieTick.ToString(
                             CultureInfo.InvariantCulture),
                     ["mutationTransactionPending"] =
-                        pendingStateMutation != null
-                            ? "true"
-                            : "false",
+                        "false",
                     ["playbackMode"] =
                         controls.PlaybackMode.ToString(),
                     ["reason"] = result.Success
@@ -1867,337 +1826,6 @@ namespace HollowKnightTAS.Runtime.Ipc
                     ["requestId"] = requestId,
                     ["source"] = source
                 });
-        }
-
-        private void ApplyHeroPose(
-            IReadOnlyDictionary<string, string> fields)
-        {
-            RequireFields(
-                fields,
-                "expectedMovieTick",
-                "expectedSnapshotSha256",
-                "positionX",
-                "positionY",
-                "requestId",
-                "velocityX",
-                "velocityY");
-            if (!StateMutationBounds.TryParseFiniteSingle(
-                    fields["positionX"],
-                    out var positionX)
-                || !StateMutationBounds.TryParseFiniteSingle(
-                    fields["positionY"],
-                    out var positionY)
-                || !StateMutationBounds.TryParseFiniteSingle(
-                    fields["velocityX"],
-                    out var velocityX)
-                || !StateMutationBounds.TryParseFiniteSingle(
-                    fields["velocityY"],
-                    out var velocityY))
-            {
-                throw new InvalidDataException(
-                    "Hero pose values must be finite float32 numbers.");
-            }
-
-            ApplyMutation(
-                fields,
-                "hero-pose",
-                () => new HeroPoseMutationAdapter().Apply(
-                    positionX,
-                    positionY,
-                    velocityX,
-                    velocityY));
-        }
-
-        private void ApplyPlayerResources(
-            IReadOnlyDictionary<string, string> fields)
-        {
-            RequireFields(
-                fields,
-                "expectedMovieTick",
-                "expectedSnapshotSha256",
-                "health",
-                "requestId",
-                "soul");
-            if (!int.TryParse(
-                    fields["health"],
-                    NumberStyles.None,
-                    CultureInfo.InvariantCulture,
-                    out var health)
-                || !int.TryParse(
-                    fields["soul"],
-                    NumberStyles.None,
-                    CultureInfo.InvariantCulture,
-                    out var soul))
-            {
-                throw new InvalidDataException(
-                    "Player resources must be Int32 values.");
-            }
-
-            ApplyMutation(
-                fields,
-                "player-resources",
-                () => new PlayerResourcesMutationAdapter().Apply(
-                    health,
-                    soul));
-        }
-
-        private void ApplyMutation(
-            IReadOnlyDictionary<string, string> fields,
-            string adapterId,
-            Func<StateMutationApplication> apply)
-        {
-            if (pendingStateMutation != null)
-            {
-                throw new RuntimeCommandRejectionException(
-                    "MutationBusy",
-                    "A debug mutation transaction is already pending.");
-            }
-
-            RequireMutationSafePoint();
-            if (!long.TryParse(
-                    fields["expectedMovieTick"],
-                    NumberStyles.None,
-                    CultureInfo.InvariantCulture,
-                    out var expectedTick)
-                || expectedTick != journal.LastCommittedMovieTick)
-            {
-                throw new RuntimeCommandRejectionException(
-                    "PreconditionFailed",
-                    "expectedMovieTick is stale.");
-            }
-
-            var before = CaptureCurrentSnapshot();
-            if (!before.Success || before.Sha256 == null)
-            {
-                throw new InvalidOperationException(
-                    "Before snapshot capture failed: " + before.Error);
-            }
-
-            if (!string.Equals(
-                    fields["expectedSnapshotSha256"],
-                    before.Sha256,
-                    StringComparison.Ordinal))
-            {
-                throw new RuntimeCommandRejectionException(
-                    "PreconditionFailed",
-                    "expectedSnapshotSha256 is stale.");
-            }
-
-            var application = apply();
-            SnapshotCaptureResult after;
-            var transactionId =
-                "mutation-" + Guid.NewGuid().ToString("N");
-            try
-            {
-                after = CaptureCurrentSnapshot();
-                if (!after.Success || after.Sha256 == null)
-                {
-                    throw new InvalidOperationException(
-                        "After snapshot capture failed: " + after.Error);
-                }
-
-                var resultFields =
-                    new Dictionary<string, string>(
-                        StringComparer.Ordinal)
-                    {
-                        ["adapterId"] = adapterId,
-                        ["afterSha256"] = after.Sha256!,
-                        ["beforeSha256"] = before.Sha256,
-                        ["movieTick"] =
-                            expectedTick.ToString(
-                                CultureInfo.InvariantCulture),
-                        ["requestId"] = fields["requestId"],
-                        ["transactionId"] = transactionId,
-                        ["typedDiff"] = application.TypedDiff,
-                        ["verificationEligibility"] =
-                            "PendingDebugMutationCommit"
-                    };
-                if (!server.TryPublish(
-                        IpcMessageTypes.StateMutationResult,
-                        resultFields))
-                {
-                    throw new InvalidOperationException(
-                        "Mutation result could not be delivered.");
-                }
-
-                pendingStateMutation = new PendingStateMutation(
-                    transactionId,
-                    adapterId,
-                    expectedTick,
-                    before.Sha256,
-                    after.Sha256!,
-                    application,
-                    checked(
-                        Stopwatch.GetTimestamp()
-                        + MutationCommitTimeoutTicks));
-            }
-            catch
-            {
-                application.Rollback();
-                var rolledBack = CaptureCurrentSnapshot();
-                if (!rolledBack.Success
-                    || !string.Equals(
-                        rolledBack.Sha256,
-                        before.Sha256,
-                        StringComparison.Ordinal))
-                {
-                    throw new InvalidOperationException(
-                        "Mutation failed and rollback was not bit-equivalent.");
-                }
-
-                throw;
-            }
-        }
-
-        private string CommitStateMutation(
-            IReadOnlyDictionary<string, string> fields)
-        {
-            RequireFields(
-                fields,
-                "requestId",
-                "transactionId");
-            var pending = pendingStateMutation
-                          ?? throw new InvalidOperationException(
-                              "No debug mutation is awaiting commit.");
-            if (!string.Equals(
-                    fields["transactionId"],
-                    pending.TransactionId,
-                    StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException(
-                    "Debug mutation transaction binding mismatch.");
-            }
-
-            RuntimeVerificationEligibility.MarkDebugMutationApplied();
-            pendingStateMutation = null;
-            try
-            {
-                emit(
-                    "automation-debug-mutation",
-                    new Dictionary<string, string>(
-                        StringComparer.Ordinal)
-                    {
-                        ["adapterId"] = pending.AdapterId,
-                        ["afterSha256"] = pending.AfterSha256,
-                        ["beforeSha256"] = pending.BeforeSha256,
-                        ["movieTick"] =
-                            pending.MovieTick.ToString(
-                                CultureInfo.InvariantCulture),
-                        ["transactionId"] =
-                            pending.TransactionId,
-                        ["verificationEligibility"] =
-                            RuntimeVerificationEligibility.Status
-                    });
-            }
-            catch
-            {
-                // Diagnostics cannot invalidate an already committed
-                // mutation transaction.
-            }
-
-            return "Debug mutation committed and process marked "
-                   + "NonVerifiableDebugMutation.";
-        }
-
-        private void TryRollbackPendingStateMutation(string reason)
-        {
-            var pending = pendingStateMutation;
-            if (pending == null)
-            {
-                return;
-            }
-
-            pendingStateMutation = null;
-            var restored = false;
-            string detail;
-            try
-            {
-                pending.Application.Rollback();
-                var snapshot = CaptureCurrentSnapshot();
-                restored = snapshot.Success
-                           && string.Equals(
-                               snapshot.Sha256,
-                               pending.BeforeSha256,
-                               StringComparison.Ordinal);
-                detail = restored
-                    ? "before snapshot restored"
-                    : "rollback hash mismatch";
-            }
-            catch (Exception exception)
-            {
-                detail = exception.GetType().Name
-                         + ":"
-                         + exception.Message;
-            }
-
-            try
-            {
-                emit(
-                    "automation-debug-mutation-rollback",
-                    new Dictionary<string, string>(
-                        StringComparer.Ordinal)
-                    {
-                        ["adapterId"] = pending.AdapterId,
-                        ["detail"] = detail,
-                        ["reason"] = reason,
-                        ["restored"] =
-                            restored ? "true" : "false",
-                        ["transactionId"] =
-                            pending.TransactionId
-                    });
-            }
-            catch
-            {
-            }
-        }
-
-        private void RequireMutationSafePoint()
-        {
-            if (automationMode != AutomationMode.ApprovedControl)
-            {
-                throw new RuntimeCommandRejectionException(
-                    "ControlNotApproved",
-                    "ApprovedControl is required.");
-            }
-
-            if (!debugMutationEnabled)
-            {
-                throw new RuntimeCommandRejectionException(
-                    "CapabilityDisabled",
-                    "DebugMutationEnabled is false.");
-            }
-
-            if (verificationModeRequested)
-            {
-                throw new RuntimeCommandRejectionException(
-                    "VerificationIneligible",
-                    "Debug mutation is unavailable in verification mode.");
-            }
-
-            if (controls.ControlMode != SimulationControlMode.Paused
-                || controls.PlaybackMode != PlaybackMode.Idle
-                || restoreHandle.HasValue
-                || runUntilMovieTick.HasValue)
-            {
-                throw new RuntimeCommandRejectionException(
-                    "UnsafePhase",
-                    "Mutation requires an idle paused safe point.");
-            }
-
-            var manager = GameManager.instance;
-            var hero = HeroController.SilentInstance;
-            var player = PlayerData.instance;
-            if (manager == null
-                || manager.IsInSceneTransition
-                || hero == null
-                || !hero.gameObject.activeInHierarchy
-                || player == null
-                || player.health <= 0)
-            {
-                throw new RuntimeCommandRejectionException(
-                    "UnsafePhase",
-                    "Mutation safe point is unavailable.");
-            }
         }
 
         private void PublishReplaySaveCatalog(string requestId)
@@ -2375,14 +2003,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                 + ";profile="
                 + RuntimeControlService.DeterministicRngProfile
                 + ";manifestBound=true\n"
-                + "runtime.typed-mutation="
-                + (
-                    automationMode == AutomationMode.ApprovedControl
-                    && debugMutationEnabled
-                    && !verificationModeRequested
-                        ? "available"
-                        : "disabled"
-                )
+                + "runtime.typed-mutation=removed"
                 + ";verificationEligibility="
                 + RuntimeVerificationEligibility.Status
                 + "\n"
@@ -2806,7 +2427,7 @@ namespace HollowKnightTAS.Runtime.Ipc
             if (!pausedWindowExitPending || gameExitRequested || coldSourceExitRequested)
                 return false;
             // Keep a detected request while persistence finishes. Do not
-            // bypass the same save/restore/mutation checks used by the API.
+            // bypass the same save/restore checks used by the API.
             if (replaySaves == null)
                 return false;
             try
@@ -2843,7 +2464,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                 // resume gameplay or report an unfinished native load as ready.
                 var pendingSaves = RequireReplaySaves();
                 if (pendingSaves.PendingCount != 0 || pendingSaves.IsRestoreActive
-                    || preparedColdIntent != null || pendingStateMutation != null)
+                    || preparedColdIntent != null)
                     throw new RuntimeCommandRejectionException("Busy", "Persistence work must finish before exiting failed native reload.");
                 gameExitRequested = true;
                 emit("native-reload-exit-requested", new Dictionary<string, string> { ["reason"] = sourceLifecycleReload!.Failure });
@@ -2855,8 +2476,8 @@ namespace HollowKnightTAS.Runtime.Ipc
             var saves = RequireReplaySaves();
             if (saves.PendingCount != 0 || saves.IsRestoreActive
                 || preparedColdIntent != null || pendingMovieSeek != null
-                || pendingStateMutation != null || runUntilMovieTick.HasValue)
-                throw new RuntimeCommandRejectionException("Busy", "Wait for pending save, restore, or mutation work before exiting.");
+                || runUntilMovieTick.HasValue)
+                throw new RuntimeCommandRejectionException("Busy", "Wait for pending save or restore work before exiting.");
             if (gameExitRequested)
                 throw new RuntimeCommandRejectionException("DuplicateExit", "Game exit is already requested.");
             gameExitRequested = true;
@@ -2873,7 +2494,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                 throw new InvalidDataException("slot must be in [1,4].");
             var saves = RequireReplaySaves();
             if (saves.PendingCount != 0 || saves.IsRestoreActive || preparedColdIntent != null
-                || pendingMovieSeek != null || pendingStateMutation != null || runUntilMovieTick.HasValue || gameExitRequested)
+                || pendingMovieSeek != null || runUntilMovieTick.HasValue || gameExitRequested)
                 throw new RuntimeCommandRejectionException("Busy", "Finish pending work before reloading.");
             var path = SavePathResolver.Current.GetSlotPath(slot, ".dat");
             var size = new FileInfo(path).Length;
@@ -3071,7 +2692,7 @@ namespace HollowKnightTAS.Runtime.Ipc
             var saves = RequireReplaySaves();
             if (gameSlotLoadRequested || gameExitRequested || saves.PendingCount != 0
                 || saves.IsRestoreActive || preparedColdIntent != null || pendingMovieSeek != null
-                || pendingStateMutation != null || runUntilMovieTick.HasValue)
+                || runUntilMovieTick.HasValue)
                 throw new RuntimeCommandRejectionException("Busy", "Finish pending work before loading a game slot.");
             // This is the desktop slot convention shared by the baseline provider.
             // Do not create, copy, overwrite, or substitute another slot here.
@@ -3952,7 +3573,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                             CultureInfo.InvariantCulture),
                     ["automationMode"] = automationMode.ToString(),
                     ["debugMutationEnabled"] =
-                        debugMutationEnabled ? "true" : "false",
+                        "false",
                     ["recordingActive"] =
                         recordingActive ? "true" : "false",
                     ["runUntilMovieTick"] =
@@ -4439,36 +4060,6 @@ namespace HollowKnightTAS.Runtime.Ipc
             }
 
             public string ErrorCode { get; }
-        }
-
-        private sealed class PendingStateMutation
-        {
-            public PendingStateMutation(
-                string transactionId,
-                string adapterId,
-                long movieTick,
-                string beforeSha256,
-                string afterSha256,
-                StateMutationApplication application,
-                long commitDeadlineTimestamp)
-            {
-                TransactionId = transactionId;
-                AdapterId = adapterId;
-                MovieTick = movieTick;
-                BeforeSha256 = beforeSha256;
-                AfterSha256 = afterSha256;
-                Application = application;
-                CommitDeadlineTimestamp =
-                    commitDeadlineTimestamp;
-            }
-
-            public string TransactionId { get; }
-            public string AdapterId { get; }
-            public long MovieTick { get; }
-            public string BeforeSha256 { get; }
-            public string AfterSha256 { get; }
-            public StateMutationApplication Application { get; }
-            public long CommitDeadlineTimestamp { get; }
         }
 
         private enum PendingMovieSeekPhase

@@ -29,7 +29,6 @@ namespace HollowKnightTAS.AgentBridge
             };
         private AutomationHandshake? handshake;
         private bool initialized;
-        private bool debugMutationEnabled;
         private string activeLeaseId = string.Empty;
         private string[] activeLeaseScopes = Array.Empty<string>();
 
@@ -271,17 +270,6 @@ namespace HollowKnightTAS.AgentBridge
             handshake = await automation.ConnectAsync(
                 connectOptions,
                 cancellationToken);
-            var status = await automation.ExecuteAsync(
-                automation.CreateCommand(
-                    AutomationCommandIds.GetStatus,
-                    AutomationScope.ObserveStatus),
-                cancellationToken);
-            debugMutationEnabled =
-                status.Success
-                && status.Data.TryGetValue(
-                    "debugMutationEnabled",
-                    out var debug)
-                && debug == "true";
             await WriteResultAsync(
                 id,
                 new JsonObject
@@ -305,8 +293,7 @@ namespace HollowKnightTAS.AgentBridge
                     ["instructions"] =
                         "Read state and capabilities first. "
                         + "Write tools require ApprovedControl and an "
-                        + "explicit short lease. Debug mutations permanently "
-                        + "make the process non-verifiable."
+                        + "explicit short lease."
                 });
         }
 
@@ -318,15 +305,7 @@ namespace HollowKnightTAS.AgentBridge
             var tools = McpCatalog.Tools
                 .Where(
                     tool =>
-                        !tool.RequiresApprovedControl
-                        || approved
-                           && (
-                               debugMutationEnabled
-                               || tool.Name
-                                  != "hktas_set_hero_pose"
-                                  && tool.Name
-                                  != "hktas_set_player_resources"
-                           ))
+                        !tool.RequiresApprovedControl || approved)
                 .Select(tool => tool.ToJson())
                 .ToArray();
             await WriteResultAsync(
@@ -817,18 +796,6 @@ namespace HollowKnightTAS.AgentBridge
                             "startTick",
                             "count"),
                         cancellationToken);
-                case "hktas_set_hero_pose":
-                    return await MutationAsync(
-                        AutomationCommandIds.SetHeroPose,
-                        AutomationScope.DebugStatePose,
-                        arguments,
-                        cancellationToken);
-                case "hktas_set_player_resources":
-                    return await MutationAsync(
-                        AutomationCommandIds.SetPlayerResources,
-                        AutomationScope.DebugStateResources,
-                        arguments,
-                        cancellationToken);
                 default:
                     throw new ToolExecutionException(
                         "Tool is not mapped.");
@@ -946,27 +913,6 @@ namespace HollowKnightTAS.AgentBridge
                     commandArguments,
                     activeLeaseId,
                     mode,
-                    tick),
-                cancellationToken);
-        }
-
-        private Task<AutomationResultEnvelope> MutationAsync(
-            string commandId,
-            string scope,
-            JsonElement arguments,
-            CancellationToken cancellationToken)
-        {
-            RequireLease(scope);
-            var tick = arguments
-                .GetProperty("expectedMovieTick")
-                .GetInt64();
-            return automation.ExecuteAsync(
-                automation.CreateCommand(
-                    commandId,
-                    scope,
-                    FlatArguments(arguments),
-                    activeLeaseId,
-                    "Paused",
                     tick),
                 cancellationToken);
         }

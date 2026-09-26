@@ -43,7 +43,7 @@ SDK 对应 `GetOperationalStatusAsync()`，CLI 对应
 `automation call getState observe.state.summary statusOnly=true`。
 自动存档策略仍经 `setAutoSavePolicy` 的控制租约和模式/帧号校验修改。
 
-`ReadOnly` 只列只读工具。`ApprovedControl` 才列控制工具；两个 mutation 工具还要求 Runtime 注册时 `DebugMutationEnabled=true`。tool annotation 只用于 MCP UI，实际权限始终由 Companion 重新检查。
+当前版本固定为 `ApprovedControl`，控制工具仍需租约。`hktas_set_hero_pose` 和 `hktas_set_player_resources` 已移除。旧版本会话的 `ReadOnly` 模式仍只列只读工具。tool annotation 只用于 MCP UI，实际权限始终由 Companion 重新检查。
 
 首批工具包括：
 
@@ -71,8 +71,6 @@ hktas_approve_replay_save_overwrite
 hktas_cancel_replay_save_restore
 hktas_resume_replay_save_restore
 hktas_apply_movie_branch
-hktas_set_hero_pose
-hktas_set_player_resources
 ```
 
 每个 input schema 都是 closed object（`additionalProperties=false`）。tool 结果同时返回 `structuredContent` 与兼容的 JSON text content；业务拒绝使用 `isError=true`，协议形状错误使用 JSON-RPC error。

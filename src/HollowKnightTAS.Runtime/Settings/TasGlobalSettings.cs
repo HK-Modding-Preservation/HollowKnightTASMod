@@ -42,9 +42,7 @@ namespace HollowKnightTAS.Runtime.Settings
         public bool ReplayDeterministicRngEnabled;
         public int ReplayDeterministicRngSeed = 1212896321;
         public bool EnableSemanticKeyframes;
-        public string ExternalAutomationMode =
-            nameof(AutomationMode.ReadOnly);
-        public bool DebugMutationEnabled;
+
 
         public void Normalize()
         {
@@ -100,9 +98,6 @@ namespace HollowKnightTAS.Runtime.Settings
             DedicatedTasSaveSlot = Math.Max(
                 1,
                 Math.Min(4, DedicatedTasSaveSlot));
-            ExternalAutomationMode = AutomationModeCodec
-                .Normalize(ExternalAutomationMode)
-                .ToString();
         }
 
         public string ComputeCanonicalSha256()
@@ -179,13 +174,13 @@ namespace HollowKnightTAS.Runtime.Settings
             builder.Append(",\"enableSemanticKeyframes\":");
             builder.Append(
                 EnableSemanticKeyframes ? "true" : "false");
+            // Retain canonical identity keys as fixed protocol values, not user settings.
             builder.Append(",\"externalAutomationMode\":");
             CanonicalJsonWriter.AppendString(
                 builder,
-                ExternalAutomationMode);
+                nameof(AutomationMode.ApprovedControl));
             builder.Append(",\"debugMutationEnabled\":");
-            builder.Append(
-                DebugMutationEnabled ? "true" : "false");
+            builder.Append("false");
             builder.Append(",\"dedicatedTasSaveSlot\":");
             builder.Append(
                 DedicatedTasSaveSlot.ToString(
@@ -242,11 +237,7 @@ namespace HollowKnightTAS.Runtime.Settings
                 ReplayDeterministicRngSeed =
                     ReplayDeterministicRngSeed,
                 EnableSemanticKeyframes =
-                    EnableSemanticKeyframes,
-                ExternalAutomationMode =
-                    ExternalAutomationMode,
-                DebugMutationEnabled =
-                    DebugMutationEnabled
+                    EnableSemanticKeyframes
             };
             result.Normalize();
             return result;

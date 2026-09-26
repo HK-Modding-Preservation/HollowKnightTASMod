@@ -423,17 +423,8 @@ namespace HollowKnightTAS.AgentBridge.Tests
                 + JsonSerializer.Serialize(new string('r', 513))
                 + ",\"expectedMilestone\":\"checkpoint\"}");
 
-            Assert.IsTrue(
-                McpCatalog.TryGetTool(
-                    "hktas_set_hero_pose",
-                    out var pose));
-            AssertRejects(
-                pose,
-                "{\"expectedSnapshotSha256\":\""
-                + new string('a', 64)
-                + "\",\"expectedMovieTick\":0,"
-                + "\"positionX\":10001,\"positionY\":0,"
-                + "\"velocityX\":0,\"velocityY\":0}");
+            Assert.IsFalse(McpCatalog.TryGetTool("hktas_set_hero_pose", out _));
+            Assert.IsFalse(McpCatalog.TryGetTool("hktas_set_player_resources", out _));
 
             using var valid = JsonDocument.Parse(
                 "{\"scopes\":[\"control.playback\"],"

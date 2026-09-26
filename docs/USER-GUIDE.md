@@ -114,7 +114,7 @@ AI 可通过 SDK 的 `StartVideoExportAsync`，或 MCP 的 `hktas_start_video_ex
 
 人工界面与 AI 共用控制服务；AI 需要控制租约，不能抢占另一个控制者。只读状态无需控制租约。**Structured State** 读取语义快照，**Combat State** 读取最新详细状态；调用者应检查字段新鲜度和采样失败信息。
 
-CLI 和 MCP 工具位于 `Companion/win-x64/Tools`，SDK 位于其 `SDK` 子目录。接入说明见 [MCP v1](ai/MCP-v1.md)。调试状态修改不能混入正式 TAS 输入。
+CLI 和 MCP 工具位于 `Companion/win-x64/Tools`，SDK 位于其 `SDK` 子目录。接入说明见 [MCP v1](ai/MCP-v1.md)。外部自动化固定允许控制，写命令仍需租约；本 Mod 不再内置调试状态修改。
 
 遇到 PreconditionFailed 时，重新读取状态和帧号，确认上一操作已结束；不要盲目重发旧请求。恢复出现 Faulted 或 hash mismatch 时保留错误和存档，不通过修改角色状态继续冒充成功。
 

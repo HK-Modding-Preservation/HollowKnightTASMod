@@ -187,7 +187,7 @@ namespace HollowKnightTAS.Companion
                                     throw new InvalidOperationException("原生启动暂停没有回执；当前 ClockBridge 可能不支持启动门闩。");
                                 automationBroker?.BindFullRunEndpoint(gate.Token,
                                     profile.StartupProfileSha256,
-                                    ReadExternalAutomationMode());
+                                    AutomationMode.ApprovedControl);
                                 if (startupBoot!.IsPending)
                                     startupGame = System.Diagnostics.Process.GetProcessById(handle.ProcessId);
                                 if (startupGame != null && restorePresentation.IsActive)
@@ -403,24 +403,5 @@ namespace HollowKnightTAS.Companion
                 : 0;
         }
 
-        private static AutomationMode ReadExternalAutomationMode()
-        {
-            try
-            {
-                var path = Path.Combine(Environment.GetFolderPath(
-                    Environment.SpecialFolder.UserProfile), "AppData", "LocalLow",
-                    "Team Cherry", "Hollow Knight",
-                    "HollowKnightTASMod.GlobalSettings.json");
-                var file = new FileInfo(path);
-                if (!file.Exists || file.Length <= 0 || file.Length > 64 * 1024)
-                    return AutomationMode.ReadOnly;
-                using var settings = System.Text.Json.JsonDocument.Parse(File.ReadAllBytes(path));
-                return settings.RootElement.TryGetProperty("ExternalAutomationMode",
-                        out var mode) && mode.ValueKind == System.Text.Json.JsonValueKind.String
-                    ? AutomationModeCodec.Normalize(mode.GetString())
-                    : AutomationMode.ReadOnly;
-            }
-            catch { return AutomationMode.ReadOnly; }
-        }
     }
 }

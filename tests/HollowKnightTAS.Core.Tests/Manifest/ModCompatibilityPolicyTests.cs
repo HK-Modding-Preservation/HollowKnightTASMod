@@ -9,6 +9,20 @@ namespace HollowKnightTAS.Core.Tests.Manifest
     public sealed class ModCompatibilityPolicyTests
     {
         [TestMethod]
+        [DataRow("Disabled", true)]
+        [DataRow("ReadOnly", true)]
+        [DataRow("ApprovedControl", false)]
+        public void RemovedAutomationSettingsAreIgnoredAndNotSaved(string mode, bool debug)
+        {
+            var json = JsonConvert.SerializeObject(new { ExternalAutomationMode = mode, DebugMutationEnabled = debug });
+            var settings = JsonConvert.DeserializeObject<TasGlobalSettings>(json)!.CloneNormalized();
+            Assert.AreEqual(new TasGlobalSettings().ComputeCanonicalSha256(), settings.ComputeCanonicalSha256());
+            var saved = JsonConvert.SerializeObject(settings);
+            Assert.IsFalse(saved.Contains("ExternalAutomationMode"));
+            Assert.IsFalse(saved.Contains("DebugMutationEnabled"));
+        }
+
+        [TestMethod]
         [DataRow(true, "[\"HollowKnightTAS\"]")]
         [DataRow(true, "[\"AnUnknownMod\",\"AnotherMod\"]")]
         [DataRow(false, "[]")]

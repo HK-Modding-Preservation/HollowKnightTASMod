@@ -106,9 +106,8 @@ namespace HollowKnightTAS.Runtime.Companion
                     this.settings
                         .EnableNativeCapabilities,
                     token,
-                    AutomationModeCodec.Normalize(
-                        this.settings.ExternalAutomationMode),
-                    this.settings.DebugMutationEnabled);
+                    AutomationMode.ApprovedControl,
+                    false);
             commands = new RuntimeCommandQueue(
                 this.settings
                     .CompanionCommandQueueCapacity);
@@ -136,9 +135,7 @@ namespace HollowKnightTAS.Runtime.Companion
                 sessionId,
                 manifestSha256,
                 this.settings.EnableNativeCapabilities,
-                AutomationModeCodec.Normalize(
-                    this.settings.ExternalAutomationMode),
-                this.settings.DebugMutationEnabled,
+                AutomationMode.ApprovedControl,
                 this.settings.VerificationModeRequested,
                 this.settings.ReplayDeterministicRngEnabled,
                 this.settings.ReplayDeterministicRngSeed,
@@ -202,11 +199,9 @@ namespace HollowKnightTAS.Runtime.Companion
                             ? "true"
                             : "false",
                     ["automationMode"] =
-                        settings.ExternalAutomationMode,
+                        nameof(AutomationMode.ApprovedControl),
                     ["debugMutationEnabled"] =
-                        settings.DebugMutationEnabled
-                            ? "true"
-                            : "false",
+                        "false",
                     ["commandQueueCapacity"] =
                         settings
                             .CompanionCommandQueueCapacity
