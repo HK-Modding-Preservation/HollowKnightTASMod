@@ -64,7 +64,9 @@ for ($depth = 0; $depth -lt 4; $depth++) { $cycleData = $cycleData['items'][0] }
 Assert-Observation ($cycleData['reason'] -eq 'collectionDepthLimit') 'cyclic list bounded'
 $enumData = $encode.Invoke($encoder,[object[]]@([DayOfWeek]::Friday))
 Assert-Observation ($enumData['name'] -eq 'Friday' -and $enumData['numeric'] -eq 5) 'enum has named and numeric values'
-$fsmFloat = [HutongGames.PlayMaker.FsmFloat]::new(2.5)
+$fsmFloat = [HutongGames.PlayMaker.FsmFloat]::new()
+# This is a standalone managed test value, not a game FSM or Unity object.
+[HutongGames.PlayMaker.FsmFloat].GetField('value',$instanceFlags).SetValue($fsmFloat,[float]2.5)
 $fsmValue = $encode.Invoke($encoder,[object[]]@($fsmFloat))
 Assert-Observation ($fsmValue['raw']['value'] -eq 2.5 -and $fsmValue['valueSource'] -eq 'existingBackingFields') 'FSM wrapper uses raw field'
 
