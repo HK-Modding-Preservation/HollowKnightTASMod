@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Text;
 using HollowKnightTAS.Core.Automation;
 using HollowKnightTAS.Core.Cryptography;
@@ -13,7 +11,6 @@ namespace HollowKnightTAS.Runtime.Settings
     public sealed class TasGlobalSettings
     {
         public bool VerificationModeRequested;
-        public string[] AllowedVerificationMods = { "HollowKnightTAS" };
         public int EventQueueCapacity = 4096;
         public int ExitFlushTimeoutMilliseconds = 2000;
         public bool CompanionEnabled = true;
@@ -51,17 +48,6 @@ namespace HollowKnightTAS.Runtime.Settings
 
         public void Normalize()
         {
-            AllowedVerificationMods = (AllowedVerificationMods ?? Array.Empty<string>())
-                .Where(value => !string.IsNullOrWhiteSpace(value))
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(value => value, StringComparer.Ordinal)
-                .ToArray();
-
-            if (AllowedVerificationMods.Length == 0)
-            {
-                AllowedVerificationMods = new[] { "HollowKnightTAS" };
-            }
-
             EventQueueCapacity = Math.Max(128, Math.Min(65536, EventQueueCapacity));
             ExitFlushTimeoutMilliseconds = Math.Max(
                 250,
@@ -123,18 +109,7 @@ namespace HollowKnightTAS.Runtime.Settings
         {
             Normalize();
             var builder = new StringBuilder(256);
-            builder.Append("{\"allowedVerificationMods\":[");
-            for (var index = 0; index < AllowedVerificationMods.Length; index++)
-            {
-                if (index > 0)
-                {
-                    builder.Append(',');
-                }
-
-                CanonicalJsonWriter.AppendString(builder, AllowedVerificationMods[index]);
-            }
-
-            builder.Append("],\"eventQueueCapacity\":");
+            builder.Append("{\"eventQueueCapacity\":");
             builder.Append(EventQueueCapacity.ToString(CultureInfo.InvariantCulture));
             builder.Append(",\"autoStartCompanion\":");
             builder.Append(AutoStartCompanion ? "true" : "false");
@@ -227,7 +202,6 @@ namespace HollowKnightTAS.Runtime.Settings
             var result = new TasGlobalSettings
             {
                 VerificationModeRequested = VerificationModeRequested,
-                AllowedVerificationMods = (string[])AllowedVerificationMods.Clone(),
                 EventQueueCapacity = EventQueueCapacity,
                 ExitFlushTimeoutMilliseconds = ExitFlushTimeoutMilliseconds,
                 CompanionEnabled = CompanionEnabled,

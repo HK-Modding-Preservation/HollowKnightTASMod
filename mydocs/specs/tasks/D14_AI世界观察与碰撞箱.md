@@ -46,6 +46,6 @@
 
 - 超大角色概览原先退化成ID占位，现有界保留核心字段并明确遗漏，详情仍可分段读取。高频碰撞显示优先回收旧显示快照，避免挤出正在分页的AI world快照。
 - 显示Transform与物理Rigidbody插值有差异；轮廓现以物理位置/旋转修正，仅读取，不调用SyncTransforms、不分配Unity原生对象。无Rigidbody的静态对象保留Transform来源标记。圆/胶囊/圆角及特殊缩放有明确近似标记。
-- 受保护运行原先拒绝所有外部Mod。对本机EnviousMarmu源码和安装DLL审阅后，仅放行名称和SHA-256精确匹配的这一版（`3b55e3e198113fd00c8bc3b0bdbf9c4206b206c5cd94afb8abe8e79eec671673`）；其他Mod仍需单独审阅，未削弱存档保护。
+- 受保护运行最初采用外部Mod精确白名单。2026-09-26用户明确撤销此限制：现不限制其他Mod安装/启用，不再检查名称或程序集Hash白名单；兼容性由用户自行保证。影子存档、原始存档写入守卫及保护状态校验保留，环境指纹继续记录实际Mod。上文三次实机是白名单撤销前构建的证据，不直接继承为新构建的完整战斗验收。
 - 未声称任意Mod语义、引擎未公开数据、逐对IgnoreCollision、接触流形或自定义碰撞规则自动完整。检查errors/omitted/元数据；旧缓存不代表当前场景。未进行独占全屏、跨DPI显示或所有Boss回归。
 - 详细接口见 docs/ai/WORLD-OBSERVATION.md；最终证据、哈希、查询、截图和轨迹对比见 artifacts/world-observation/REPORT.md。DebugMod固定源码参考见 artifacts/observer-review/debugmod-reference.md。

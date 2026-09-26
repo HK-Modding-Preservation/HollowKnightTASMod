@@ -46,12 +46,8 @@ MCP：`hktas_get_object_details`。SDK：`GetObjectDetailsAsync`，或 `GetObjec
 
 Studio「设置 → 显示碰撞箱」默认关闭，可持久化。显示层复用此接口，只画轮廓，不修改游戏碰撞器；游戏未连接、最小化或退出时隐藏。
 
-## 受保护 Mod 与来源边界
+## 其他 Mod 与来源
 
-Runtime 的 `ReviewedProtectedMods` 是精确白名单，不代表“所有 Mod 都已审查”。除本 Mod 自身外，当前允许 shadow-save redirector 的外部 Mod 仅限名称 `EnviousMarmu`，且程序集 SHA-256 必须严格等于：
+不限制其他 Mod 的安装或启用，不按 Mod 名称、版本或程序集哈希设置白名单。由用户自行保证安装的其他 Mod 与本 Mod 兼容。影子存档重定向、原始存档写入保护和保护状态检查继续生效；环境指纹仍记录实际加载的 Mod，供回放环境核对。
 
-```text
-3b55e3e198113fd00c8bc3b0bdbf9c4206b206c5cd94afb8abe8e79eec671673
-```
-
-碰撞箱的形状、分类和场景生命周期参考 [DebugMod HitboxRender](https://github.com/TheMulhima/HollowKnight.DebugMod/blob/ea4c07de0c93ffee3518e07d6b0351188f7f3293/Source/Hitbox/HitboxRender.cs)（固定提交 `ea4c07d`）。本实现通过只读数据在 Companion 绘制，并额外处理 Rigidbody 物理位姿、Capsule 和 Composite；未启用 DebugMod，也未将其加入受保护运行白名单。参考核对记录保存在 `artifacts/observer-review/debugmod-reference.md`。
+碰撞箱的形状、分类和场景生命周期参考 [DebugMod HitboxRender](https://github.com/TheMulhima/HollowKnight.DebugMod/blob/ea4c07de0c93ffee3518e07d6b0351188f7f3293/Source/Hitbox/HitboxRender.cs)（固定提交 `ea4c07d`）。本实现通过只读数据在 Companion 绘制，并额外处理 Rigidbody 物理位姿、Capsule 和 Composite；本轮未启用 DebugMod。参考核对记录保存在 `artifacts/observer-review/debugmod-reference.md`。

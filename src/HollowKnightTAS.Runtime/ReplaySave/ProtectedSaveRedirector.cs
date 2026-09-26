@@ -1,11 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using HollowKnightTAS.Core.Cryptography;
 using HollowKnightTAS.Core.ReplaySave;
-using Modding;
 using MonoMod.RuntimeDetour;
 using UnityEngine;
 
@@ -24,7 +22,6 @@ namespace HollowKnightTAS.Runtime.ReplaySave
         private readonly DesktopPlatform desktop;
         private readonly Hook moddedSaveHook;
         private bool disposed;
-        private readonly Dictionary<Assembly, string> reviewedAssemblyHashes = new Dictionary<Assembly, string>();
 
         public ProtectedSaveDescriptor Descriptor => descriptor;
 
@@ -123,23 +120,8 @@ namespace HollowKnightTAS.Runtime.ReplaySave
             var online = OnlineField.GetValue(desktop) as DesktopOnlineSubsystem;
             if (online != null && online.HandlesGameSaves)
                 throw new InvalidOperationException("Online saves became active during protected TAS.");
-            foreach (var mod in ModHooks.GetAllMods(onlyEnabled: true, allowLoadError: false))
-                if (!IsReviewedMod(mod))
-                    throw new InvalidOperationException("An unreviewed Mod is enabled during protected TAS: "
-                        + mod.GetName());
-        }
-
-        private bool IsReviewedMod(IMod mod)
-        {
-            var assembly = mod.GetType().Assembly;
-            if (assembly == typeof(HollowKnightTASMod).Assembly
-                && string.Equals(mod.GetName(), "HollowKnightTAS", StringComparison.Ordinal)) return true;
-            if (!reviewedAssemblyHashes.TryGetValue(assembly, out var digest))
-            {
-                digest = string.IsNullOrEmpty(assembly.Location) ? string.Empty : Sha256Utility.ComputeFileHex(assembly.Location);
-                reviewedAssemblyHashes[assembly] = digest;
-            }
-            return ReviewedProtectedMods.Allows(mod.GetName(), digest);
+            // External Mod compatibility is the user's responsibility. Assert only
+            // that this session's save protection remains active, not a Mod allowlist.
         }
 
         private string OnGetSaveSlotPath(On.DesktopPlatform.orig_GetSaveSlotPath original,

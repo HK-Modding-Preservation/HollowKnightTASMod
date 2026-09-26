@@ -31,54 +31,15 @@ namespace HollowKnightTAS.Runtime.Manifest
 
     public static class VerificationPreflight
     {
-        public static VerificationPreflightResult Evaluate(
-            bool requested,
-            IEnumerable<string> loadedMods,
-            IEnumerable<string> allowedMods)
+        public static VerificationPreflightResult Evaluate(bool requested)
         {
-            if (loadedMods == null)
-            {
-                throw new ArgumentNullException(nameof(loadedMods));
-            }
-
-            if (allowedMods == null)
-            {
-                throw new ArgumentNullException(nameof(allowedMods));
-            }
-
-            var allowed = new HashSet<string>(
-                allowedMods.Where(value => !string.IsNullOrWhiteSpace(value)),
-                StringComparer.Ordinal);
-            var unexpected = loadedMods
-                .Where(value => !string.IsNullOrWhiteSpace(value) && !allowed.Contains(value))
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(value => value, StringComparer.Ordinal)
-                .ToArray();
-
-            if (!requested)
-            {
-                return new VerificationPreflightResult(
-                    false,
-                    false,
-                    unexpected,
-                    "NotRequested");
-            }
-
-            if (unexpected.Length > 0)
-            {
-                return new VerificationPreflightResult(
-                    true,
-                    false,
-                    unexpected,
-                    "UnexpectedMods");
-            }
-
+            // Keep the existing manifest fields, but do not restrict external Mods.
+            // Loaded Mod identities are recorded separately by RuntimeEnvironmentReader.
             return new VerificationPreflightResult(
-                true,
-                true,
-                unexpected,
-                "Allowed");
+                requested,
+                requested,
+                Array.Empty<string>(),
+                requested ? "Allowed" : "NotRequested");
         }
     }
 }
-

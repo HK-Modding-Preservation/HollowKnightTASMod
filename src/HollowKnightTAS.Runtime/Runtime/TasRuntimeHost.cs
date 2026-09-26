@@ -115,9 +115,7 @@ namespace HollowKnightTAS.Runtime.Runtime
 
             var loadedMods = RuntimeEnvironmentReader.CaptureLoadedMods();
             Verification = VerificationPreflight.Evaluate(
-                settings.VerificationModeRequested,
-                loadedMods.Keys,
-                settings.AllowedVerificationMods);
+                settings.VerificationModeRequested);
             RuntimeRngCapabilityResolution? rngCapability = null;
             var rngCodecId = "unsupported";
             var rngCoverage = "resolution-fault";
