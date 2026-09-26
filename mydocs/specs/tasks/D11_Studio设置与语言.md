@@ -19,4 +19,4 @@
 
 2026-09-26：24/24 定向检查通过：UiTextTests、StudioThemeTests、StudioResourceBoundsTests、InputGridEditorTests、InputGridFollowTests。覆盖中英即时往返及持久化、保存失败保持旧设置、复合状态和帧数、四页英文静态文字无中文残留、原编辑/跟随路径与辅助功能有界性。900×600 最小窗口预留边框后离线渲染，含 125%/150% 图片；中文四页及英文设置页检查通过。
 
-证据：artifacts/studio-settings/final-tests.log、build.log、REPORT.md；图片在测试输出目录。构建/签名包已准备，安装等待用户正常关闭现有 Studio（PID 5704）。本轮未启动游戏、未用桌面自动化、未调整分辨率。运行中游戏场景不在本轮验证范围，不能把旧游戏验收算作本次实测。
+证据：artifacts/studio-settings/final-tests.log、build.log、REPORT.md；图片在测试输出目录。用户确认关闭后，Release 构建、安装及安装版验签已完成（install.log）。安装 manifest SHA256：96ff69453d3631f3caad4fbccaad74d594eda9571fe8c297b7aacbe2be84cf74；Companion DLL：3aed5285bee897b0ce567dabeebc5928a3983d828e0da98c6e6103820358a3d6。本轮未启动游戏、未用桌面自动化、未调整分辨率。运行中游戏场景不在本轮验证范围，不能把旧游戏验收算作本次实测。
