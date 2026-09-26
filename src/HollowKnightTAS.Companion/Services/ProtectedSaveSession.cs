@@ -20,9 +20,10 @@ namespace HollowKnightTAS.Companion.Services
         private readonly IReadOnlyDictionary<string, long> originalLengths;
 
         private ProtectedSaveSession(ProtectedSaveDescriptor descriptor,
-            IDictionary<string, string> hashes, IDictionary<string, long> lengths)
+            IDictionary<string, string> hashes, IDictionary<string, long> lengths, InitialSaveSnapshot initialSaves)
         {
             Descriptor = descriptor;
+            InitialSaves = initialSaves;
             originalSha256 = new ReadOnlyDictionary<string, string>(
                 new Dictionary<string, string>(hashes, StringComparer.OrdinalIgnoreCase));
             originalLengths = new ReadOnlyDictionary<string, long>(
@@ -30,11 +31,13 @@ namespace HollowKnightTAS.Companion.Services
         }
 
         public ProtectedSaveDescriptor Descriptor { get; }
+        public InitialSaveSnapshot InitialSaves { get; }
         public string DescriptorPath => Path.Combine(Descriptor.ShadowRoot, "descriptor.json");
         public IReadOnlyDictionary<string, string> OriginalSha256 => originalSha256;
         public IReadOnlyDictionary<string, long> OriginalLengths => originalLengths;
 
-        public static ProtectedSaveSession Prepare(string runId, string originalRoot, string shadowRoot)
+        public static ProtectedSaveSession Prepare(string runId, string originalRoot, string shadowRoot,
+            InitialSaveSnapshot? initialSaves = null)
         {
             if (!ProtectedSaveDescriptor.IsSafeRunId(runId))
                 throw new ArgumentException("Invalid protected run ID.", nameof(runId));
@@ -84,18 +87,28 @@ namespace HollowKnightTAS.Companion.Services
             RejectReparseAncestors(shadow);
             var hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var lengths = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+            var originalBytes = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
             foreach (var item in files)
             {
-                var destination = Path.Combine(shadow, item.Name);
-                var hash = CopyReadOnlyAndHash(item.Path, destination, item.Length);
+                using var input = new FileStream(item.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                if (input.Length != item.Length) throw new IOException("Original save changed during preparation.");
+                var bytes = new byte[checked((int)item.Length)];
+                input.ReadExactly(bytes);
+                if (input.ReadByte() != -1) throw new IOException("Original save grew during preparation.");
+                var hash = HollowKnightTAS.Core.Cryptography.Sha256Utility.ComputeHex(bytes);
                 hashes.Add(item.Name, hash);
                 lengths.Add(item.Name, item.Length);
+                if (initialSaves == null) originalBytes.Add(item.Name, bytes);
             }
+            var baseline = initialSaves ?? new InitialSaveSnapshot(originalBytes);
+            baseline.WriteToNewShadow(shadow);
             var token = new byte[32];
             RandomNumberGenerator.Fill(token);
-            var descriptor = new ProtectedSaveDescriptor(runId, original, shadow, hashes,
+            // Descriptor hashes identify the replay seed; the separate audit above
+            // identifies this machine's real saves, which may be completely different.
+            var descriptor = new ProtectedSaveDescriptor(runId, original, shadow, baseline.Hashes,
                 Convert.ToHexString(token).ToLowerInvariant());
-            var session = new ProtectedSaveSession(descriptor, hashes, lengths);
+            var session = new ProtectedSaveSession(descriptor, hashes, lengths, baseline);
             var temporaryDescriptor = session.DescriptorPath + ".new";
             using (var stream = new FileStream(temporaryDescriptor, FileMode.CreateNew,
                 FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))

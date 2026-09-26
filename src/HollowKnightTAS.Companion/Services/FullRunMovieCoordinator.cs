@@ -16,6 +16,8 @@ namespace HollowKnightTAS.Companion.Services
         private ProtectedSaveSession? saves;
         private FullRunBootstrapStore? bootstrap;
         private string mode = "Unarmed";
+        public InitialSaveSnapshot? SequenceInitialSaves { get; set; }
+        public InitialSaveSnapshot? SessionInitialSaves => saves?.InitialSaves;
 
         public FullRunMovieCoordinator(StartupBootController boot)
         {
@@ -34,7 +36,7 @@ namespace HollowKnightTAS.Companion.Services
         public string RunId => saves?.Descriptor.RunId ?? string.Empty;
         public string ShadowRoot => saves?.Descriptor.ShadowRoot ?? string.Empty;
         public StartupBootGate? Gate => gate;
-        public System.Collections.Generic.IReadOnlyDictionary<string, string> OriginalHashes => saves?.OriginalSha256
+        public System.Collections.Generic.IReadOnlyDictionary<string, string> OriginalHashes => SequenceInitialSaves?.Hashes ?? saves?.InitialSaves.Hashes
             ?? throw new InvalidOperationException("Protected baseline is unavailable.");
 
         public StartupBootGate PrepareLaunch()
@@ -45,7 +47,7 @@ namespace HollowKnightTAS.Companion.Services
                 Environment.SpecialFolder.UserProfile), "AppData", "LocalLow",
                 "Team Cherry", "Hollow Knight");
             var shadowRoot = Path.Combine(localRoot, "save-shadows", runId);
-            var session = ProtectedSaveSession.Prepare(runId, originalRoot, shadowRoot);
+            var session = ProtectedSaveSession.Prepare(runId, originalRoot, shadowRoot, SequenceInitialSaves);
             var nextGate = boot.BeginV2();
             nextGate.SetProtectedSaveSession(session);
             saves = session;
