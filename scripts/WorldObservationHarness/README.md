@@ -26,6 +26,36 @@ dotnet run --project scripts/WorldObservationHarness/WorldObservationHarness.csp
 
 `--sample-frames=8250,8350,...,10149` accepts a comma-separated list of movie frames after the boss milestone and before completion. It captures paused world snapshots at every requested frame, plus custom EnviousMarmu details when the population changes and at the last sample. For `fixtures/full-run/envious-marmu-simple-v2.hktas`, use `--boss-frame=8250` and samples 8250 through 10050 in increments of 100, followed by 10149. The report records the actual fixture, Runtime, Core and environment hashes. With `--overlay`, it also verifies hide/show at the boss milestone and saves `boss-overlay-live.png`.
 
+## Interactive authoring
+
+`--mode=interactive` starts the protected replay and pauses at Movie frame 1, then writes `ready.json` in a **new, dedicated output directory**. `Interact.py` sends one numbered command and waits up to 60 seconds for its result; issue commands sequentially. A timeout means the command may still be pending: inspect the harness/report before sending another command.
+
+```powershell
+python scripts/WorldObservationHarness/Interact.py artifacts/marmu-authoring --frame 1500
+python scripts/WorldObservationHarness/Interact.py artifacts/marmu-authoring --all --inactive --details "$objectName"
+python scripts/WorldObservationHarness/Interact.py artifacts/marmu-authoring --source "$fixture" --prefix 1500 --segments "1:openInventory" "15:-" --frame 1516
+python scripts/WorldObservationHarness/Interact.py artifacts/marmu-authoring --quit
+```
+
+The edit example assumes the current frame is 1500 and `$fixture` contains the exact already-executed prefix. Runtime permits **future inputs only** and rejects changes to that prefix; movement targets must be current or future frames. Inputs use `count:action,action` segments (`-` means neutral). The helper appends 15000 neutral frames as temporary authoring room, so freeze and trim the final Movie before delivery. Object detail names are exact and should come from the preceding world snapshot. Each command writes world/detail JSON, before/after status and a `-done.json` receipt; observations must preserve the paused native frame and leave fault/mismatch counts zero.
+
+Interactive success validates the commands performed, not completion or reproducibility of a final Movie. Prefer complete cold-start replays of the **same frozen fixture and installed build** for final evidence, with matching checkpoint samples and a separate exported run. The watchdog bounds interactive sessions to 30 minutes and normal runs to 4 minutes, host private memory to 1 GiB and game private memory to 3 GiB. Both paths audit original saves and close only the owned game process.
+
+## Fixed-replay MP4 export
+
+Use `--mode=observe --video-output=<new-absolute-mp4-path> --ffmpeg=<existing-ffmpeg-exe> --video-start=<movieFrame>`. `--video-start` defaults to 1400 and must be within 1..1500; set it to 1 to include the subsequent menu, save-entry and battle sequence. The selected start frame has already executed and is not recaptured. The Movie must use constant 50 fps; the current exporter has a 20000 rendered-frame safety limit.
+
+With `$fixture`, `$bossFrame` and `$sampleFrames` set to the frozen Movie and its actual milestones:
+
+```powershell
+dotnet run --project scripts/WorldObservationHarness/WorldObservationHarness.csproj --no-build -- `
+  --mode=observe "--fixture=$fixture" "--boss-frame=$bossFrame" "--sample-frames=$sampleFrames" `
+  "--output=$PWD/artifacts/marmu-export" "--video-output=$PWD/artifacts/marmu-export/fight.mp4" `
+  "--ffmpeg=$((Get-Command ffmpeg).Source)" --video-start=1
+```
+
+The harness starts capture through the formal Runtime command, then advances the same replay milestones and checkpoints. Actual loading frames enter the 50 fps H.264/AAC output; paused queries add no video time. It waits for `videoExport.state=Completed` (up to 2 minutes for finalization, still subject to the overall watchdog) and checks that the MP4 exists before quitting. `report.json` retains the export status and start Movie frame. Independently decode/probe the finished MP4 and compare the frozen replay checkpoints; file existence or an interactive run alone is not proof of a correct defeat video. Existing output files are never overwritten. See [v2 export semantics](../../docs/MP4-V2.md).
+
 For an exact final comparison, set `HKTAS_FULL_RUN_BOSS_TRACE=1` before both runs. The Runtime writes `boss-trace.csv` under each report's `shadowRoot/HollowKnightTAS/sessions/full-run-<runId>`. Compare the two reports without opening the game:
 
 ```powershell

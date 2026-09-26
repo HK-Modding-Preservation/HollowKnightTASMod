@@ -61,7 +61,7 @@ internal static class Program
             ["scenes"] = new List<object>(),
             ["checks"] = new List<string>()
         };
-        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(options.Mode == "interactive" ? 30 : 4));
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         var resources = new ResourceMonitor(report, linked.Token);
         VerifiedGameLaunchHandle? handle = null;
@@ -139,9 +139,21 @@ internal static class Program
             }
 
             await RecordStatusAsync(report, runtime, "frame-1", linked.Token);
-            if (options.Mode != "baseline")
+            if (options.Mode == "interactive")
+            {
+                await InteractiveAsync(report, runtime, movies, gate, options, linked.Token);
+            }
+            else if (options.Mode != "baseline")
             {
                 await ObserveFrameAsync(report, runtime, movies, gate, 1, "title", true, linked.Token);
+                if (options.VideoOutput != null)
+                {
+                    await MoveToFrameAsync(runtime, movies, gate, options.VideoStart, linked.Token);
+                    await RuntimeCommandAsync(runtime, IpcMessageTypes.StartVideoExport, IpcMessageTypes.CommandAccepted,
+                        new Dictionary<string, string> { ["requestId"] = RequestId(), ["ffmpegPath"] = options.Ffmpeg!,
+                            ["outputPath"] = options.VideoOutput, ["maximumFrames"] = "20000", ["replayLoadedMovie"] = "true" }, linked.Token);
+                    report["videoStartMovieFrame"] = options.VideoStart;
+                }
                 await MoveToFrameAsync(runtime, movies, gate, 1500, linked.Token);
                 await RecordStatusAsync(report, runtime, "frame-1500", linked.Token);
                 await ObserveFrameAsync(report, runtime, movies, gate, 1500, "sanctum", true, linked.Token);
@@ -159,6 +171,8 @@ internal static class Program
                 await RecordStatusAsync(report, runtime, "boss-frame", linked.Token);
             }
 
+            if (options.Mode != "interactive")
+            {
             string previousPopulation = "";
             foreach (long frame in options.SampleFrames)
             {
@@ -173,12 +187,34 @@ internal static class Program
             Require(string.Equals(ReadField(completed, "mode"), "Completed", StringComparison.OrdinalIgnoreCase),
                 "final status Completed");
             Require(ReadInt64(completed, "mismatchCount", -1) == 0, "final mismatch=0");
+            if (options.VideoOutput != null)
+            {
+                var encodingDeadline = DateTime.UtcNow.AddMinutes(2);
+                while (true)
+                {
+                    var video = await RuntimeCommandAsync(runtime, IpcMessageTypes.FullRunStatus, IpcMessageTypes.FullRunState,
+                        new Dictionary<string, string> { ["requestId"] = RequestId() }, linked.Token);
+                    report["videoExport"] = video.Where(p => p.Key.StartsWith("videoExport.", StringComparison.Ordinal)).ToDictionary(p => p.Key, p => p.Value);
+                    string state = ReadField(video, "videoExport.state");
+                    if (state == "Completed") break;
+                    if (state == "Failed" || state == "Cancelled") throw new InvalidOperationException("Video export " + state);
+                    if (DateTime.UtcNow > encodingDeadline) throw new TimeoutException("Video encoding did not complete.");
+                    await Task.Delay(250, linked.Token);
+                }
+                Require(File.Exists(options.VideoOutput), "completed MP4 exists");
+            }
+            }
             movies.VerifyOriginalSavesUnchanged();
             AddCheck(report, "original saves unchanged before quit");
             await RuntimeCommandAsync(runtime, IpcMessageTypes.QuitGame,
                 IpcMessageTypes.CommandAccepted,
                 new Dictionary<string, string> { ["requestId"] = RequestId() }, linked.Token);
             await WaitForExitAsync(handle, linked.Token);
+            movies.VerifyOriginalSavesUnchanged();
+            AddCheck(report, "original saves unchanged after quit");
+            string modLog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                "AppData", "LocalLow", "Team Cherry", "Hollow Knight", "ModLog.txt");
+            if (File.Exists(modLog)) File.Copy(modLog, Path.Combine(options.Output, "ModLog.txt"), true);
             report["success"] = true;
             report["elapsedSeconds"] = started.Elapsed.TotalSeconds;
             WriteReport(options.Output, report);
@@ -207,6 +243,57 @@ internal static class Program
             handle?.Dispose();
             resources.Stop();
             currentReport = null;
+        }
+    }
+
+    private static async Task InteractiveAsync(Dictionary<string, object?> report,
+        RuntimeSessionClient runtime, FullRunMovieCoordinator movies, StartupBootGate gate,
+        Options options, CancellationToken token)
+    {
+        File.WriteAllText(Path.Combine(options.Output, "ready.json"), JsonSerializer.Serialize(new { ready = true, frame = 1 }));
+        for (int number = 1; ; number++)
+        {
+            string stem = "command-" + number.ToString("D4", CultureInfo.InvariantCulture);
+            string path = Path.Combine(options.Output, stem + ".json");
+            while (!File.Exists(path)) await Task.Delay(100, token);
+            using var document = JsonDocument.Parse(File.ReadAllText(path));
+            var command = document.RootElement;
+            if (command.TryGetProperty("quit", out var quit) && quit.GetBoolean()) return;
+            var status = await RecordStatusAsync(report, runtime, stem + "-before", token);
+            long frame = ReadInt64(status, "movieFrame", -1);
+            if (command.TryGetProperty("moviePath", out var source))
+            {
+                string moviePath = Path.Combine(movies.ShadowRoot, "HollowKnightTAS", "interactive-movie.hktas");
+                File.Copy(Path.GetFullPath(source.GetString()!), moviePath, true);
+                await RuntimeCommandAsync(runtime, IpcMessageTypes.FullRunUpdateMovie, IpcMessageTypes.CommandAccepted,
+                    new Dictionary<string, string> { ["requestId"] = RequestId(), ["moviePath"] = moviePath,
+                        ["expectedNativeFrame"] = gate.NativeCompletedFrames.ToString(CultureInfo.InvariantCulture) }, token);
+                movies.MarkLiveReplay();
+            }
+            if (command.TryGetProperty("frame", out var target) && target.GetInt64() != frame)
+            {
+                await MoveToFrameAsync(runtime, movies, gate, target.GetInt64(), token);
+                frame = target.GetInt64();
+            }
+            long native = gate.NativeCompletedFrames;
+            var world = await ReadSnapshotAsync(report, runtime, frame, stem + "-world",
+                command.TryGetProperty("view", out var view) ? view.GetString()! : "world", token,
+                command.TryGetProperty("includeInactive", out var inactive) && inactive.GetBoolean());
+            using var snapshot = world.Snapshot;
+            if (command.TryGetProperty("detailNames", out var names))
+            {
+                var wanted = names.EnumerateArray().Select(n => n.GetString()).ToHashSet();
+                int index = 0;
+                foreach (var obj in snapshot.RootElement.GetProperty("objects").EnumerateArray())
+                    if (wanted.Contains(obj.GetProperty("name").GetString()))
+                        await ObserveDetailsAsync(report, runtime, obj, frame, native, stem + "-detail-" + index++, token);
+            }
+            Require(gate.IsWaiting && gate.NativeCompletedFrames == native, stem + " paused queries preserve frame");
+            var after = await RecordStatusAsync(report, runtime, stem + "-after", token);
+            Require(gate.FullRunFaultCode == 0 && ReadInt64(after, "mismatchCount", -1) == 0, stem + " no fault or mismatch");
+            movies.VerifyOriginalSavesUnchanged();
+            WriteReport(options.Output, report);
+            File.WriteAllText(Path.Combine(options.Output, stem + "-done.json"), JsonSerializer.Serialize(new { success = true, frame, nativeFrame = native }));
         }
     }
 
@@ -727,7 +814,7 @@ internal static class Program
                     ["gamePrivateBytes"] = gameBytes
                 };
                 lock (report) ((List<object>)report["resources"]!).Add(row);
-                if (watchdog.Elapsed.TotalMinutes > 4 || process.PrivateMemorySize64 > 1024L * 1024 * 1024 || gameBytes > 3L * 1024 * 1024 * 1024)
+                if (watchdog.Elapsed.TotalMinutes > ((string)report["mode"]! == "interactive" ? 30 : 4) || process.PrivateMemorySize64 > 1024L * 1024 * 1024 || gameBytes > 3L * 1024 * 1024 * 1024)
                 {
                     // Independent of the UI dispatcher: terminate only the test-owned game,
                     // then this harness, even if a managed await or native message pump is stuck.
@@ -755,6 +842,9 @@ internal static class Program
         public string Game = DefaultGame;
         public string Bundle = DefaultBundle;
         public bool Overlay;
+        public string? VideoOutput;
+        public string? Ffmpeg;
+        public long VideoStart = 1400;
         public long BossFrame = 8500;
         public long[] SampleFrames = Array.Empty<long>();
         public static Options Parse(string[] args)
@@ -768,10 +858,15 @@ internal static class Program
                 else if (arg.StartsWith("--game=", StringComparison.Ordinal)) result.Game = Path.GetFullPath(arg.Substring(7));
                 else if (arg.StartsWith("--bundle=", StringComparison.Ordinal)) result.Bundle = Path.GetFullPath(arg.Substring(9));
                 else if (arg == "--overlay") result.Overlay = true;
+                else if (arg.StartsWith("--video-output=", StringComparison.Ordinal)) result.VideoOutput = Path.GetFullPath(arg.Substring(15));
+                else if (arg.StartsWith("--ffmpeg=", StringComparison.Ordinal)) result.Ffmpeg = Path.GetFullPath(arg.Substring(9));
+                else if (arg.StartsWith("--video-start=", StringComparison.Ordinal)) result.VideoStart = long.Parse(arg.Substring(14), CultureInfo.InvariantCulture);
                 else if (arg.StartsWith("--boss-frame=", StringComparison.Ordinal)) result.BossFrame = long.Parse(arg.Substring(13), CultureInfo.InvariantCulture);
                 else if (arg.StartsWith("--sample-frames=", StringComparison.Ordinal)) result.SampleFrames = arg.Substring(16).Split(',').Select(s => long.Parse(s, CultureInfo.InvariantCulture)).Distinct().OrderBy(f => f).ToArray();
             }
-            if (result.Mode != "baseline" && result.Mode != "observe" && result.Mode != "probe") throw new ArgumentException("--mode must be baseline, observe, or probe.");
+            if (result.Mode != "baseline" && result.Mode != "observe" && result.Mode != "probe" && result.Mode != "interactive") throw new ArgumentException("--mode must be baseline, observe, probe, or interactive.");
+            if (result.VideoOutput != null && (result.Ffmpeg == null || result.Mode != "observe" || result.VideoStart < 1 || result.VideoStart > 1500))
+                throw new ArgumentException("Video requires --mode=observe, --ffmpeg and video start within frames 1..1500.");
             return result;
         }
     }
