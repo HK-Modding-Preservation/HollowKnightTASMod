@@ -17,6 +17,7 @@ namespace HollowKnightTAS.Companion
 {
     public partial class MainWindow : Window
     {
+        private GlobalStudioHotkeys? globalHotkeys;
         private bool restoringGridSelection;
         private double? restoreScrollOffset;
         private bool closeSaved;
@@ -29,7 +30,16 @@ namespace HollowKnightTAS.Companion
         {
             InitializeComponent();
             PropertyChangedEventManager.AddHandler(UiText.Current, OnLanguageChanged, string.Empty);
-            SourceInitialized += (_, _) => EnableDarkTitleBar();
+            SourceInitialized += (_, _) =>
+            {
+                EnableDarkTitleBar();
+                globalHotkeys = new GlobalStudioHotkeys(new WindowInteropHelper(this).Handle,
+                    () => !OwnedWindows.Cast<Window>().Any(w => w.IsVisible), ExecuteGlobalHotkey,
+                    message => { if (DataContext is MainViewModel vm) vm.ReportGlobalHotkeys(message); });
+                ConfigureGlobalHotkeys();
+            };
+            Activated += (_, _) => globalHotkeys?.Refresh();
+            Deactivated += (_, _) => Dispatcher.BeginInvoke(new Action(() => globalHotkeys?.Refresh()));
             DataContextChanged += OnStudioDataContextChanged;
             gridFollowTimer.Tick += async (_, _) =>
             {
@@ -42,6 +52,7 @@ namespace HollowKnightTAS.Companion
                 if (closeSaved || DataContext is not MainViewModel vm) return;
                 e.Cancel = true;
                 gridFollowTimer.Stop();
+                globalHotkeys?.Configure(false, vm.ConfiguredPause, vm.ConfiguredAdvance);
                 try
                 {
                     await vm.SaveCurrentBranchAsync(closing: true);
@@ -51,11 +62,13 @@ namespace HollowKnightTAS.Companion
                 catch (Exception exception)
                 {
                     MessageBox.Show(this, UiText.T("序列保存失败，Studio 保持打开：" + exception.Message), UiText.T("保存失败"));
+                    ConfigureGlobalHotkeys();
                     gridFollowTimer.Start();
                 }
             };
             Closed += (_, _) =>
             {
+                globalHotkeys?.Dispose();
                 gridFollowTimer.Stop();
                 if (DataContext is MainViewModel vm)
                 {
@@ -94,6 +107,7 @@ namespace HollowKnightTAS.Companion
             }
             if (e.NewValue is MainViewModel vm)
             {
+                ConfigureGlobalHotkeys();
                 vm.InputGridRefreshed += RestoreGridSelection;
                 vm.InputGridPositionChanged += ScrollGridToFrame;
                 vm.PropertyChanged += OnInputBindingsChanged;
@@ -237,6 +251,8 @@ namespace HollowKnightTAS.Companion
 
         private void OnInputBindingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
+            if (e.PropertyName is nameof(MainViewModel.GlobalHotkeysEnabled) or nameof(MainViewModel.ConfiguredPause) or nameof(MainViewModel.ConfiguredAdvance))
+                ConfigureGlobalHotkeys();
             if (e.PropertyName == nameof(MainViewModel.IsRestorePresentationFrozen)
                 && sender is MainViewModel { IsRestorePresentationFrozen: true })
                 restoreScrollOffset = FindGridScroll(InputGrid)?.VerticalOffset;
@@ -363,6 +379,27 @@ namespace HollowKnightTAS.Companion
             if (!e.IsRepeat && command.CanExecute(null)) command.Execute(null);
         }
 
+        private void ConfigureGlobalHotkeys()
+        {
+            if (DataContext is MainViewModel vm)
+                globalHotkeys?.Configure(vm.GlobalHotkeysEnabled, vm.ConfiguredPause, vm.ConfiguredAdvance);
+        }
+
+        private void ExecuteGlobalHotkey(Key key, ModifierKeys modifiers)
+        {
+            if (DataContext is not MainViewModel vm) return;
+            var slot = StudioHotkeys.QuickSlotIndex(key, modifiers);
+            if (slot >= 0)
+            {
+                vm.SelectedQuickSlot = slot;
+                var command = modifiers == ModifierKeys.Shift ? vm.SaveQuickSlotCommand : vm.LoadQuickSlotCommand;
+                if (command.CanExecute(null)) command.Execute(null);
+                return;
+            }
+            var transport = key == vm.ConfiguredAdvance ? vm.StepCommand : vm.TogglePauseCommand;
+            if (transport.CanExecute(null)) transport.Execute(null);
+        }
+
         private void OnStudioKeyDown(object sender, KeyEventArgs e)
         {
             if (OwnedWindows.Cast<Window>().Any(w => w.IsVisible)) { e.Handled = true; return; }
@@ -399,7 +436,7 @@ namespace HollowKnightTAS.Companion
             };
             if (command == null) return;
             e.Handled = true;
-            if (!e.IsRepeat && command.CanExecute(null)) command.Execute(null);
+            if ((!e.IsRepeat || command == viewModel.StepCommand) && command.CanExecute(null)) command.Execute(null);
         }
     }
 }

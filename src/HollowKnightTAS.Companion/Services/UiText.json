@@ -14,8 +14,8 @@
   {
     "Key": "t2",
     "Source": "Frame Advance 逐帧",
-    "Zh": "逐帧",
-    "En": "Frame advance"
+    "Zh": "步进",
+    "En": "Step"
   },
   {
     "Key": "t3",
@@ -308,7 +308,7 @@
   {
     "Key": "t51",
     "Source": "从游戏标题的 Modding 菜单打开 Studio，等待第 0 帧。打开序列后播放或逐帧；没有序列时会自动开始录制。",
-    "Zh": "从游戏标题的 Modding 菜单打开 Studio，等待第 0 帧。打开序列后播放或逐帧；没有序列时会自动开始录制。",
+    "Zh": "从游戏标题的 Modding 菜单打开 Studio，等待第 0 帧。打开序列后播放或步进；没有序列时会自动开始录制。",
     "En": "Open Studio from the game's title-screen Modding menu and wait at frame 0. Open a sequence, then play or advance a frame. With no sequence loaded, playback starts a new recording."
   },
   {
@@ -428,8 +428,8 @@
   {
     "Key": "t71",
     "Source": " 前进一帧 ",
-    "Zh": " 前进一帧 ",
-    "En": "Frame advance"
+    "Zh": " 步进 ",
+    "En": "Step"
   },
   {
     "Key": "t72",
@@ -446,8 +446,8 @@
   {
     "Key": "t74",
     "Source": "固定快捷键：Ctrl+O 打开、Ctrl+S 保存；F1…F10 恢复，Shift+F1…F10 存档。\n输入表格：Ctrl+C/V 复制/粘贴、Ctrl+Z/Y 撤销/重做、Insert/Delete 插入/删除。\n按住按键不会重复提交。焦点在游戏或其他窗口时，这些 Studio 快捷键不生效。\n当前没有可用的加速播放命令，Tab 保留界面焦点导航，不冒充快进。",
-    "Zh": "固定快捷键：Ctrl+O 打开、Ctrl+S 保存；F1…F10 恢复，Shift+F1…F10 存档。\n输入表格：Ctrl+C/V 复制/粘贴、Ctrl+Z/Y 撤销/重做、Insert/Delete 插入/删除。\n按住按键不会重复提交。焦点在游戏或其他窗口时，这些 Studio 快捷键不生效。\n当前没有可用的加速播放命令，Tab 保留界面焦点导航，不冒充快进。",
-    "En": "Ctrl+O: open; Ctrl+S: save; F1–F10: restore; Shift+F1–F10: save.\nGrid: Ctrl+C/V, Ctrl+Z/Y, Insert/Delete.\nHolding a key does not repeat commands. Studio hotkeys require Studio focus.\nTab navigates controls; there is no separate fast-forward command."
+    "Zh": "Ctrl+O 打开，Ctrl+S 保存；F1–F10 恢复，Shift+F1–F10 存档。\n表格：Ctrl+C/V 复制/粘贴，Ctrl+Z/Y 撤销/重做，Insert/Delete 插入/删除。\n步进键支持按住连续执行，松开停止；其他快捷键每次按下只执行一次。",
+    "En": "Ctrl+O: open; Ctrl+S: save; F1–F10: restore; Shift+F1–F10: save.\nGrid: Ctrl+C/V, Ctrl+Z/Y, Insert/Delete.\nHold Step to repeat; release to stop. Other hotkeys run once per press."
   },
   {
     "Key": "t75",
@@ -596,7 +596,7 @@
   {
     "Key": "t99",
     "Source": "滚轮浏览完整序列；按住按键列拖动以连续编辑。未来帧下次播放／逐帧自动同步；过去帧需重放。",
-    "Zh": "滚轮浏览完整序列；按住按键列拖动以连续编辑。未来帧下次播放／逐帧自动同步；过去帧需重放。",
+    "Zh": "滚轮浏览完整序列；按住按键列拖动以连续编辑。未来帧下次播放／步进自动同步；过去帧需重放。",
     "En": "Scroll to browse the sequence; drag an input column to edit. Future edits sync before playback or stepping; past edits require replay."
   },
   {
@@ -854,19 +854,19 @@
   {
     "Key": "t142",
     "Source": "仅 Studio 获得焦点时生效；文本框内字母与空格留给文本输入。",
-    "Zh": "仅 Studio 获得焦点时生效；文本框内字母与空格留给文本输入。",
-    "En": "Hotkeys require Studio focus; letters and spaces in text boxes remain text input."
+    "Zh": "按住步进键可连续步进；文本框内字母与空格留给文本输入。",
+    "En": "Hold the step key to keep stepping; letters and spaces in text boxes remain text input."
   },
   {
     "Key": "t143",
     "Source": "已应用并保存。仅 Studio 窗口内生效；Ctrl+O/S 与 F1…F10 固定。",
-    "Zh": "已应用并保存。仅 Studio 窗口内生效；Ctrl+O/S 与 F1…F10 固定。",
-    "En": "Applied and saved. Hotkeys require Studio focus; Ctrl+O/S and F1–F10 are fixed."
+    "Zh": "快捷键已应用并保存；Ctrl+O/S 与 F1…F10 固定。",
+    "En": "Hotkeys applied and saved; Ctrl+O/S and F1–F10 are fixed."
   },
   {
     "Key": "t144",
     "Source": "播放/暂停与逐帧必须选择不同按键。",
-    "Zh": "播放/暂停与逐帧必须选择不同按键。",
+    "Zh": "播放/暂停与步进必须选择不同按键。",
     "En": "Play/pause and frame advance must use different keys."
   },
   {
@@ -938,13 +938,13 @@
   {
     "Key": "t156",
     "Source": "v2 草稿已修改；未来帧下次播放／逐帧自动同步，过去帧需重放。",
-    "Zh": "草稿已修改；未来帧下次播放／逐帧自动同步，过去帧需重放。",
+    "Zh": "草稿已修改；未来帧下次播放／步进自动同步，过去帧需重放。",
     "En": "Draft edited. Future frames sync before playback or stepping; past frames require replay."
   },
   {
     "Key": "t157",
     "Source": "草稿已修改；未来帧下次播放／逐帧自动同步，过去帧需重放。Ctrl+Z 撤销。",
-    "Zh": "草稿已修改；未来帧下次播放／逐帧自动同步，过去帧需重放。Ctrl+Z 撤销。",
+    "Zh": "草稿已修改；未来帧下次播放／步进自动同步，过去帧需重放。Ctrl+Z 撤销。",
     "En": "Draft edited. Future frames sync before playback or stepping; past frames require replay. Ctrl+Z to undo."
   },
   {
@@ -1287,13 +1287,13 @@
     "Key": "t214",
     "Source": "序列已到末尾；Play／逐帧将重放恢复到末尾后接续草稿。",
     "En": "End of sequence. Play or frame advance will replay to the end and continue the draft.",
-    "Zh": "序列已到末尾；播放或逐帧将重放恢复到末尾后接续草稿。"
+    "Zh": "序列已到末尾；播放或步进将重放恢复到末尾后接续草稿。"
   },
   {
     "Key": "t215",
     "Source": "已停在第 0 帧；直接播放或逐帧会自动新建 Movie，也可打开已有序列。",
     "En": "Paused at frame 0. Play or frame advance starts a new sequence; you can also open an existing file.",
-    "Zh": "已停在第 0 帧；直接播放或逐帧会自动新建序列，也可打开已有序列。"
+    "Zh": "已停在第 0 帧；直接播放或步进会自动新建序列，也可打开已有序列。"
   },
   {
     "Key": "t216",
@@ -1515,7 +1515,7 @@
     "Key": "t252",
     "Source": "逐帧 FPS 需要 v2 Movie。",
     "En": "Per-frame FPS requires a full-run sequence.",
-    "Zh": "逐帧帧率需要全流程序列。"
+    "Zh": "每帧帧率需要全流程序列。"
   },
   {
     "Key": "t253",
@@ -1882,5 +1882,35 @@
     "Source": "受控游戏退出入口尚未就绪。",
     "En": "Controlled game exit is not ready.",
     "Zh": "受控游戏退出入口尚未就绪。"
+  },
+  {
+    "Key": "globalEnabled",
+    "Source": "启用全局热键",
+    "Zh": "启用全局热键",
+    "En": "Enable global hotkeys"
+  },
+  {
+    "Key": "globalHelp",
+    "Source": "在游戏或其他窗口中使用播放／暂停、步进和 F1–F10 存读档。编辑快捷键仍仅在 Studio 内生效。",
+    "Zh": "在游戏或其他窗口中使用播放／暂停、步进和 F1–F10 存读档。编辑快捷键仍仅在 Studio 内生效。",
+    "En": "Use play/pause, Step and F1–F10 save slots from the game or other windows. Editing shortcuts remain local to Studio."
+  },
+  {
+    "Key": "globalConflict",
+    "Source": "全局热键注册失败或被占用：{0}",
+    "Zh": "全局热键注册失败或被占用：{0}",
+    "En": "Global hotkeys unavailable or already in use: {0}"
+  },
+  {
+    "Key": "globalSaveError",
+    "Source": "全局热键设置保存失败：{0}",
+    "Zh": "全局热键设置保存失败：{0}",
+    "En": "Could not save global hotkeys: {0}"
+  },
+  {
+    "Key": "globalLoadError",
+    "Source": "全局热键设置读取失败：{0}",
+    "Zh": "全局热键设置读取失败：{0}",
+    "En": "Could not read global hotkeys: {0}"
   }
 ]

@@ -8,6 +8,33 @@ namespace HollowKnightTAS.Companion.ViewModels
 {
     public sealed partial class MainViewModel
     {
+        private bool globalHotkeysEnabled;
+        private string globalHotkeyStatus = "";
+        private static string GlobalHotkeysPath => Path.Combine(Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData), "HollowKnightTAS", "studio-global-hotkeys.txt");
+        public string GlobalHotkeyStatus { get => globalHotkeyStatus; private set => Set(ref globalHotkeyStatus, value); }
+        public void ReportGlobalHotkeys(string message) => GlobalHotkeyStatus = message;
+        public bool GlobalHotkeysEnabled
+        {
+            get => globalHotkeysEnabled;
+            set
+            {
+                if (value == globalHotkeysEnabled) return;
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(GlobalHotkeysPath)!);
+                    File.WriteAllText(GlobalHotkeysPath + ".new", value ? "enabled" : "disabled");
+                    File.Move(GlobalHotkeysPath + ".new", GlobalHotkeysPath, true);
+                    Set(ref globalHotkeysEnabled, value);
+                }
+                catch (Exception ex)
+                {
+                    GlobalHotkeyStatus = "全局热键设置保存失败：" + ex.Message;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         private Key pauseShortcut = Key.Pause;
         private Key advanceShortcut = Key.V;
         private Key configuredPause = Key.Pause;
@@ -28,6 +55,18 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private void InitializeShortcutSettings()
         {
+            try
+            {
+                if (File.Exists(GlobalHotkeysPath))
+                {
+                    if (new FileInfo(GlobalHotkeysPath).Length > 32) throw new InvalidDataException("配置过大");
+                    var value = File.ReadAllText(GlobalHotkeysPath).Trim();
+                    if (value != "enabled" && value != "disabled") throw new InvalidDataException("快捷键配置无效");
+                    globalHotkeysEnabled = value == "enabled";
+                }
+            }
+            catch (Exception ex) { GlobalHotkeyStatus = "全局热键设置读取失败：" + ex.Message; }
+
             try
             {
                 if (File.Exists(ShortcutSettingsPath))

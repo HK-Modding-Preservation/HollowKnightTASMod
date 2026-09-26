@@ -7,7 +7,7 @@ Studio 用来逐帧播放、编辑和回退《空洞骑士》的 TAS 输入。�
 1. 等待游戏停在 Native frame 0。
 2. 在 Input Editor 打开 `.hktas`，然后 Play 或逐帧。不需要手动 Validate、Format、Upload。
 3. 没有打开文件时，直接 Play 或逐帧会新建录制；输入表格会随运行增长。
-4. Pause 暂停；Frame Advance 前进一帧；Quit Game 退出受控游戏。
+4. Pause 暂停；Step 步进一帧；Quit Game 退出受控游戏。
 5. Ctrl+S 或「保存序列」导出 `.hktas`，文件位置由保存对话框选择。
 
 游戏加载期间只推进原生循环，不消耗 Movie 输入帧。表格行号是 Movie 帧；Frame N 表示已经执行 [0,N)，下一步将执行第 N 帧。
@@ -60,12 +60,12 @@ Input Editor 每行是一帧。动作列头显示游戏绑定的按键，悬停�
 
 界面只保留四页：输入编辑器、时间线、操作手册、设置。英文界面对应 Input Editor、Timeline、Manual、Setting；顶部菜单栏已移除。输入表格不再显示 Channels / Samples 诊断列。
 
-- Pause：播放/暂停；V：逐帧。可在「设置 → 快捷键」修改。
+- Pause：播放/暂停；V：步进（按住连续执行，松开停止）。可在「设置 → 快捷键」修改。
 - Ctrl+O / Ctrl+S：打开/导出序列。
 - Ctrl+C/V、Ctrl+Z/Y、Insert/Delete：表格编辑。
 - F1…F10：回档；Shift+F1…F10：存档。
 
-快捷键仅在 Studio 获得焦点时生效，输入文本时优先输入文字。Tab 用于界面导航，目前没有独立快进命令。
+「设置 → 启用全局热键」默认关闭，开启后游戏或其他窗口获得焦点时，播放/暂停、步进和 F1–F10 存读档仍生效；文件及表格编辑快捷键保持仅在 Studio 内生效。步进可按住连续执行，其他快捷键每次按下只执行一次。步进处理中不堆积请求。全局模式在 Studio 自身（含文件对话框）获得焦点时让出按键；关闭选项或退出 Studio 时释放注册。按键被其他应用占用时，设置页会列出无法注册的键；其他键仍可用。选项保存在 `%LOCALAPPDATA%/HollowKnightTAS/studio-global-hotkeys.txt`。输入文本时优先输入文字。Tab 用于界面导航，目前没有独立快进命令。
 
 「设置」集中管理界面语言、默认帧率、游戏鼠标和快捷键。语言支持中文或 English，立即切换并保存在 `%LOCALAPPDATA%/HollowKnightTAS/studio-language.txt`，下次启动沿用；初次默认为中文。界面标签、菜单、弹框正文和常用状态随语言切换，实际文件名、按键名及底层诊断标识保持原样。Windows 原生文件选择框及消息框的系统按钮遵循 Windows 语言。
 
