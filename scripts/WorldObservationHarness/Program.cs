@@ -52,6 +52,7 @@ internal static class Program
         {
             ["mode"] = options.Mode,
             ["fixture"] = options.Fixture,
+            ["fixtureSha256"] = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(options.Fixture))).ToLowerInvariant(),
             ["output"] = options.Output,
             ["startedUtc"] = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture),
             ["queries"] = new List<object>(),
@@ -125,6 +126,7 @@ internal static class Program
             report["gameProcessId"] = runtime.GameProcessId;
             report["runtimeAssemblySha256"] = runtime.RuntimeAssemblySha256;
             report["coreAssemblySha256"] = runtime.CoreAssemblySha256;
+            report["environmentManifestSha256"] = runtime.EnvironmentManifestSha256;
 
             if (options.Overlay)
             {
@@ -147,6 +149,7 @@ internal static class Program
                 await MoveToFrameAsync(runtime, movies, gate, options.BossFrame, linked.Token);
                 await RecordStatusAsync(report, runtime, "boss-frame", linked.Token);
                 await ObserveFrameAsync(report, runtime, movies, gate, options.BossFrame, options.Mode == "probe" ? "probe" : "boss", true, linked.Token);
+                if (overlay != null) await VerifyOverlayAsync(overlay, gate, report, linked.Token, "boss");
             }
             else
             {
@@ -156,6 +159,13 @@ internal static class Program
                 await RecordStatusAsync(report, runtime, "boss-frame", linked.Token);
             }
 
+            string previousPopulation = "";
+            foreach (long frame in options.SampleFrames)
+            {
+                await MoveToFrameAsync(runtime, movies, gate, frame, linked.Token);
+                previousPopulation = await CaptureCombatSampleAsync(report, runtime, gate, frame,
+                    previousPopulation, frame == options.SampleFrames.Last(), linked.Token);
+            }
             await MoveToFrameAsync(runtime, movies, gate, movie.Runs.Sum(run => (long)run.RepeatCount), linked.Token);
             var completed = await RecordStatusAsync(report, runtime, "completed", linked.Token);
             Require(gate.IsFullRunFinished, "full-run completed");
@@ -218,7 +228,7 @@ internal static class Program
     }
 
     private static async Task VerifyOverlayAsync(ColliderOverlayController overlay, StartupBootGate gate,
-        Dictionary<string, object?> report, CancellationToken token)
+        Dictionary<string, object?> report, CancellationToken token, string label = "sanctum")
     {
         Window? Window() => (Window?)typeof(ColliderOverlayController).GetField("window", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(overlay);
         long frame = gate.NativeCompletedFrames;
@@ -230,7 +240,7 @@ internal static class Program
         var bitmap = new RenderTargetBitmap((int)Math.Ceiling(surface.ActualWidth), (int)Math.Ceiling(surface.ActualHeight), 96, 96, PixelFormats.Pbgra32);
         bitmap.Render(surface);
         var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(bitmap));
-        using (var file = File.Create(Path.Combine((string)report["output"]!, "sanctum-overlay-live.png"))) png.Save(file);
+        using (var file = File.Create(Path.Combine((string)report["output"]!, label + "-overlay-live.png"))) png.Save(file);
         overlay.SetEnabled(false); await Task.Delay(200, token);
         Require(Window()?.IsVisible == false && gate.NativeCompletedFrames == frame, "hide overlay preserves paused native frame");
         overlay.SetEnabled(true);
@@ -238,6 +248,43 @@ internal static class Program
         while (Window()?.IsVisible != true && DateTime.UtcNow < deadline) await Task.Delay(50, token);
         Require(Window()?.IsVisible == true && gate.NativeCompletedFrames == frame, "show overlay preserves paused native frame");
         AddCheck(report, "live overlay visible, hide/show while paused, native frame unchanged, PNG rendered");
+    }
+
+    private static bool IsCustomMarmu(JsonElement item) => item.TryGetProperty("components", out var components)
+        && components.ValueKind == JsonValueKind.Array
+        && components.EnumerateArray().Any(c => c.TryGetProperty("assembly", out var assembly) && assembly.GetString() == "EnviousMarmu");
+
+    private static async Task<string> CaptureCombatSampleAsync(Dictionary<string, object?> report,
+        RuntimeSessionClient runtime, StartupBootGate gate, long frame, string previousPopulation,
+        bool finalSample, CancellationToken token)
+    {
+        long native = gate.NativeCompletedFrames;
+        Require(gate.IsWaiting, "combat sample starts paused");
+        string label = "sample-" + frame.ToString(CultureInfo.InvariantCulture);
+        var world = await ReadSnapshotAsync(report, runtime, frame, label + "-world", "world", token);
+        using var snapshot = world.Snapshot;
+        var objects = snapshot.RootElement.GetProperty("objects");
+        var actors = objects.EnumerateArray().Where(IsCustomMarmu).ToArray();
+        string population = string.Join("|", actors.Select(o => o.GetProperty("name").GetString()).OrderBy(n => n, StringComparer.Ordinal));
+        if (population != previousPopulation || finalSample)
+            for (int i = 0; i < actors.Length; i++)
+                await ObserveDetailsAsync(report, runtime, actors[i], frame, native, label + "-custom-" + i, token);
+        var hero = FindObject(objects, "hero");
+        var summary = new
+        {
+            movieFrame = frame, nativeFrame = native,
+            scene = snapshot.RootElement.GetProperty("metadata").GetProperty("activeScene").GetProperty("name").GetString(),
+            hero = hero?.GetProperty("hero").GetProperty("resources").Clone(),
+            enemies = actors.Where(o => o.TryGetProperty("health", out _)).Select(o => new
+            {
+                name = o.GetProperty("name").GetString(), health = o.GetProperty("health").Clone(),
+                position = o.GetProperty("transform").GetProperty("position").Clone()
+            }).ToArray()
+        };
+        File.WriteAllText(Path.Combine((string)report["output"]!, label + "-summary.json"), JsonSerializer.Serialize(summary, JsonOptions));
+        Console.WriteLine("sample " + JsonSerializer.Serialize(summary));
+        Require(gate.IsWaiting && gate.NativeCompletedFrames == native, label + " all observations preserve paused frame");
+        return population;
     }
 
     private static MovieV2Document LoadMovie(string path)
@@ -307,6 +354,7 @@ internal static class Program
             label + "-world", "world", token);
         RecordScene(report, label, world.Snapshot.RootElement);
         var snapshot = world.Snapshot;
+        using var snapshotLifetime = snapshot;
         Require(snapshot.RootElement.TryGetProperty("metadata", out _), label + " metadata");
         Require(snapshot.RootElement.TryGetProperty("objects", out var objects), label + " objects");
         Require(objects.GetArrayLength() > 0, label + " has objects");
@@ -328,6 +376,7 @@ internal static class Program
                 label + "-colliders", "colliders", token);
             RecordScene(report, label + "-colliders", colliders.Snapshot.RootElement);
             var colliderRoot = colliders.Snapshot;
+            using var colliderLifetime = colliderRoot;
             Require(colliderRoot.RootElement.TryGetProperty("objects", out var colliderObjects)
                     && colliderObjects.GetArrayLength() > 0,
                 label + " collider objects");
@@ -354,6 +403,7 @@ internal static class Program
         if (customIndex > 0)
         {
             var inactive = await ReadSnapshotAsync(report, runtime, expectedMovieFrame, label + "-all", "all", token, true);
+            using var inactiveLifetime = inactive.Snapshot;
             var template = inactive.Snapshot.RootElement.GetProperty("objects").EnumerateArray()
                 .FirstOrDefault(item => item.TryGetProperty("name", out var name) && name.GetString() == "Marmu Template");
             Require(template.ValueKind == JsonValueKind.Object, "inactive Marmu clone template discovered");
@@ -706,6 +756,7 @@ internal static class Program
         public string Bundle = DefaultBundle;
         public bool Overlay;
         public long BossFrame = 8500;
+        public long[] SampleFrames = Array.Empty<long>();
         public static Options Parse(string[] args)
         {
             var result = new Options();
@@ -718,6 +769,7 @@ internal static class Program
                 else if (arg.StartsWith("--bundle=", StringComparison.Ordinal)) result.Bundle = Path.GetFullPath(arg.Substring(9));
                 else if (arg == "--overlay") result.Overlay = true;
                 else if (arg.StartsWith("--boss-frame=", StringComparison.Ordinal)) result.BossFrame = long.Parse(arg.Substring(13), CultureInfo.InvariantCulture);
+                else if (arg.StartsWith("--sample-frames=", StringComparison.Ordinal)) result.SampleFrames = arg.Substring(16).Split(',').Select(s => long.Parse(s, CultureInfo.InvariantCulture)).Distinct().OrderBy(f => f).ToArray();
             }
             if (result.Mode != "baseline" && result.Mode != "observe" && result.Mode != "probe") throw new ArgumentException("--mode must be baseline, observe, or probe.");
             return result;
