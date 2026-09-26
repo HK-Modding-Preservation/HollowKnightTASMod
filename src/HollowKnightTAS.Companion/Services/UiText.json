@@ -1,0 +1,1886 @@
+[
+  {
+    "Key": "t0",
+    "Source": "HollowKnightTAS Studio",
+    "Zh": "HollowKnightTAS 编辑器",
+    "En": "HollowKnightTAS Studio"
+  },
+  {
+    "Key": "t1",
+    "Source": "启动游戏…",
+    "Zh": "启动游戏…",
+    "En": "Launch game…"
+  },
+  {
+    "Key": "t2",
+    "Source": "Frame Advance 逐帧",
+    "Zh": "逐帧",
+    "En": "Frame advance"
+  },
+  {
+    "Key": "t3",
+    "Source": "Quit Game 退出游戏",
+    "Zh": "退出游戏",
+    "En": "Quit game"
+  },
+  {
+    "Key": "t4",
+    "Source": "退出受控游戏；全流程播放中会先暂停到原生帧边界。请先保存需要保留的 Movie。",
+    "Zh": "退出受控游戏；全流程播放中会先暂停到原生帧边界。请先保存需要保留的 Movie。",
+    "En": "Pause at a native frame boundary and exit the controlled game. Save your sequence first."
+  },
+  {
+    "Key": "t5",
+    "Source": "正在恢复，请稍候…",
+    "Zh": "正在恢复，请稍候…",
+    "En": "Restoring, please wait…"
+  },
+  {
+    "Key": "t6",
+    "Source": "Session",
+    "Zh": "会话",
+    "En": "Session"
+  },
+  {
+    "Key": "t7",
+    "Source": "Runtime state and capability catalog readiness",
+    "Zh": "运行状态是否就绪",
+    "En": "Runtime readiness"
+  },
+  {
+    "Key": "t8",
+    "Source": "Input Editor",
+    "Zh": "输入编辑器",
+    "En": "Input Editor"
+  },
+  {
+    "Key": "t9",
+    "Source": "Undo 撤销",
+    "Zh": "撤销",
+    "En": "Undo"
+  },
+  {
+    "Key": "t10",
+    "Source": "Redo 重做",
+    "Zh": "重做",
+    "En": "Redo"
+  },
+  {
+    "Key": "t11",
+    "Source": "Copy 复制",
+    "Zh": "复制",
+    "En": "Copy"
+  },
+  {
+    "Key": "t12",
+    "Source": "Paste 替换选区",
+    "Zh": "替换选区",
+    "En": "Paste"
+  },
+  {
+    "Key": "t13",
+    "Source": "Insert 插入空帧",
+    "Zh": "插入空帧",
+    "En": "Insert frames"
+  },
+  {
+    "Key": "t14",
+    "Source": "Delete 删除帧",
+    "Zh": "删除帧",
+    "En": "Delete frames"
+  },
+  {
+    "Key": "t15",
+    "Source": "打开序列…",
+    "Zh": "打开序列…",
+    "En": "Open sequence…"
+  },
+  {
+    "Key": "t16",
+    "Source": "保存序列…",
+    "Zh": "保存序列…",
+    "En": "Save sequence…"
+  },
+  {
+    "Key": "t17",
+    "Source": "重新计算到选中帧",
+    "Zh": "重新计算到选中帧",
+    "En": "Recompute to selected frame"
+  },
+  {
+    "Key": "t18",
+    "Source": "修改过去输入后，从起点重放到选中帧。",
+    "Zh": "修改过去输入后，从起点重放到选中帧。",
+    "En": "Replay from the beginning after editing past input."
+  },
+  {
+    "Key": "t19",
+    "Source": "播放时跟随",
+    "Zh": "播放时跟随",
+    "En": "Follow playback"
+  },
+  {
+    "Key": "t20",
+    "Source": "播放时实时跟随；回档重放期间保持静止。",
+    "Zh": "播放时实时跟随；回档重放期间保持静止。",
+    "En": "Follow live playback. Keep the view still during restore."
+  },
+  {
+    "Key": "t21",
+    "Source": "导出 MP4…",
+    "Zh": "导出 MP4…",
+    "En": "Export MP4…"
+  },
+  {
+    "Key": "t22",
+    "Source": "取消导出",
+    "Zh": "取消导出",
+    "En": "Cancel export"
+  },
+  {
+    "Key": "t23",
+    "Source": "Frame",
+    "Zh": "帧",
+    "En": "Frame"
+  },
+  {
+    "Key": "t24",
+    "Source": "FPS",
+    "Zh": "帧率",
+    "En": "FPS"
+  },
+  {
+    "Key": "t25",
+    "Source": "Submit",
+    "Zh": "确认",
+    "En": "Submit"
+  },
+  {
+    "Key": "t26",
+    "Source": "Cancel",
+    "Zh": "取消",
+    "En": "Cancel"
+  },
+  {
+    "Key": "t27",
+    "Source": "Left",
+    "Zh": "左",
+    "En": "Left"
+  },
+  {
+    "Key": "t28",
+    "Source": "Right",
+    "Zh": "右",
+    "En": "Right"
+  },
+  {
+    "Key": "t29",
+    "Source": "Up",
+    "Zh": "上",
+    "En": "Up"
+  },
+  {
+    "Key": "t30",
+    "Source": "Down",
+    "Zh": "下",
+    "En": "Down"
+  },
+  {
+    "Key": "t31",
+    "Source": "Jump",
+    "Zh": "跳跃",
+    "En": "Jump"
+  },
+  {
+    "Key": "t32",
+    "Source": "Attack",
+    "Zh": "攻击",
+    "En": "Attack"
+  },
+  {
+    "Key": "t33",
+    "Source": "Dash",
+    "Zh": "冲刺",
+    "En": "Dash"
+  },
+  {
+    "Key": "t34",
+    "Source": "Cast",
+    "Zh": "施法",
+    "En": "Cast"
+  },
+  {
+    "Key": "t35",
+    "Source": "QuickCast",
+    "Zh": "快速施法",
+    "En": "Quick cast"
+  },
+  {
+    "Key": "t36",
+    "Source": "SuperDash",
+    "Zh": "超级冲刺",
+    "En": "Super dash"
+  },
+  {
+    "Key": "t37",
+    "Source": "DreamNail",
+    "Zh": "梦之钉",
+    "En": "Dream nail"
+  },
+  {
+    "Key": "t38",
+    "Source": "Axes (X,Y)",
+    "Zh": "模拟轴 (X,Y)",
+    "En": "Axes (X,Y)"
+  },
+  {
+    "Key": "t39",
+    "Source": "Timeline 时间线",
+    "Zh": "时间线",
+    "En": "Timeline"
+  },
+  {
+    "Key": "t40",
+    "Source": "时间线",
+    "Zh": "时间线",
+    "En": "Timeline"
+  },
+  {
+    "Key": "t41",
+    "Source": "世界线（叶子）",
+    "Zh": "世界线（叶子）",
+    "En": "Branch (leaf)"
+  },
+  {
+    "Key": "t42",
+    "Source": "保存当前帧为节点",
+    "Zh": "保存当前帧为节点",
+    "En": "Save current frame"
+  },
+  {
+    "Key": "t43",
+    "Source": "恢复所选节点",
+    "Zh": "恢复所选节点",
+    "En": "Restore selected node"
+  },
+  {
+    "Key": "t44",
+    "Source": "删除节点及子树…",
+    "Zh": "删除节点及子树…",
+    "En": "Delete node and descendants…"
+  },
+  {
+    "Key": "t45",
+    "Source": "将所选节点绑定到快捷键",
+    "Zh": "将所选节点绑定到快捷键",
+    "En": "Bind selected node to hotkey"
+  },
+  {
+    "Key": "t46",
+    "Source": "恢复快捷槽",
+    "Zh": "恢复快捷槽",
+    "En": "Restore hotkey slot"
+  },
+  {
+    "Key": "t47",
+    "Source": "点击叶子选择世界线，再点击其路径上的节点。绿色连线为所选世界线，粗边框为所选节点。",
+    "Zh": "点击叶子选择世界线，再点击其路径上的节点。绿色连线为所选世界线，粗边框为所选节点。",
+    "En": "Select a leaf, then a node on its path. Green lines mark the selected branch; the thick border marks the selected node."
+  },
+  {
+    "Key": "t48",
+    "Source": "所选世界线的节点",
+    "Zh": "所选世界线的节点",
+    "En": "Nodes on selected branch"
+  },
+  {
+    "Key": "t49",
+    "Source": "操作手册",
+    "Zh": "操作手册",
+    "En": "Manual"
+  },
+  {
+    "Key": "t50",
+    "Source": "快速开始",
+    "Zh": "快速开始",
+    "En": "Quick start"
+  },
+  {
+    "Key": "t51",
+    "Source": "从游戏标题的 Modding 菜单打开 Studio，等待第 0 帧。打开序列后播放或逐帧；没有序列时会自动开始录制。",
+    "Zh": "从游戏标题的 Modding 菜单打开 Studio，等待第 0 帧。打开序列后播放或逐帧；没有序列时会自动开始录制。",
+    "En": "Open Studio from the game's title-screen Modding menu and wait at frame 0. Open a sequence, then play or advance a frame. With no sequence loaded, playback starts a new recording."
+  },
+  {
+    "Key": "t52",
+    "Source": "编辑输入",
+    "Zh": "编辑输入",
+    "En": "Editing input"
+  },
+  {
+    "Key": "t53",
+    "Source": "单击按键格或上下拖动编辑。Shift 选择连续帧，Ctrl 选择不连续帧。右键可修改选区帧率。未来帧编辑在播放前自动同步；修改过去帧后，选择目标行并重新计算。",
+    "Zh": "单击按键格或上下拖动编辑。Shift 选择连续帧，Ctrl 选择不连续帧。右键可修改选区帧率。未来帧编辑在播放前自动同步；修改过去帧后，选择目标行并重新计算。",
+    "En": "Click an input cell or drag vertically to edit. Shift selects a range; Ctrl selects separate frames. Change selection FPS in the context menu. Future edits sync before playback; after editing past frames, select a target and recompute."
+  },
+  {
+    "Key": "t54",
+    "Source": "存档与回档",
+    "Zh": "存档与回档",
+    "En": "Save and restore"
+  },
+  {
+    "Key": "t55",
+    "Source": "时间线叶子保存分支实际运行到的最远帧和完整序列。点击叶子切换分支，选择节点后恢复。回档期间画面和表格保持静止，进度条结束后显示结果。",
+    "Zh": "时间线叶子保存分支实际运行到的最远帧和完整序列。点击叶子切换分支，选择节点后恢复。回档期间画面和表格保持静止，进度条结束后显示结果。",
+    "En": "A timeline leaf stores the furthest frame actually reached and the complete sequence. Select a leaf to switch branches, then select a node to restore. The game and table stay still during restore; results appear when the progress bar finishes."
+  },
+  {
+    "Key": "t56",
+    "Source": "保存序列",
+    "Zh": "保存序列",
+    "En": "Saving sequences"
+  },
+  {
+    "Key": "t57",
+    "Source": "暂停、切换分支和正常关闭时自动保存到本机时间线。导出 .hktas 请使用保存序列或 Ctrl+S。自动保存不会覆盖导出的文件；强制结束进程不保证保存最后的编辑。",
+    "Zh": "暂停、切换分支和正常关闭时自动保存到本机时间线。导出 .hktas 请使用保存序列或 Ctrl+S。自动保存不会覆盖导出的文件；强制结束进程不保证保存最后的编辑。",
+    "En": "Pausing, switching branches and closing normally save the local timeline. Use Save sequence or Ctrl+S to export .hktas. Automatic saves do not overwrite exported files. Force-closing may lose the latest edits."
+  },
+  {
+    "Key": "t58",
+    "Source": "设置",
+    "Zh": "设置",
+    "En": "Settings"
+  },
+  {
+    "Key": "t59",
+    "Source": "设置页集中管理语言、默认帧率、游戏鼠标和快捷键。默认帧率只影响新建及追加帧；已有序列的鼠标模式保持不变。",
+    "Zh": "设置页集中管理语言、默认帧率、游戏鼠标和快捷键。默认帧率只影响新建及追加帧；已有序列的鼠标模式保持不变。",
+    "En": "Settings contains language, default FPS, game mouse and hotkeys. Default FPS only affects new or appended frames; existing sequences keep their recorded mouse mode."
+  },
+  {
+    "Key": "t60",
+    "Source": "导出 MP4",
+    "Zh": "导出 MP4",
+    "En": "Export MP4"
+  },
+  {
+    "Key": "t61",
+    "Source": "MP4 导出目前仅支持旧版局内序列，需要 FFmpeg 和未存在的输出文件。全流程 v2 暂不支持此导出器。",
+    "Zh": "MP4 导出目前仅支持旧版局内序列，需要 FFmpeg 和未存在的输出文件。全流程 v2 暂不支持此导出器。",
+    "En": "MP4 export currently supports legacy in-game sequences only. It requires FFmpeg and a new output filename. Full-run v2 is not supported by this exporter."
+  },
+  {
+    "Key": "t62",
+    "Source": "Setting",
+    "Zh": "设置",
+    "En": "Setting"
+  },
+  {
+    "Key": "t63",
+    "Source": "全局设置",
+    "Zh": "全局设置",
+    "En": "Global settings"
+  },
+  {
+    "Key": "t64",
+    "Source": "界面语言",
+    "Zh": "界面语言",
+    "En": "Interface language"
+  },
+  {
+    "Key": "t65",
+    "Source": "默认帧率",
+    "Zh": "默认帧率",
+    "En": "Default FPS"
+  },
+  {
+    "Key": "t66",
+    "Source": "修改…",
+    "Zh": "修改…",
+    "En": "Change…"
+  },
+  {
+    "Key": "t67",
+    "Source": "新序列启用游戏鼠标",
+    "Zh": "新序列启用游戏鼠标",
+    "En": "Enable game mouse for new sequences"
+  },
+  {
+    "Key": "t68",
+    "Source": "默认帧率只影响新建或追加的帧；鼠标开关仅用于新序列。",
+    "Zh": "默认帧率只影响新建或追加的帧；鼠标开关仅用于新序列。",
+    "En": "Default FPS affects only new or appended frames; the mouse option applies to new sequences."
+  },
+  {
+    "Key": "t69",
+    "Source": "快捷键",
+    "Zh": "快捷键",
+    "En": "Hotkeys"
+  },
+  {
+    "Key": "t70",
+    "Source": "播放/暂停 ",
+    "Zh": "播放/暂停 ",
+    "En": "Play / pause"
+  },
+  {
+    "Key": "t71",
+    "Source": " 前进一帧 ",
+    "Zh": " 前进一帧 ",
+    "En": "Frame advance"
+  },
+  {
+    "Key": "t72",
+    "Source": "应用并保存",
+    "Zh": "应用并保存",
+    "En": "Apply and save"
+  },
+  {
+    "Key": "t73",
+    "Source": "恢复 libTAS 默认键位",
+    "Zh": "恢复默认快捷键",
+    "En": "Restore default hotkeys"
+  },
+  {
+    "Key": "t74",
+    "Source": "固定快捷键：Ctrl+O 打开、Ctrl+S 保存；F1…F10 恢复，Shift+F1…F10 存档。\n输入表格：Ctrl+C/V 复制/粘贴、Ctrl+Z/Y 撤销/重做、Insert/Delete 插入/删除。\n按住按键不会重复提交。焦点在游戏或其他窗口时，这些 Studio 快捷键不生效。\n当前没有可用的加速播放命令，Tab 保留界面焦点导航，不冒充快进。",
+    "Zh": "固定快捷键：Ctrl+O 打开、Ctrl+S 保存；F1…F10 恢复，Shift+F1…F10 存档。\n输入表格：Ctrl+C/V 复制/粘贴、Ctrl+Z/Y 撤销/重做、Insert/Delete 插入/删除。\n按住按键不会重复提交。焦点在游戏或其他窗口时，这些 Studio 快捷键不生效。\n当前没有可用的加速播放命令，Tab 保留界面焦点导航，不冒充快进。",
+    "En": "Ctrl+O: open; Ctrl+S: save; F1–F10: restore; Shift+F1–F10: save.\nGrid: Ctrl+C/V, Ctrl+Z/Y, Insert/Delete.\nHolding a key does not repeat commands. Studio hotkeys require Studio focus.\nTab navigates controls; there is no separate fast-forward command."
+  },
+  {
+    "Key": "t75",
+    "Source": "Play 继续",
+    "Zh": "播放",
+    "En": "Play"
+  },
+  {
+    "Key": "t76",
+    "Source": "Pause 暂停",
+    "Zh": "暂停",
+    "En": "Pause"
+  },
+  {
+    "Key": "t77",
+    "Source": "No runtime",
+    "Zh": "未连接游戏",
+    "En": "No runtime"
+  },
+  {
+    "Key": "t78",
+    "Source": "No Runtime status yet.",
+    "Zh": "尚无运行状态",
+    "En": "No runtime status yet."
+  },
+  {
+    "Key": "t79",
+    "Source": "Waiting for Runtime session.",
+    "Zh": "等待连接游戏",
+    "En": "Waiting for runtime."
+  },
+  {
+    "Key": "t80",
+    "Source": "READY",
+    "Zh": "已就绪",
+    "En": "READY"
+  },
+  {
+    "Key": "t81",
+    "Source": "NOT READY",
+    "Zh": "未就绪",
+    "En": "NOT READY"
+  },
+  {
+    "Key": "t82",
+    "Source": "DISCONNECTED",
+    "Zh": "未连接",
+    "En": "DISCONNECTED"
+  },
+  {
+    "Key": "t83",
+    "Source": "CONNECTED",
+    "Zh": "已连接",
+    "En": "CONNECTED"
+  },
+  {
+    "Key": "t84",
+    "Source": "Paused",
+    "Zh": "已暂停",
+    "En": "Paused"
+  },
+  {
+    "Key": "t85",
+    "Source": "Running",
+    "Zh": "运行中",
+    "En": "Running"
+  },
+  {
+    "Key": "t86",
+    "Source": "Recording",
+    "Zh": "录制中",
+    "En": "Recording"
+  },
+  {
+    "Key": "t87",
+    "Source": "Replay",
+    "Zh": "回放中",
+    "En": "Replay"
+  },
+  {
+    "Key": "t88",
+    "Source": "Unarmed",
+    "Zh": "未载入序列",
+    "En": "Unarmed"
+  },
+  {
+    "Key": "t89",
+    "Source": "Completed",
+    "Zh": "已完成",
+    "En": "Completed"
+  },
+  {
+    "Key": "t90",
+    "Source": "Idle",
+    "Zh": "空闲",
+    "En": "Idle"
+  },
+  {
+    "Key": "t91",
+    "Source": "Stopped",
+    "Zh": "已停止",
+    "En": "Stopped"
+  },
+  {
+    "Key": "t92",
+    "Source": "Fault",
+    "Zh": "失败",
+    "En": "Fault"
+  },
+  {
+    "Key": "t93",
+    "Source": "Native frame running",
+    "Zh": "原生帧运行中",
+    "En": "Native frame running"
+  },
+  {
+    "Key": "t94",
+    "Source": "已失败 · 需重启",
+    "Zh": "已失败 · 需重启",
+    "En": "Failed · restart required"
+  },
+  {
+    "Key": "t95",
+    "Source": "等待确认…",
+    "Zh": "等待确认…",
+    "En": "Waiting for confirmation…"
+  },
+  {
+    "Key": "t96",
+    "Source": "打开序列或播放以开始编辑。",
+    "Zh": "打开序列或播放以开始编辑。",
+    "En": "Open a sequence or play to start editing."
+  },
+  {
+    "Key": "t97",
+    "Source": "正在更新序列。",
+    "Zh": "正在更新序列。",
+    "En": "Updating sequence."
+  },
+  {
+    "Key": "t98",
+    "Source": "共 {0} 帧。{1}",
+    "Zh": "共 {0} 帧。{1}",
+    "En": "{0} frames. {1}"
+  },
+  {
+    "Key": "t99",
+    "Source": "滚轮浏览完整序列；按住按键列拖动以连续编辑。未来帧下次播放／逐帧自动同步；过去帧需重放。",
+    "Zh": "滚轮浏览完整序列；按住按键列拖动以连续编辑。未来帧下次播放／逐帧自动同步；过去帧需重放。",
+    "En": "Scroll to browse the sequence; drag an input column to edit. Future edits sync before playback or stepping; past edits require replay."
+  },
+  {
+    "Key": "t100",
+    "Source": "未开始视频导出。导出期间游戏扬声器会静音。",
+    "Zh": "未开始视频导出。导出期间游戏扬声器会静音。",
+    "En": "No video export. Game audio is muted during export."
+  },
+  {
+    "Key": "t101",
+    "Source": "播放到第 {0} 帧并暂停",
+    "Zh": "播放到第 {0} 帧并暂停",
+    "En": "Play to frame {0} and pause"
+  },
+  {
+    "Key": "t102",
+    "Source": "恢复到第 {0} 帧并暂停",
+    "Zh": "恢复到第 {0} 帧并暂停",
+    "En": "Restore to frame {0} and pause"
+  },
+  {
+    "Key": "t103",
+    "Source": "保存第 {0} 帧",
+    "Zh": "保存第 {0} 帧",
+    "En": "Save frame {0}"
+  },
+  {
+    "Key": "t104",
+    "Source": "复制选区",
+    "Zh": "复制选区",
+    "En": "Copy selection"
+  },
+  {
+    "Key": "t105",
+    "Source": "粘贴到选区",
+    "Zh": "粘贴到选区",
+    "En": "Paste into selection"
+  },
+  {
+    "Key": "t106",
+    "Source": "插入空帧",
+    "Zh": "插入空帧",
+    "En": "Insert blank frames"
+  },
+  {
+    "Key": "t107",
+    "Source": "删除选区",
+    "Zh": "删除选区",
+    "En": "Delete selection"
+  },
+  {
+    "Key": "t108",
+    "Source": "修改选区帧率…",
+    "Zh": "修改选区帧率…",
+    "En": "Change selection FPS…"
+  },
+  {
+    "Key": "t109",
+    "Source": "修改选区帧率",
+    "Zh": "修改选区帧率",
+    "En": "Selection FPS"
+  },
+  {
+    "Key": "t110",
+    "Source": "设置默认帧率",
+    "Zh": "设置默认帧率",
+    "En": "Default FPS"
+  },
+  {
+    "Key": "t111",
+    "Source": "每秒帧数（1–1000）",
+    "Zh": "每秒帧数（1–1000）",
+    "En": "Frames per second (1–1000)"
+  },
+  {
+    "Key": "t112",
+    "Source": "确定",
+    "Zh": "确定",
+    "En": "OK"
+  },
+  {
+    "Key": "t113",
+    "Source": "取消",
+    "Zh": "取消",
+    "En": "Cancel"
+  },
+  {
+    "Key": "t114",
+    "Source": "请输入 1–1000 之间的整数。",
+    "Zh": "请输入 1–1000 之间的整数。",
+    "En": "Enter an integer from 1 to 1000."
+  },
+  {
+    "Key": "t115",
+    "Source": "保存失败",
+    "Zh": "保存失败",
+    "En": "Save failed"
+  },
+  {
+    "Key": "t116",
+    "Source": "序列保存失败，Studio 保持打开：{0}",
+    "Zh": "序列保存失败，Studio 保持打开：{0}",
+    "En": "Could not save the sequence. Studio remains open: {0}"
+  },
+  {
+    "Key": "t117",
+    "Source": "语言设置保存失败：",
+    "Zh": "语言设置保存失败：",
+    "En": "Could not save language: "
+  },
+  {
+    "Key": "t118",
+    "Source": "选择节点；点击叶子切换世界线。恢复需点击上方按钮。",
+    "Zh": "选择节点；点击叶子切换世界线。恢复需点击上方按钮。",
+    "En": "Select a node or a leaf to switch branches. Use the restore button to change the game state."
+  },
+  {
+    "Key": "t119",
+    "Source": "起点 · Frame 0",
+    "Zh": "起点 · 帧 0",
+    "En": "Start · Frame 0"
+  },
+  {
+    "Key": "t120",
+    "Source": "最远进度 · Frame {0}",
+    "Zh": "最远进度 · 帧 {0}",
+    "En": "Furthest · Frame {0}"
+  },
+  {
+    "Key": "t121",
+    "Source": "存档 {0} · Frame {1}",
+    "Zh": "存档 {0} · 帧 {1}",
+    "En": "Save {0} · Frame {1}"
+  },
+  {
+    "Key": "t122",
+    "Source": "时间线 {0}",
+    "Zh": "时间线 {0}",
+    "En": "Timeline {0}"
+  },
+  {
+    "Key": "t123",
+    "Source": "世界线 {0}",
+    "Zh": "世界线 {0}",
+    "En": "Branch {0}"
+  },
+  {
+    "Key": "t124",
+    "Source": "分支节点",
+    "Zh": "分支节点",
+    "En": "Branch node"
+  },
+  {
+    "Key": "t125",
+    "Source": "父节点：{0}",
+    "Zh": "父节点：{0}",
+    "En": "Parent: {0}"
+  },
+  {
+    "Key": "t126",
+    "Source": "所有世界线的起点",
+    "Zh": "所有世界线的起点",
+    "En": "Shared starting point"
+  },
+  {
+    "Key": "t127",
+    "Source": "当前空序列（未存档）",
+    "Zh": "当前空序列（未存档）",
+    "En": "Empty sequence (not saved)"
+  },
+  {
+    "Key": "t128",
+    "Source": "选择叶子确定世界线，再选择节点恢复。恢复采用从第 0 帧重放。",
+    "Zh": "选择叶子确定世界线，再选择节点恢复。恢复采用从第 0 帧重放。",
+    "En": "Select a leaf to choose a branch, then a node to restore. Restore replays from frame 0."
+  },
+  {
+    "Key": "t129",
+    "Source": "已切换世界线；播放从起点开始，恢复节点可回到该位置。",
+    "Zh": "已切换世界线；播放从起点开始，恢复节点可回到该位置。",
+    "En": "Branch selected. Play starts from the beginning; restore a node to resume there."
+  },
+  {
+    "Key": "t130",
+    "Source": "已保存节点 {0} · Frame {1}；旧世界线已保留。",
+    "Zh": "已保存节点 {0} · 帧 {1}；旧分支已保留。",
+    "En": "Saved node {0} · Frame {1}. Existing branches were preserved."
+  },
+  {
+    "Key": "t131",
+    "Source": "已从当前进度播放到第 {0} 帧并暂停。",
+    "Zh": "已从当前进度播放到第 {0} 帧并暂停。",
+    "En": "Played to frame {0} and paused."
+  },
+  {
+    "Key": "t132",
+    "Source": "已停在第 {0} 帧边界。",
+    "Zh": "已停在第 {0} 帧边界。",
+    "En": "Paused at frame {0}."
+  },
+  {
+    "Key": "t133",
+    "Source": "世界线 {0} · 已恢复 {1}。",
+    "Zh": "世界线 {0} · 已恢复 {1}。",
+    "En": "Branch {0} · Restored {1}."
+  },
+  {
+    "Key": "t134",
+    "Source": "F{0} 已绑定世界线 {1} · {2}。",
+    "Zh": "F{0} 已绑定世界线 {1} · {2}。",
+    "En": "F{0} bound to branch {1} · {2}."
+  },
+  {
+    "Key": "t135",
+    "Source": "已删除 {0} 个存档节点；其他世界线保留。",
+    "Zh": "已删除 {0} 个存档节点；其他世界线保留。",
+    "En": "Deleted {0} saved nodes. Other branches were preserved."
+  },
+  {
+    "Key": "t136",
+    "Source": "删除时间线子树",
+    "Zh": "删除时间线子树",
+    "En": "Delete timeline subtree"
+  },
+  {
+    "Key": "t137",
+    "Source": "序列已打开。",
+    "Zh": "序列已打开。",
+    "En": "Sequence opened."
+  },
+  {
+    "Key": "t138",
+    "Source": "序列已切换；播放将从起点开始，也可右键恢复到指定帧。",
+    "Zh": "序列已切换；播放将从起点开始，也可右键恢复到指定帧。",
+    "En": "Sequence switched. Play starts from the beginning; use the context menu to restore to a frame."
+  },
+  {
+    "Key": "t139",
+    "Source": "Movie saved.",
+    "Zh": "序列已保存。",
+    "En": "Sequence saved."
+  },
+  {
+    "Key": "t140",
+    "Source": "全流程 Runtime 已连接。",
+    "Zh": "全流程游戏已连接。",
+    "En": "Full-run runtime connected."
+  },
+  {
+    "Key": "t141",
+    "Source": "全流程录制已预置。启动加载不计 Movie 帧；标题菜单可输入时开始第 0 帧。",
+    "Zh": "录制已预置。启动加载不计序列帧；标题菜单可输入时开始第 0 帧。",
+    "En": "Recording armed. Startup loading does not consume movie frames; frame 0 begins when title-menu input is ready."
+  },
+  {
+    "Key": "t142",
+    "Source": "仅 Studio 获得焦点时生效；文本框内字母与空格留给文本输入。",
+    "Zh": "仅 Studio 获得焦点时生效；文本框内字母与空格留给文本输入。",
+    "En": "Hotkeys require Studio focus; letters and spaces in text boxes remain text input."
+  },
+  {
+    "Key": "t143",
+    "Source": "已应用并保存。仅 Studio 窗口内生效；Ctrl+O/S 与 F1…F10 固定。",
+    "Zh": "已应用并保存。仅 Studio 窗口内生效；Ctrl+O/S 与 F1…F10 固定。",
+    "En": "Applied and saved. Hotkeys require Studio focus; Ctrl+O/S and F1–F10 are fixed."
+  },
+  {
+    "Key": "t144",
+    "Source": "播放/暂停与逐帧必须选择不同按键。",
+    "Zh": "播放/暂停与逐帧必须选择不同按键。",
+    "En": "Play/pause and frame advance must use different keys."
+  },
+  {
+    "Key": "t145",
+    "Source": "本次 Movie 的游戏鼠标模式已固定；从第 0 帧开始新会话才能修改。",
+    "Zh": "当前序列的游戏鼠标模式已固定；从第 0 帧开始新会话才能修改。",
+    "En": "The current sequence's mouse mode is fixed. Start a new session at frame 0 to change it."
+  },
+  {
+    "Key": "t146",
+    "Source": "新 v2 Movie 将启用游戏鼠标。",
+    "Zh": "新序列将启用游戏鼠标。",
+    "En": "New sequences will enable game mouse input."
+  },
+  {
+    "Key": "t147",
+    "Source": "新 v2 Movie 将关闭游戏鼠标。",
+    "Zh": "新序列将关闭游戏鼠标。",
+    "En": "New sequences will disable game mouse input."
+  },
+  {
+    "Key": "t148",
+    "Source": "FPS 必须是 1–1000 的整数。",
+    "Zh": "帧率必须是 1–1000 的整数。",
+    "En": "FPS must be an integer from 1 to 1000."
+  },
+  {
+    "Key": "t149",
+    "Source": "非连续选区",
+    "Zh": "非连续选区",
+    "En": "Non-contiguous selection"
+  },
+  {
+    "Key": "t150",
+    "Source": "正在提交表格分支，请等待完成。",
+    "Zh": "正在提交表格分支，请等待完成。",
+    "En": "Please wait for the current edit to finish."
+  },
+  {
+    "Key": "t151",
+    "Source": "正在应用序列，请稍候…",
+    "Zh": "正在应用序列，请稍候…",
+    "En": "Applying sequence, please wait…"
+  },
+  {
+    "Key": "t152",
+    "Source": "正在应用草稿，请稍候…",
+    "Zh": "正在应用草稿，请稍候…",
+    "En": "Applying draft, please wait…"
+  },
+  {
+    "Key": "t153",
+    "Source": "正在同步序列，请稍候。",
+    "Zh": "正在同步序列，请稍候。",
+    "En": "Synchronizing sequence, please wait."
+  },
+  {
+    "Key": "t154",
+    "Source": "已复制所选输入帧。",
+    "Zh": "已复制所选输入帧。",
+    "En": "Selected input frames copied."
+  },
+  {
+    "Key": "t155",
+    "Source": "草稿已修改，游戏状态未改变。",
+    "Zh": "草稿已修改，游戏状态未改变。",
+    "En": "Draft edited; the game state has not changed."
+  },
+  {
+    "Key": "t156",
+    "Source": "v2 草稿已修改；未来帧下次播放／逐帧自动同步，过去帧需重放。",
+    "Zh": "草稿已修改；未来帧下次播放／逐帧自动同步，过去帧需重放。",
+    "En": "Draft edited. Future frames sync before playback or stepping; past frames require replay."
+  },
+  {
+    "Key": "t157",
+    "Source": "草稿已修改；未来帧下次播放／逐帧自动同步，过去帧需重放。Ctrl+Z 撤销。",
+    "Zh": "草稿已修改；未来帧下次播放／逐帧自动同步，过去帧需重放。Ctrl+Z 撤销。",
+    "En": "Draft edited. Future frames sync before playback or stepping; past frames require replay. Ctrl+Z to undo."
+  },
+  {
+    "Key": "t158",
+    "Source": "没有可撤销/重做的表格编辑。",
+    "Zh": "没有可撤销/重做的表格编辑。",
+    "En": "Nothing to undo or redo."
+  },
+  {
+    "Key": "t159",
+    "Source": "草稿历史已恢复，游戏状态未改变。",
+    "Zh": "草稿历史已恢复，游戏状态未改变。",
+    "En": "Draft history restored; the game state has not changed."
+  },
+  {
+    "Key": "t160",
+    "Source": "未来帧输入已同步，将从当前边界继续执行。",
+    "Zh": "未来帧输入已同步，将从当前边界继续执行。",
+    "En": "Future inputs synchronized. Playback will continue at the current boundary."
+  },
+  {
+    "Key": "t161",
+    "Source": "已修改过去的帧，请先点击重新计算到选中帧。",
+    "Zh": "已修改过去的帧，请先点击重新计算到选中帧。",
+    "En": "Past frames were edited. Recompute to the selected frame first."
+  },
+  {
+    "Key": "t162",
+    "Source": "已修改过去的帧，请先点击重新计算到选中帧；未来帧修改会自动生效。",
+    "Zh": "已修改过去的帧，请先点击重新计算到选中帧；未来帧修改会自动生效。",
+    "En": "Past frames were edited. Recompute to the selected frame first; future edits apply automatically."
+  },
+  {
+    "Key": "t163",
+    "Source": "序列无效，请打开有效的 .hktas 文件。",
+    "Zh": "序列无效，请打开有效的 .hktas 文件。",
+    "En": "Invalid sequence. Open a valid .hktas file."
+  },
+  {
+    "Key": "t164",
+    "Source": "目标帧超出序列。",
+    "Zh": "目标帧超出序列。",
+    "En": "Target frame is outside the sequence."
+  },
+  {
+    "Key": "t165",
+    "Source": "未能暂停到安全帧，序列尚未保存。",
+    "Zh": "未能暂停到安全帧，序列尚未保存。",
+    "En": "Could not pause at a safe frame. The sequence has not been saved."
+  },
+  {
+    "Key": "t166",
+    "Source": "帧存档与定位需要从 Studio 启动全流程会话。",
+    "Zh": "帧存档与定位需要从 Studio 启动全流程会话。",
+    "En": "Frame saves and navigation require a Studio-controlled full-run session."
+  },
+  {
+    "Key": "t167",
+    "Source": "请等待当前恢复完成。",
+    "Zh": "请等待当前恢复完成。",
+    "En": "Wait for the current restore to finish."
+  },
+  {
+    "Key": "t168",
+    "Source": "序列文件超过 16 MiB。",
+    "Zh": "序列文件超过 16 MiB。",
+    "En": "The sequence file exceeds 16 MiB."
+  },
+  {
+    "Key": "t169",
+    "Source": "序列文件无效，当前草稿未改变。",
+    "Zh": "序列文件无效，当前草稿未改变。",
+    "En": "Invalid sequence file. The current draft was preserved."
+  },
+  {
+    "Key": "t170",
+    "Source": "当前会话需要 v2 全流程序列，当前草稿未改变。",
+    "Zh": "当前会话需要 v2 全流程序列，当前草稿未改变。",
+    "En": "This session requires a v2 full-run sequence. The current draft was preserved."
+  },
+  {
+    "Key": "t171",
+    "Source": "原始存档已改变，无法恢复此时间线。",
+    "Zh": "原始存档已改变，无法恢复此时间线。",
+    "En": "Original saves have changed. This timeline cannot be restored."
+  },
+  {
+    "Key": "t172",
+    "Source": "节点不属于所选世界线。",
+    "Zh": "节点不属于所选世界线。",
+    "En": "This node does not belong to the selected branch."
+  },
+  {
+    "Key": "t173",
+    "Source": "请先从 Studio 启动受控游戏。",
+    "Zh": "请先从 Studio 启动受控游戏。",
+    "En": "Launch a controlled game from Studio first."
+  },
+  {
+    "Key": "t174",
+    "Source": "此起点尚未关联序列，请先新建 Movie。",
+    "Zh": "此起点尚未关联序列，请先新建序列。",
+    "En": "This starting point has no sequence. Create one first."
+  },
+  {
+    "Key": "t175",
+    "Source": "播放到帧只能选择当前帧之后的未来帧。",
+    "Zh": "播放到帧只能选择当前帧之后的未来帧。",
+    "En": "Play-to-frame requires a future frame."
+  },
+  {
+    "Key": "t176",
+    "Source": "恢复到帧只能选择当前帧之前的过去帧。",
+    "Zh": "恢复到帧只能选择当前帧之前的过去帧。",
+    "En": "Restore-to-frame requires a past frame."
+  },
+  {
+    "Key": "t177",
+    "Source": "受控重启入口不可用。",
+    "Zh": "受控重启入口不可用。",
+    "En": "Controlled restart is unavailable."
+  },
+  {
+    "Key": "t178",
+    "Source": "播放到指定帧超时。",
+    "Zh": "播放到指定帧超时。",
+    "En": "Timed out while playing to the target frame."
+  },
+  {
+    "Key": "t179",
+    "Source": "重放等待超时，可手动暂停检查状态。",
+    "Zh": "重放等待超时，可手动暂停检查状态。",
+    "En": "Replay timed out. Pause to inspect the state."
+  },
+  {
+    "Key": "t180",
+    "Source": "剪贴板不是同版本的有效 HK-TAS 输入片段。",
+    "Zh": "剪贴板不是同版本的有效 HK-TAS 输入片段。",
+    "En": "The clipboard does not contain a valid input fragment of the same version."
+  },
+  {
+    "Key": "t181",
+    "Source": "需要有效的 v2 Movie。",
+    "Zh": "需要有效的 v2 序列。",
+    "En": "A valid v2 sequence is required."
+  },
+  {
+    "Key": "t182",
+    "Source": "全流程启动器不可用。",
+    "Zh": "全流程启动器不可用。",
+    "En": "The full-run launcher is unavailable."
+  },
+  {
+    "Key": "t183",
+    "Source": "所选世界线此帧尚未存档，请到时间线选择其他分支。",
+    "Zh": "所选世界线此帧尚未存档，请到时间线选择其他分支。",
+    "En": "This branch has no save at this frame. Select another branch in Timeline."
+  },
+  {
+    "Key": "t184",
+    "Source": "游戏没有停在所选帧，未创建存档。",
+    "Zh": "游戏没有停在所选帧，未创建存档。",
+    "En": "The game did not stop at the selected frame. No save was created."
+  },
+  {
+    "Key": "t185",
+    "Source": "编辑结果超出序列限制，草稿未改变。",
+    "Zh": "编辑结果超出序列限制，草稿未改变。",
+    "En": "The edit exceeds sequence limits. The draft was preserved."
+  },
+  {
+    "Key": "t186",
+    "Source": "已连接",
+    "Zh": "已连接",
+    "En": "Connected"
+  },
+  {
+    "Key": "t187",
+    "Source": "未连接",
+    "Zh": "未连接",
+    "En": "Disconnected"
+  },
+  {
+    "Key": "t188",
+    "Source": "分支保存失败：{0}",
+    "Zh": "分支保存失败：{0}",
+    "En": "Could not save branch: {0}"
+  },
+  {
+    "Key": "t189",
+    "Source": "绑定失败：{0}",
+    "Zh": "绑定失败：{0}",
+    "En": "Binding failed: {0}"
+  },
+  {
+    "Key": "t190",
+    "Source": "时间线加载失败（原文件保留）：{0}",
+    "Zh": "时间线加载失败（原文件保留）：{0}",
+    "En": "Could not load timeline (file preserved): {0}"
+  },
+  {
+    "Key": "t191",
+    "Source": "切换世界线失败：{0}",
+    "Zh": "切换世界线失败：{0}",
+    "En": "Could not switch branch: {0}"
+  },
+  {
+    "Key": "t192",
+    "Source": "默认 FPS 保存失败：{0}",
+    "Zh": "默认 FPS 保存失败：{0}",
+    "En": "Could not save default FPS: {0}"
+  },
+  {
+    "Key": "t193",
+    "Source": "序列偏好读取失败：{0}",
+    "Zh": "序列偏好读取失败：{0}",
+    "En": "Could not read preferences: {0}"
+  },
+  {
+    "Key": "t194",
+    "Source": "录制表格同步：{0}",
+    "Zh": "录制表格同步：{0}",
+    "En": "Recording synchronization: {0}"
+  },
+  {
+    "Key": "t195",
+    "Source": "播放遇到原生错误：{0}",
+    "Zh": "播放遇到原生错误：{0}",
+    "En": "Native playback error: {0}"
+  },
+  {
+    "Key": "t196",
+    "Source": "重放遇到原生错误：{0}",
+    "Zh": "重放遇到原生错误：{0}",
+    "En": "Native replay error: {0}"
+  },
+  {
+    "Key": "t197",
+    "Source": "游戏鼠标设置保存失败：{0}",
+    "Zh": "游戏鼠标设置保存失败：{0}",
+    "En": "Could not save mouse setting: {0}"
+  },
+  {
+    "Key": "t198",
+    "Source": "新建全流程 Movie 失败：{0}",
+    "Zh": "新建全流程 Movie 失败：{0}",
+    "En": "Could not start recording: {0}"
+  },
+  {
+    "Key": "t199",
+    "Source": "删除 {0} 及其子树？将移除 {1} 个存档节点。此操作不可撤销。\n第 0 帧起点会保留；当前游戏和输入草稿不会改变。",
+    "Zh": "删除 {0} 及其子树？将移除 {1} 个存档节点。此操作不可撤销。\n第 0 帧起点会保留；当前游戏和输入草稿不会改变。",
+    "En": "Delete {0} and its descendants? This removes {1} saved nodes and cannot be undone.\nThe frame-0 root, current game and input draft are kept."
+  },
+  {
+    "Key": "t200",
+    "Source": "未绑定",
+    "En": "Unbound",
+    "Zh": "未绑定"
+  },
+  {
+    "Key": "t201",
+    "Source": "等待游戏按键设置",
+    "En": "Waiting for game key bindings",
+    "Zh": "等待游戏按键设置"
+  },
+  {
+    "Key": "t202",
+    "Source": "WARMING",
+    "En": "WARMING",
+    "Zh": "准备中"
+  },
+  {
+    "Key": "t203",
+    "Source": "CONNECTED · IPC v{0}",
+    "En": "CONNECTED · IPC v{0}",
+    "Zh": "已连接 · IPC v{0}"
+  },
+  {
+    "Key": "t204",
+    "Source": "Movie frame: {0} · Native frame: {1}",
+    "En": "Movie frame: {0} · Native frame: {1}",
+    "Zh": "序列帧：{0} · 原生帧：{1}"
+  },
+  {
+    "Key": "t205",
+    "Source": "Frame: {0}",
+    "En": "Frame: {0}",
+    "Zh": "帧：{0}"
+  },
+  {
+    "Key": "t206",
+    "Source": "Full-run fault {0}",
+    "En": "Full-run fault {0}",
+    "Zh": "全流程错误 {0}"
+  },
+  {
+    "Key": "t207",
+    "Source": "Native frame paused · {0}",
+    "En": "Native frame paused · {0}",
+    "Zh": "原生帧已暂停 · {0}"
+  },
+  {
+    "Key": "t208",
+    "Source": "等待游戏确认命令…",
+    "En": "Waiting for game confirmation…",
+    "Zh": "等待游戏确认命令…"
+  },
+  {
+    "Key": "t209",
+    "Source": "全流程 · {0} · Movie 帧 {1} · 原生帧 {2} · {3}",
+    "En": "Full run · {0} · Movie frame {1} · Native frame {2} · {3}",
+    "Zh": "全流程 · {0} · 序列帧 {1} · 原生帧 {2} · {3}"
+  },
+  {
+    "Key": "t210",
+    "Source": "等待 Runtime",
+    "En": "Waiting for runtime",
+    "Zh": "等待游戏连接"
+  },
+  {
+    "Key": "t211",
+    "Source": "Runtime session is disconnected.",
+    "En": "Runtime session is disconnected.",
+    "Zh": "游戏会话已断开。"
+  },
+  {
+    "Key": "t212",
+    "Source": "全流程已失败（{0}）；请重新启动会话。",
+    "En": "Full run failed ({0}). Restart the session.",
+    "Zh": "全流程已失败（{0}）；请重新启动会话。"
+  },
+  {
+    "Key": "t213",
+    "Source": "全流程 Movie 已就绪；可按原生帧步进或播放。",
+    "En": "Sequence ready. Play or advance a native frame.",
+    "Zh": "序列已就绪；可按原生帧步进或播放。"
+  },
+  {
+    "Key": "t214",
+    "Source": "序列已到末尾；Play／逐帧将重放恢复到末尾后接续草稿。",
+    "En": "End of sequence. Play or frame advance will replay to the end and continue the draft.",
+    "Zh": "序列已到末尾；播放或逐帧将重放恢复到末尾后接续草稿。"
+  },
+  {
+    "Key": "t215",
+    "Source": "已停在第 0 帧；直接播放或逐帧会自动新建 Movie，也可打开已有序列。",
+    "En": "Paused at frame 0. Play or frame advance starts a new sequence; you can also open an existing file.",
+    "Zh": "已停在第 0 帧；直接播放或逐帧会自动新建序列，也可打开已有序列。"
+  },
+  {
+    "Key": "t216",
+    "Source": "全流程 Movie 已在第 {0} 帧停止。",
+    "En": "Sequence stopped at frame {0}.",
+    "Zh": "序列已在第 {0} 帧停止。"
+  },
+  {
+    "Key": "t217",
+    "Source": "等待下一启动帧边界…",
+    "En": "Waiting for the next startup frame boundary…",
+    "Zh": "等待下一启动帧边界…"
+  },
+  {
+    "Key": "t218",
+    "Source": "启动门闩已释放；等待 Runtime 连接。",
+    "En": "Startup released; waiting for the runtime connection.",
+    "Zh": "启动已放行；等待游戏连接。"
+  },
+  {
+    "Key": "t219",
+    "Source": "选择 FFmpeg 可执行文件",
+    "En": "Select FFmpeg executable",
+    "Zh": "选择 FFmpeg 可执行文件"
+  },
+  {
+    "Key": "t220",
+    "Source": "选择 MP4 导出文件（不会覆盖已有文件）",
+    "En": "Select a new MP4 output file",
+    "Zh": "选择 MP4 导出文件（不会覆盖已有文件）"
+  },
+  {
+    "Key": "t221",
+    "Source": "选择 Hollow Knight 游戏程序",
+    "En": "Select Hollow Knight executable",
+    "Zh": "选择 Hollow Knight 游戏程序"
+  },
+  {
+    "Key": "t222",
+    "Source": "F{0} · 空时间线槽",
+    "En": "F{0} · Empty timeline slot",
+    "Zh": "F{0} · 空时间线槽"
+  },
+  {
+    "Key": "t223",
+    "Source": "F{0} · {1} · {2} · 世界线 {3}",
+    "En": "F{0} · {1} · {2} · Branch {3}",
+    "Zh": "F{0} · {1} · {2} · 分支 {3}"
+  },
+  {
+    "Key": "t224",
+    "Source": "F{0} · {1} · {2}",
+    "En": "F{0} · {1} · {2}",
+    "Zh": "F{0} · {1} · {2}"
+  },
+  {
+    "Key": "t225",
+    "Source": "F{0} · {1}",
+    "En": "F{0} · {1}",
+    "Zh": "F{0} · {1}"
+  },
+  {
+    "Key": "t226",
+    "Source": "空槽",
+    "En": "Empty slot",
+    "Zh": "空槽"
+  },
+  {
+    "Key": "t227",
+    "Source": "未在当前目录确认",
+    "En": "Not confirmed in current catalog",
+    "Zh": "未在当前目录确认"
+  },
+  {
+    "Key": "t228",
+    "Source": "未知",
+    "En": "Unknown",
+    "Zh": "未知"
+  },
+  {
+    "Key": "t229",
+    "Source": "帧 {0} · {1}",
+    "En": "Frame {0} · {1}",
+    "Zh": "帧 {0} · {1}"
+  },
+  {
+    "Key": "t230",
+    "Source": "Analog Input 模拟轴",
+    "En": "Analog input",
+    "Zh": "模拟轴"
+  },
+  {
+    "Key": "t231",
+    "Source": "使用模拟轴（需先清除选区方向键）",
+    "En": "Enable analog axes (clear directional inputs first)",
+    "Zh": "使用模拟轴（需先清除选区方向键）"
+  },
+  {
+    "Key": "t232",
+    "Source": "范围 -10000…10000；其他动作按键保持不变。取消勾选会移除模拟轴输入。X/Y 同为 0 时，文本会省略轴字段。",
+    "En": "Range: -10000…10000. Other action inputs are preserved. Uncheck to remove axes; zero axes are omitted from the sequence text.",
+    "Zh": "范围 -10000…10000；其他动作按键保持不变。取消勾选会移除模拟轴输入。X/Y 同为 0 时，文本会省略轴字段。"
+  },
+  {
+    "Key": "t233",
+    "Source": "应用到草稿",
+    "En": "Apply to draft",
+    "Zh": "应用到草稿"
+  },
+  {
+    "Key": "t234",
+    "Source": "从帧 {0} 起，修改 {1} 帧。显示选区首帧的值。",
+    "En": "Edit {1} frames starting at {0}. Values show the first selected frame.",
+    "Zh": "从帧 {0} 起，修改 {1} 帧。显示选区首帧的值。"
+  },
+  {
+    "Key": "t235",
+    "Source": "请输入整数，范围 -10000…10000。",
+    "En": "Enter integers from -10000 to 10000.",
+    "Zh": "请输入整数，范围 -10000…10000。"
+  },
+  {
+    "Key": "t236",
+    "Source": "X ",
+    "En": "X ",
+    "Zh": "X "
+  },
+  {
+    "Key": "t237",
+    "Source": " Y ",
+    "En": " Y ",
+    "Zh": " Y "
+  },
+  {
+    "Key": "t238",
+    "Source": "FFmpeg (ffmpeg.exe)|ffmpeg.exe|所有文件|*.*",
+    "En": "FFmpeg (ffmpeg.exe)|ffmpeg.exe|All files|*.*",
+    "Zh": "FFmpeg (ffmpeg.exe)|ffmpeg.exe|所有文件|*.*"
+  },
+  {
+    "Key": "t239",
+    "Source": "MP4 视频|*.mp4",
+    "En": "MP4 video|*.mp4",
+    "Zh": "MP4 视频|*.mp4"
+  },
+  {
+    "Key": "t240",
+    "Source": "HK-TAS Movie (*.hktas)|*.hktas",
+    "En": "HK-TAS sequence (*.hktas)|*.hktas",
+    "Zh": "HK-TAS 序列 (*.hktas)|*.hktas"
+  },
+  {
+    "Key": "t241",
+    "Source": "HK-TAS Movie (*.hktas)|*.hktas|Text files (*.txt)|*.txt|All files (*.*)|*.*",
+    "En": "HK-TAS sequence (*.hktas)|*.hktas|Text files (*.txt)|*.txt|All files (*.*)|*.*",
+    "Zh": "HK-TAS 序列 (*.hktas)|*.hktas|文本文件 (*.txt)|*.txt|所有文件 (*.*)|*.*"
+  },
+  {
+    "Key": "t242",
+    "Source": "Waiting for a Runtime session.",
+    "En": "Waiting for a runtime session.",
+    "Zh": "等待连接游戏。"
+  },
+  {
+    "Key": "t243",
+    "Source": "完整生命周期分支请使用 Advanced Authoring；表格编辑当前文本序列。",
+    "En": "This legacy sequence requires advanced authoring. Open a full-run sequence to edit it here.",
+    "Zh": "此旧序列需要高级编辑；请打开全流程序列在此编辑。"
+  },
+  {
+    "Key": "t244",
+    "Source": "当前表格是 v2 原生帧。",
+    "En": "This table contains native frames.",
+    "Zh": "当前表格是原生帧。"
+  },
+  {
+    "Key": "t245",
+    "Source": "当前序列不支持模拟轴弹框编辑。",
+    "En": "This sequence does not support the analog axes editor.",
+    "Zh": "当前序列不支持模拟轴弹框编辑。"
+  },
+  {
+    "Key": "t246",
+    "Source": "v2 编辑失败，草稿未改变。",
+    "En": "Edit failed. The draft was preserved.",
+    "Zh": "编辑失败，草稿未改变。"
+  },
+  {
+    "Key": "t247",
+    "Source": "所选原生帧超出 Movie。",
+    "En": "Selected native frame is outside the sequence.",
+    "Zh": "所选原生帧超出序列。"
+  },
+  {
+    "Key": "t248",
+    "Source": "表格分支提交正在进行。",
+    "En": "An input branch is being applied.",
+    "Zh": "表格分支提交正在进行。"
+  },
+  {
+    "Key": "t249",
+    "Source": "提交期间文本已改变；刚才提交的是旧草稿，新草稿尚未应用，未发起重放。",
+    "En": "The draft changed during submission. The previous draft was applied; replay was not started.",
+    "Zh": "提交期间文本已改变；刚才提交的是旧草稿，新草稿尚未应用，未发起重放。"
+  },
+  {
+    "Key": "t250",
+    "Source": "分支已提交并请求重放；以恢复状态完成为准。",
+    "En": "Branch applied and replay requested. Wait for restore to finish.",
+    "Zh": "分支已提交并请求重放；以恢复状态完成为准。"
+  },
+  {
+    "Key": "t251",
+    "Source": "分支已应用；游戏位置未回退。修改过去输入后请重放到目标帧。",
+    "En": "Branch applied. Replay to the target frame after editing past inputs.",
+    "Zh": "分支已应用；游戏位置未回退。修改过去输入后请重放到目标帧。"
+  },
+  {
+    "Key": "t252",
+    "Source": "逐帧 FPS 需要 v2 Movie。",
+    "En": "Per-frame FPS requires a full-run sequence.",
+    "Zh": "逐帧帧率需要全流程序列。"
+  },
+  {
+    "Key": "t253",
+    "Source": "正在应用序列，请稍候。",
+    "En": "Applying sequence, please wait.",
+    "Zh": "正在应用序列，请稍候。"
+  },
+  {
+    "Key": "t254",
+    "Source": "正在应用草稿，请稍候。",
+    "En": "Applying draft, please wait.",
+    "Zh": "正在应用草稿，请稍候。"
+  },
+  {
+    "Key": "t255",
+    "Source": "当前帧之后没有输入，请先补充空帧。",
+    "En": "No future inputs. Append blank frames first.",
+    "Zh": "当前帧之后没有输入，请先补充空帧。"
+  },
+  {
+    "Key": "t256",
+    "Source": "未来帧输入已同步，将按表格执行。",
+    "En": "Future inputs synchronized. Playback will follow the table.",
+    "Zh": "未来帧输入已同步，将按表格执行。"
+  },
+  {
+    "Key": "t257",
+    "Source": "存档 Movie 路径或大小无效。",
+    "En": "Invalid saved sequence path or size.",
+    "Zh": "存档序列路径或大小无效。"
+  },
+  {
+    "Key": "t258",
+    "Source": "存档 Movie 无效。",
+    "En": "Invalid saved sequence.",
+    "Zh": "存档序列无效。"
+  },
+  {
+    "Key": "t259",
+    "Source": "启动第 0 帧的输入已修改，请先应用草稿；播放到未来帧不会自动重启。",
+    "En": "Startup frame 0 was edited. Apply the draft first; play-to-frame does not restart the game.",
+    "Zh": "启动第 0 帧的输入已修改，请先应用草稿；播放到未来帧不会自动重启。"
+  },
+  {
+    "Key": "t260",
+    "Source": "固定回放已结束；未来帧播放不会自动重启游戏。",
+    "En": "Replay has ended. Play-to-frame will not restart the game.",
+    "Zh": "固定回放已结束；未来帧播放不会自动重启游戏。"
+  },
+  {
+    "Key": "t261",
+    "Source": "播放停在 {0}，未到达目标 {1}。",
+    "En": "Playback stopped at {0}, before target {1}.",
+    "Zh": "播放停在 {0}，未到达目标 {1}。"
+  },
+  {
+    "Key": "t262",
+    "Source": "重放停在 {0}，未到达目标 {1}。",
+    "En": "Replay stopped at {0}, before target {1}.",
+    "Zh": "重放停在 {0}，未到达目标 {1}。"
+  },
+  {
+    "Key": "t263",
+    "Source": "草稿环境尚未初始化，请新建录制后重试。",
+    "En": "Draft environment is not initialized. Start a new recording and retry.",
+    "Zh": "草稿环境尚未初始化，请新建录制后重试。"
+  },
+  {
+    "Key": "t264",
+    "Source": "存档目标超出 Movie。",
+    "En": "Save target is outside the sequence.",
+    "Zh": "存档目标超出序列。"
+  },
+  {
+    "Key": "t265",
+    "Source": "此快捷槽尚未保存时间线节点。",
+    "En": "This slot has no timeline node.",
+    "Zh": "此快捷槽尚未保存时间线节点。"
+  },
+  {
+    "Key": "t266",
+    "Source": "快捷槽节点已不属于绑定的世界线，请重新绑定。",
+    "En": "The saved node no longer belongs to this branch. Bind the slot again.",
+    "Zh": "快捷槽节点已不属于绑定的世界线，请重新绑定。"
+  },
+  {
+    "Key": "t267",
+    "Source": "F{0} 已保存时间线节点 · {1}。",
+    "En": "F{0}: saved timeline node · {1}.",
+    "Zh": "F{0} 已保存时间线节点 · {1}。"
+  },
+  {
+    "Key": "t268",
+    "Source": "F{0} 已恢复时间线节点 · {1}。",
+    "En": "F{0}: restored timeline node · {1}.",
+    "Zh": "F{0} 已恢复时间线节点 · {1}。"
+  },
+  {
+    "Key": "t269",
+    "Source": "配置过大",
+    "En": "Settings file is too large",
+    "Zh": "配置过大"
+  },
+  {
+    "Key": "t270",
+    "Source": "快捷键配置无效",
+    "En": "Invalid hotkey settings",
+    "Zh": "快捷键配置无效"
+  },
+  {
+    "Key": "t271",
+    "Source": "使用默认键位，未覆盖损坏配置：{0}",
+    "En": "Using default hotkeys. Damaged settings were preserved: {0}",
+    "Zh": "使用默认键位，未覆盖损坏配置：{0}"
+  },
+  {
+    "Key": "t272",
+    "Source": "原配置无法读取，拒绝覆盖：{0}",
+    "En": "Cannot read settings; existing file preserved: {0}",
+    "Zh": "原配置无法读取，拒绝覆盖：{0}"
+  },
+  {
+    "Key": "t273",
+    "Source": "游戏鼠标设置过大。",
+    "En": "Mouse settings file is too large.",
+    "Zh": "游戏鼠标设置过大。"
+  },
+  {
+    "Key": "t274",
+    "Source": "游戏鼠标设置无效。",
+    "En": "Invalid mouse settings.",
+    "Zh": "游戏鼠标设置无效。"
+  },
+  {
+    "Key": "t275",
+    "Source": "游戏鼠标设置读取失败；本次默认关闭：{0}",
+    "En": "Could not read mouse setting; disabled for this session: {0}",
+    "Zh": "游戏鼠标设置读取失败；本次默认关闭：{0}"
+  },
+  {
+    "Key": "t276",
+    "Source": "未记录",
+    "En": "Not recorded",
+    "Zh": "未记录"
+  },
+  {
+    "Key": "t277",
+    "Source": "阶段={0} · 帧数={1} · 输出={2}",
+    "En": "Phase={0} · Frames={1} · Output={2}",
+    "Zh": "阶段={0} · 帧数={1} · 输出={2}"
+  },
+  {
+    "Key": "t278",
+    "Source": "已请求取消 · operationId={0}",
+    "En": "Cancellation requested · ID={0}",
+    "Zh": "已请求取消 · 编号={0}"
+  },
+  {
+    "Key": "t279",
+    "Source": "Capturing",
+    "En": "Capturing",
+    "Zh": "录制中"
+  },
+  {
+    "Key": "t280",
+    "Source": "Encoding",
+    "En": "Encoding",
+    "Zh": "编码中"
+  },
+  {
+    "Key": "t281",
+    "Source": "Cancelled",
+    "En": "Cancelled",
+    "Zh": "已取消"
+  },
+  {
+    "Key": "t282",
+    "Source": "Failed",
+    "En": "Failed",
+    "Zh": "失败"
+  },
+  {
+    "Key": "t283",
+    "Source": "InputReady",
+    "En": "Input ready",
+    "Zh": "可输入"
+  },
+  {
+    "Key": "t284",
+    "Source": "Ready",
+    "En": "Ready",
+    "Zh": "已就绪"
+  },
+  {
+    "Key": "t285",
+    "Source": "Waiting",
+    "En": "Waiting",
+    "Zh": "等待中"
+  },
+  {
+    "Key": "t286",
+    "Source": "unknown",
+    "En": "unknown",
+    "Zh": "未知"
+  },
+  {
+    "Key": "t287",
+    "Source": "Runtime state and capability catalog initialized.",
+    "En": "Runtime state and capabilities initialized.",
+    "Zh": "游戏状态和能力列表已就绪。"
+  },
+  {
+    "Key": "t288",
+    "Source": "Runtime initialization failed: {0}",
+    "En": "Runtime initialization failed: {0}",
+    "Zh": "游戏连接初始化失败：{0}"
+  },
+  {
+    "Key": "t289",
+    "Source": "启动失败：{0}",
+    "En": "Launch failed: {0}",
+    "Zh": "启动失败：{0}"
+  },
+  {
+    "Key": "t290",
+    "Source": "视频导出已开始。",
+    "En": "Video export started.",
+    "Zh": "视频导出已开始。"
+  },
+  {
+    "Key": "t291",
+    "Source": "请先暂停游戏，并获取最新 Runtime 状态后再导出视频。",
+    "En": "Pause the game and wait for its status before exporting video.",
+    "Zh": "请先暂停游戏，并等待游戏状态更新后再导出视频。"
+  },
+  {
+    "Key": "t292",
+    "Source": "当前 MovieText 无法导出。",
+    "En": "The current sequence cannot be exported.",
+    "Zh": "当前序列无法导出。"
+  },
+  {
+    "Key": "t293",
+    "Source": "已开始 · 阶段=Capturing · 帧数=0 · 输出={0}（导出期间游戏扬声器会静音）",
+    "En": "Started · Phase=Capturing · Frames=0 · Output={0} (game audio is muted during export)",
+    "Zh": "已开始 · 阶段=录制中 · 帧数=0 · 输出={0}（导出期间游戏扬声器会静音）"
+  },
+  {
+    "Key": "t294",
+    "Source": "Movie validation failed.",
+    "En": "Sequence validation failed.",
+    "Zh": "序列校验失败。"
+  },
+  {
+    "Key": "t295",
+    "Source": "没有正在进行的视频导出。",
+    "En": "No video export is running.",
+    "Zh": "没有正在进行的视频导出。"
+  },
+  {
+    "Key": "t296",
+    "Source": "恢复正在切换游戏进程；请查看存档恢复进度。",
+    "En": "Restore is switching game processes. Please wait for restore to finish.",
+    "Zh": "恢复正在切换游戏进程；请查看存档恢复进度。"
+  },
+  {
+    "Key": "t297",
+    "Source": "{0} sent.",
+    "En": "{0} sent.",
+    "Zh": "已发送 {0}。"
+  },
+  {
+    "Key": "t298",
+    "Source": "窗口内 Shift+F1…F10 保存，F1…F10 恢复；恢复需要输入重放。",
+    "En": "In Studio: Shift+F1–F10 saves; F1–F10 restores by replaying input.",
+    "Zh": "窗口内 Shift+F1…F10 保存，F1…F10 恢复；恢复需要输入重放。"
+  },
+  {
+    "Key": "t299",
+    "Source": "正在校验组件并启动游戏…",
+    "En": "Verifying components and launching the game…",
+    "Zh": "正在校验组件并启动游戏…"
+  },
+  {
+    "Key": "t300",
+    "Source": "已停在原生启动门闩；点击 Play 继续初始化。",
+    "En": "Paused at the startup boundary. Click Play to continue.",
+    "Zh": "已停在原生启动边界；点击播放继续初始化。"
+  },
+  {
+    "Key": "t301",
+    "Source": "游戏已启动；等待 Runtime 连接。回退可用性以启动与录制根校验为准。",
+    "En": "Game launched. Waiting for connection and baseline validation.",
+    "Zh": "游戏已启动；等待连接及录制起点校验。"
+  },
+  {
+    "Key": "t302",
+    "Source": "快捷槽不可用：{0}",
+    "En": "Save slots unavailable: {0}",
+    "Zh": "快捷槽不可用：{0}"
+  },
+  {
+    "Key": "t303",
+    "Source": "快捷槽目录更新失败：{0}",
+    "En": "Could not update save slots: {0}",
+    "Zh": "快捷槽目录更新失败：{0}"
+  },
+  {
+    "Key": "t304",
+    "Source": "快捷槽操作处理中，请勿重复提交。",
+    "En": "A save-slot operation is in progress. Please wait.",
+    "Zh": "快捷槽操作处理中，请勿重复提交。"
+  },
+  {
+    "Key": "t305",
+    "Source": "F{0} 是空槽。",
+    "En": "F{0} is empty.",
+    "Zh": "F{0} 是空槽。"
+  },
+  {
+    "Key": "t306",
+    "Source": "F{0} 已保存 · 帧 {1}。",
+    "En": "F{0} saved · Frame {1}.",
+    "Zh": "F{0} 已保存 · 帧 {1}。"
+  },
+  {
+    "Key": "t307",
+    "Source": "正在保存 F{0}；旧槽引用保留到新存档 Ready。",
+    "En": "Saving F{0}. The previous slot is kept until the new save is ready.",
+    "Zh": "正在保存 F{0}；旧槽保留至新存档就绪。"
+  },
+  {
+    "Key": "t308",
+    "Source": "第 0 帧尚未选择 Movie。",
+    "En": "No sequence selected at frame 0.",
+    "Zh": "第 0 帧尚未选择序列。"
+  },
+  {
+    "Key": "t309",
+    "Source": "等待最新运行状态后再切换播放/暂停。",
+    "En": "Wait for the latest game status before toggling playback.",
+    "Zh": "等待最新运行状态后再切换播放/暂停。"
+  },
+  {
+    "Key": "t310",
+    "Source": "导出文件已存在；为防止覆盖，请选择新的 .mp4 文件。",
+    "En": "The output file exists. Choose a new .mp4 filename.",
+    "Zh": "导出文件已存在；为防止覆盖，请选择新的 .mp4 文件。"
+  },
+  {
+    "Key": "t311",
+    "Source": "当前没有可取消的视频导出。",
+    "En": "No video export is running.",
+    "Zh": "当前没有可取消的视频导出。"
+  },
+  {
+    "Key": "t312",
+    "Source": "等待游戏停在原生帧边界后再退出。",
+    "En": "Wait for the game to pause at a native frame boundary before exiting.",
+    "Zh": "等待游戏停在原生帧边界后再退出。"
+  },
+  {
+    "Key": "t313",
+    "Source": "受控游戏退出入口尚未就绪。",
+    "En": "Controlled game exit is not ready.",
+    "Zh": "受控游戏退出入口尚未就绪。"
+  }
+]

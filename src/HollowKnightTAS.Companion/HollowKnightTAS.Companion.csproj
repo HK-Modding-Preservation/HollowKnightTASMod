@@ -16,6 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Services/UiText.json" LogicalName="HollowKnightTAS.Companion.UiText.json" />
     <ProjectReference Include="..\HollowKnightTAS.Core\HollowKnightTAS.Core.csproj" />
   </ItemGroup>
 

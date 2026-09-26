@@ -149,6 +149,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             this.fullRunMovies = fullRunMovies;
             if (startupBoot != null) startupBoot.Changed += (_, _) => Dispatch(() =>
             {
+                OnPropertyChanged(nameof(CanLaunchStandaloneGame));
                 OnPropertyChanged(nameof(FrameCounterText));
                 OnPropertyChanged(nameof(PlaybackStateText));
                 OnPropertyChanged(nameof(PlayPauseLabel));
@@ -542,6 +543,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             private set => Set(ref runtimeSummary, value);
         }
 
+        public bool CanLaunchStandaloneGame => startupBoot?.IsPending != true && SelectedSession?.Client.IsConnected != true;
+
         public string FrameCounterText => IsRestorePresentationFrozen ? frozenFrameCounter : startupBoot?.IsPending == true
             ? "Movie frame: " + (currentFullRunMovieFrame < 0 ? "—"
                 : currentFullRunMovieFrame.ToString(CultureInfo.InvariantCulture))
@@ -799,8 +802,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 var ffmpegDialog = new OpenFileDialog
                 {
-                    Title = "选择 FFmpeg 可执行文件",
-                    Filter = "FFmpeg (ffmpeg.exe)|ffmpeg.exe|所有文件|*.*",
+                    Title = UiText.T("选择 FFmpeg 可执行文件"),
+                    Filter = UiText.T("FFmpeg (ffmpeg.exe)|ffmpeg.exe|所有文件|*.*"),
                     CheckFileExists = true,
                     Multiselect = false,
                     FileName = "ffmpeg.exe"
@@ -815,8 +818,8 @@ namespace HollowKnightTAS.Companion.ViewModels
 
             var outputDialog = new SaveFileDialog
             {
-                Title = "选择 MP4 导出文件（不会覆盖已有文件）",
-                Filter = "MP4 视频|*.mp4",
+                Title = UiText.T("选择 MP4 导出文件（不会覆盖已有文件）"),
+                Filter = UiText.T("MP4 视频|*.mp4"),
                 DefaultExt = ".mp4",
                 AddExtension = true,
                 OverwritePrompt = false,
@@ -982,8 +985,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (launchGame == null) return;
             var dialog = new OpenFileDialog
             {
-                Title = "选择 Hollow Knight 游戏程序",
-                Filter = "Hollow Knight (hollow_knight.exe)|hollow_knight.exe",
+                Title = UiText.T("选择 Hollow Knight 游戏程序"),
+                Filter = UiText.T("Hollow Knight (hollow_knight.exe)|hollow_knight.exe"),
                 CheckFileExists = true,
                 Multiselect = false
             };
@@ -1007,7 +1010,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             var dialog = new OpenFileDialog
             {
                 Filter =
-                    "HK-TAS Movie (*.hktas)|*.hktas|Text files (*.txt)|*.txt|All files (*.*)|*.*",
+                    UiText.T("HK-TAS Movie (*.hktas)|*.hktas|Text files (*.txt)|*.txt|All files (*.*)|*.*"),
                 CheckFileExists = true,
                 Multiselect = false
             };
@@ -1057,7 +1060,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         {
             var dialog = new SaveFileDialog
             {
-                Filter = "HK-TAS Movie (*.hktas)|*.hktas",
+                Filter = UiText.T("HK-TAS Movie (*.hktas)|*.hktas"),
                 AddExtension = true,
                 DefaultExt = ".hktas"
             };
@@ -2488,6 +2491,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private void UpdateConnectionStatus()
         {
+            OnPropertyChanged(nameof(CanLaunchStandaloneGame));
             var client = SelectedSession?.Client;
             foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
             ConnectionBadge = client?.IsConnected == true

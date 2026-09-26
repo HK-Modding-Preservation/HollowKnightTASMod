@@ -1,4 +1,5 @@
 using System;
+using HollowKnightTAS.Companion.Services;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -18,6 +19,7 @@ namespace HollowKnightTAS.Companion.Controls
         private bool scheduled;
         public TimelineGraph()
         {
+            PropertyChangedEventManager.AddHandler(UiText.Current, LanguageChanged, string.Empty);
             Content = canvas;
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
@@ -31,6 +33,7 @@ namespace HollowKnightTAS.Companion.Controls
             };
             Loaded += (_, _) => { vm?.InitializeWorldlines(); Schedule(); };
         }
+        private void LanguageChanged(object? sender, PropertyChangedEventArgs e) => Schedule();
         private void Changed(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(MainViewModel.SelectedTimelineNode)) Schedule();
@@ -80,12 +83,12 @@ namespace HollowKnightTAS.Companion.Controls
                 bool leaf = !children[node.Id].Any();
                 var button = new Button
                 {
-                    Content = new TextBlock { Text = node.Label + "\n" + (leaf ? "世界线 " + node.Id : "分支节点"), TextAlignment = TextAlignment.Center },
+                    Content = new TextBlock { Text = UiText.T(node.Label) + "\n" + UiText.T(leaf ? "世界线 " + node.Id : "分支节点"), TextAlignment = TextAlignment.Center },
                     Width = 168, Height = 64, Margin = new Thickness(0), Padding = new Thickness(8),
                     Background = new SolidColorBrush(vm.SelectedTimelineNode?.Id == node.Id ? Color.FromRgb(43, 96, 86) : Color.FromRgb(32, 42, 56)),
                     BorderBrush = path.Contains(node.Id) ? accent : muted,
                     BorderThickness = new Thickness(vm.SelectedTimelineNode?.Id == node.Id ? 3 : 1),
-                    ToolTip = "选择节点；点击叶子切换世界线。恢复需点击上方按钮。"
+                    ToolTip = UiText.T("选择节点；点击叶子切换世界线。恢复需点击上方按钮。")
                 };
                 System.Windows.Automation.AutomationProperties.SetAutomationId(button, "HktasStudio.TimelineNode." + node.Id);
                 button.Click += (_, _) => vm.SelectTimelineNode(node.Id);

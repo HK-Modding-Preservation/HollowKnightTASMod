@@ -1,4 +1,5 @@
 using System.Windows;
+using System.ComponentModel;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
@@ -27,6 +28,7 @@ namespace HollowKnightTAS.Companion
         public MainWindow()
         {
             InitializeComponent();
+            PropertyChangedEventManager.AddHandler(UiText.Current, OnLanguageChanged, string.Empty);
             SourceInitialized += (_, _) => EnableDarkTitleBar();
             DataContextChanged += OnStudioDataContextChanged;
             gridFollowTimer.Tick += async (_, _) =>
@@ -48,7 +50,7 @@ namespace HollowKnightTAS.Companion
                 }
                 catch (Exception exception)
                 {
-                    MessageBox.Show(this, "序列保存失败，Studio 保持打开：" + exception.Message, "保存失败");
+                    MessageBox.Show(this, UiText.T("序列保存失败，Studio 保持打开：" + exception.Message), UiText.T("保存失败"));
                     gridFollowTimer.Start();
                 }
             };
@@ -62,6 +64,11 @@ namespace HollowKnightTAS.Companion
                     vm.PropertyChanged -= OnInputBindingsChanged;
                 }
             };
+        }
+
+        private void OnLanguageChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (DataContext is MainViewModel vm) RefreshInputBindingHeaders(vm);
         }
 
         private void EnableDarkTitleBar()
@@ -145,18 +152,6 @@ namespace HollowKnightTAS.Companion
                 if (FindGridScroll(VisualTreeHelper.GetChild(parent, i)) is { } child) return child;
             return null;
         }
-
-        private void OnNavigate(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuItem { Tag: string name } && FindName(name) is TabItem tab)
-            {
-                tab.Visibility = Visibility.Visible;
-                MainTabs.SelectedItem = tab;
-                if (name == "InputGridTab" && DataContext is MainViewModel vm) vm.RefreshGridCommand.Execute(null);
-            }
-        }
-
-        private void OnCloseStudio(object sender, RoutedEventArgs e) => Close();
 
         private void OnInputGridSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -258,7 +253,7 @@ namespace HollowKnightTAS.Companion
                 var label = known ? (string.IsNullOrWhiteSpace(keys) ? "—" : keys!) : "?";
                 var header = new TextBlock { Text = string.Join("/", label.Split(new[] { " / " }, StringSplitOptions.None).Select(CompactKeyLabel)),
                     FontFamily = InputGrid.FontFamily, FontSize = InputGrid.FontSize,
-                    ToolTip = action + " · " + (known ? (label == "—" ? "未绑定" : keys) : "等待游戏按键设置") };
+                    ToolTip = UiText.T(action) + " · " + (known ? (label == "—" ? UiText.T("未绑定") : keys) : UiText.T("等待游戏按键设置")) };
                 header.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
                 column.Header = header;
                 column.MinWidth = 32;
@@ -314,7 +309,7 @@ namespace HollowKnightTAS.Companion
             var menu = new ContextMenu();
             void FrameItem(string title, string action, bool enabled = true)
             {
-                var item = new MenuItem { Header = title, IsEnabled = enabled };
+                var item = new MenuItem { Header = UiText.T(title), IsEnabled = enabled };
                 item.Click += async (_, _) => await vm.FrameMenuAsync(action, row.Tick);
                 menu.Items.Add(item);
             }
@@ -324,8 +319,8 @@ namespace HollowKnightTAS.Companion
             menu.Items.Add(new Separator());
             foreach (var entry in new[] { ("复制选区", vm.CopyGridCommand), ("粘贴到选区", vm.PasteGridCommand),
                 ("插入空帧", vm.InsertGridCommand), ("删除选区", vm.DeleteGridCommand) })
-                menu.Items.Add(new MenuItem { Header = entry.Item1, Command = entry.Item2 });
-            var rate = new MenuItem { Header = "修改选区帧率…" };
+                menu.Items.Add(new MenuItem { Header = UiText.T(entry.Item1), Command = entry.Item2 });
+            var rate = new MenuItem { Header = UiText.T("修改选区帧率…") };
             rate.Click += (_, _) => EditFrameRate(true);
             menu.Items.Add(rate);
             menu.PlacementTarget = InputGrid; menu.IsOpen = true;

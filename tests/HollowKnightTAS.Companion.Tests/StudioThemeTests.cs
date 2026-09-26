@@ -23,10 +23,14 @@ namespace HollowKnightTAS.Companion.Tests
         public void AuthoringThemeUsesLightTextOnDarkPanels()
         {
             Exception? failure = null;
+            var languagePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HollowKnightTAS", "studio-language.txt");
+            var originalLanguage = File.Exists(languagePath) ? File.ReadAllBytes(languagePath) : null;
+            var languageIndex = UiText.Current.LanguageIndex;
             var thread = new Thread(() =>
             {
                 try
                 {
+                    UiText.Current.LanguageIndex = 0;
                     // Reserve space for the native window frame at the 900x600 minimum.
                     const double contentWidth = 880;
                     const double contentHeight = 560;
@@ -68,7 +72,7 @@ namespace HollowKnightTAS.Companion.Tests
                     } });
                     Assert.AreEqual("J", ((TextBlock)attackColumn.Header).Text);
                     Assert.AreEqual("Attack", attackColumn.SortMemberPath, "Changing key labels must not change editing semantics.");
-                    Assert.IsTrue(((TextBlock)attackColumn.Header).ToolTip.ToString()!.Contains("Attack"));
+                    Assert.IsTrue(((TextBlock)attackColumn.Header).ToolTip.ToString()!.Contains("攻击"));
                     Assert.AreEqual(DataGridLengthUnitType.Pixel, attackColumn.Width.UnitType);
                     var compactWidth = attackColumn.Width.Value;
                     var boundKeys = vm.InputBindingLabels;
@@ -82,7 +86,8 @@ namespace HollowKnightTAS.Companion.Tests
                         .Select(tab => tab.Header?.ToString())
                         .ToArray();
                     Assert.AreEqual(tabs.Items.Count, visibleTabs.Length, "All remaining pages are directly visible.");
-                    Assert.IsTrue(visibleTabs.Contains("Input Editor") && visibleTabs.Contains("Timeline 时间线"));
+                    CollectionAssert.AreEqual(new[] { "输入编辑器", "时间线", "操作手册", "设置" }, visibleTabs);
+                    Assert.IsFalse(grid.Columns.Any(c => c.SortMemberPath is "Channels" or "Samples"));
                     Assert.IsFalse(visibleTabs.Contains("Movie Text"));
                     Assert.IsNull(window.FindName("SavesTab"));
 
@@ -98,8 +103,7 @@ namespace HollowKnightTAS.Companion.Tests
                     Assert.IsTrue(inputGrid.ActualHeight > 0, "InputGrid must retain usable height at minimum size.");
                     Assert.IsTrue(inputGrid.Columns.OfType<DataGridCheckBoxColumn>().All(column => column.ElementStyle != null),
                         "Input columns must use the dark checkbox style instead of the white system control.");
-                    var mainMenu = Find<Menu>(root).Single();
-                    Assert.AreEqual(Color.FromRgb(24, 32, 43), ((SolidColorBrush)mainMenu.Background).Color);
+                    Assert.IsFalse(Find<Menu>(root).Any());
 
                     var toolbar = LogicalTreeHelper.GetChildren(root).OfType<WrapPanel>().Single();
                     var quitButton = toolbar.Children.OfType<Button>().Single(button =>
@@ -139,7 +143,7 @@ namespace HollowKnightTAS.Companion.Tests
                             $"studio-theme-{(int)(scale * 100)}.png"));
                         scaledEncoder.Save(output);
                     }
-                    foreach (var name in new[] { "WorldlinesTab", "HelpTab" })
+                    foreach (var name in new[] { "WorldlinesTab", "HelpTab", "ShortcutSettingsTab" })
                     {
                         var commonTab = (TabItem)window.FindName(name);
                         tabs.SelectedItem = commonTab;
@@ -156,7 +160,7 @@ namespace HollowKnightTAS.Companion.Tests
                         if (name == "WorldlinesTab")
                             Assert.IsTrue(Find<ListBox>(commonTab).Single().ActualHeight >= 40,
                                 "The timeline node list must remain usable at minimum size.");
-                        else
+                        else if (name == "HelpTab")
                         {
                             Assert.IsTrue(Find<ScrollViewer>(commonTab).Single().ActualHeight >= 50,
                                 "The in-app manual must remain scrollable at minimum size.");
@@ -169,18 +173,29 @@ namespace HollowKnightTAS.Companion.Tests
                         using var output = File.Create(Path.Combine(AppContext.BaseDirectory, $"studio-{name}-150.png"));
                         preview.Save(output);
                     }
-                    var menus = Find<MenuItem>(root).ToArray();
-                    Assert.AreSame(vm.StepCommand, menus.Single(menu => menu.Header.ToString()!.StartsWith("Frame Advance")).Command);
-                    Assert.AreSame(vm.TogglePauseCommand, menus.Single(menu => menu.Header.ToString()!.StartsWith("Play / Pause")).Command);
-                    Assert.AreSame(vm.StartVideoExportCommand, menus.Single(menu => menu.Header.ToString()!.StartsWith("Encode to MP4")).Command);
-                    foreach (var menu in menus.Where(menu => menu.Tag is string))
+                    // Switch without rebuilding the window or view model, including existing status text.
+                    UiText.Current.LanguageIndex = 1;
+                    window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    CollectionAssert.AreEqual(new[] { "Input Editor", "Timeline", "Manual", "Setting" },
+                        tabs.Items.OfType<TabItem>().Select(t => t.Header?.ToString()).ToArray());
+                    Assert.IsTrue(Find<TextBlock>(root).Any(t => t.Text == "Default FPS"));
+                    Assert.IsFalse(Find<TextBlock>(root).Any(t => t.Text.Contains("共 ")));
+                    root.UpdateLayout();
+                    var englishImage = new RenderTargetBitmap(1320, 840, 144, 144, PixelFormats.Pbgra32);
+                    englishImage.Render(root);
+                    var englishEncoder = new PngBitmapEncoder(); englishEncoder.Frames.Add(BitmapFrame.Create(englishImage));
+                    using (var file = File.Create(Path.Combine(AppContext.BaseDirectory, "studio-setting-en.png"))) englishEncoder.Save(file);
+                    foreach (var page in tabs.Items.OfType<TabItem>())
                     {
-                        menu.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-                        var target = (TabItem)window.FindName((string)menu.Tag);
-                        Assert.AreSame(target, tabs.SelectedItem);
-                        Assert.AreEqual(Visibility.Visible, target.Visibility);
+                        tabs.SelectedItem = page;
+                        root.UpdateLayout();
+                        window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        foreach (var block in Find<TextBlock>(page))
+                            Assert.IsFalse(System.Text.RegularExpressions.Regex.IsMatch(block.Text, "[\u4e00-\u9fff]"),
+                                $"Untranslated English page text: {block.Text}");
                     }
-                    Assert.IsFalse(menus.Any(menu => menu.Header.ToString()!.StartsWith("Close Tool Panels")));
+                    UiText.Current.LanguageIndex = 0;
+                    window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
                     tabs.SelectedItem = window.FindName("InputGridTab");
                     Assert.AreEqual(tabs.Items.Count, tabs.Items.OfType<TabItem>().Count(item => item.Visibility == Visibility.Visible));
                     vm.GridStart = "0";
@@ -199,6 +214,12 @@ namespace HollowKnightTAS.Companion.Tests
                     app.Shutdown();
                 }
                 catch (Exception error) { failure = error; }
+                finally
+                {
+                    UiText.Current.LanguageIndex = languageIndex;
+                    if (originalLanguage == null) File.Delete(languagePath);
+                    else File.WriteAllBytes(languagePath, originalLanguage);
+                }
             });
             thread.SetApartmentState(ApartmentState.STA);
             thread.Start();

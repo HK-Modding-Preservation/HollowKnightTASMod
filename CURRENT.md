@@ -1,3 +1,5 @@
+2026-09-26 D11 设置与语言已实现，待关闭正在运行的 Studio 后安装：四页（输入编辑器/时间线/操作手册/设置），移除顶栏菜单及 Channels/Samples；默认帧率、游戏鼠标、快捷键和中英即时切换集中设置页。本机记忆语言，24/24 定向检查及最小窗口离线渲染通过。Release 构建及签名包验真通过，尚未替换安装版。未启动游戏/桌面自动化/修改分辨率。下一步：用户正常关闭 PID 5704 后安装验签。详见 mydocs/specs/tasks/D11_Studio设置与语言.md。
+
 2026-09-26 D10 已完成并安装：14项 Studio 界面/流程调整、实时跟随、实际最远进度叶子和关闭保存。最终同安装 DLL 哈希的受限集成验收通过：当前120重算、346回退120保留最远、过去FPS分叉执行50、换文件恢复20、旧叶子祖先120；独立重开读回完整346叶子。原生fault=0，26/26定向检查；31原始存档/32历史节点/快捷槽不变。未用电脑操作工具；宿主峰值约223MiB、游戏约1.24GiB，测试进程已关闭。MP4保留原有旧版局内导出，不新增v2编码。详见 mydocs/specs/tasks/D10_Studio操作简化.md 最终验收和 artifacts/studio-simplification/REPORT.md。
 
 2026-09-26 D10 候选测试发生系统内存耗尽，已停止实机测试。Windows 事件 2004 确认 codex-computer-use.exe 使用约 29.7 GiB，是最大占用者；Studio 1.66 GiB、游戏 1.17 GiB。新增 InputFrameGrid 辅助功能可见行边界与主动进度合并，离线 25/25 通过、31 原始 user* 文件不变。工具内部泄漏点及分辨率变化原因尚未确认；未改显示设置、未再启动游戏。D10 实机验收未完成，不继承历史 PASS。详见 artifacts/studio-simplification/REPORT.md 和 mydocs/specs/tasks/D10_Studio操作简化.md。

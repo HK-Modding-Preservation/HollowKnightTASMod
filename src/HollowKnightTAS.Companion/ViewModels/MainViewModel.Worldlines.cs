@@ -252,8 +252,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (gridApplying || selectedTimelineTree == null || selectedTimelineNode == null) return;
             var tree = selectedTimelineTree; var node = selectedTimelineNode;
             var count = tree.Subtree(node.Id).Count - (node.Id == 0 ? 1 : 0);
-            if (MessageBox.Show($"删除 {node.Label} 及其子树？将移除 {count} 个存档节点。此操作不可撤销。\n第 0 帧起点会保留；当前游戏和输入草稿不会改变。",
-                    "删除时间线子树", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show(UiText.T($"删除 {node.Label} 及其子树？将移除 {count} 个存档节点。此操作不可撤销。\n第 0 帧起点会保留；当前游戏和输入草稿不会改变。"),
+                    UiText.T("删除时间线子树"), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             try
             {
                 worldlines!.Update(library =>
