@@ -86,6 +86,43 @@ namespace HollowKnightTAS.Companion.Automation
                         "mode", binding.Mode.ToString(),
                         "debugMutationEnabled", "false"));
 
+            if (command.CommandId == AutomationCommandIds.GetWorldSnapshot
+                || command.CommandId == AutomationCommandIds.GetObjectDetails)
+            {
+                var runtime = GetBoundSession();
+                if (runtime == null || !runtime.IsConnected)
+                    return Result(command, false, "RuntimeNotReady",
+                        "The full-run Runtime has not connected yet.");
+
+                var fields = new System.Collections.Generic.Dictionary<string, string>(
+                    StringComparer.Ordinal)
+                {
+                    ["requestId"] = command.RequestId
+                };
+                if (command.CommandId == AutomationCommandIds.GetWorldSnapshot)
+                {
+                    fields["snapshotId"] = ArgumentOrDefault(command, "snapshotId", string.Empty);
+                    fields["view"] = ArgumentOrDefault(command, "view", "world");
+                    fields["includeInactive"] = ArgumentOrDefault(command, "includeInactive", "false");
+                    fields["offset"] = ArgumentOrDefault(command, "offset", "0");
+                    fields["limit"] = ArgumentOrDefault(command, "limit", "64");
+                    return await ForwardAsync(runtime, command,
+                        IpcMessageTypes.GetWorldSnapshot, fields,
+                        IpcMessageTypes.WorldSnapshot, cancellationToken);
+                }
+
+                fields["objectId"] = command.Arguments["objectId"];
+                if (command.Arguments.TryGetValue("expectedNativeFrame", out var expectedNativeFrame))
+                    fields["expectedNativeFrame"] = expectedNativeFrame;
+                if (command.Arguments.TryGetValue("detailsId", out var detailsId))
+                    fields["detailsId"] = detailsId;
+                fields["cursor"] = ArgumentOrDefault(command, "cursor", "0");
+                fields["maxCharacters"] = ArgumentOrDefault(command, "maxCharacters", "100000");
+                return await ForwardAsync(runtime, command,
+                    IpcMessageTypes.GetObjectDetails, fields,
+                    IpcMessageTypes.ObjectDetails, cancellationToken);
+            }
+
             if (command.CommandId == AutomationCommandIds.FullRunMovie)
             {
                 var runtime = GetBoundSession();
@@ -229,5 +266,15 @@ namespace HollowKnightTAS.Companion.Automation
                 Fields("mode", boundary.Mode,
                     "nativeFrame", boundary.CompletedFrame.ToString(CultureInfo.InvariantCulture),
                     "ackSequence", boundary.AckSequence.ToString(CultureInfo.InvariantCulture)));
+
+        private static string ArgumentOrDefault(
+            AutomationCommandEnvelope command,
+            string name,
+            string fallback)
+        {
+            return command.Arguments.TryGetValue(name, out var value)
+                ? value
+                : fallback;
+        }
     }
 }

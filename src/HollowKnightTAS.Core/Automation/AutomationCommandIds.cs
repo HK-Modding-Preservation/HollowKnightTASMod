@@ -13,6 +13,8 @@ namespace HollowKnightTAS.Core.Automation
         public const string GetCapabilities = "getCapabilities";
         public const string GetState = "getState";
         public const string GetCombatState = "getCombatState";
+        public const string GetWorldSnapshot = "getWorldSnapshot";
+        public const string GetObjectDetails = "getObjectDetails";
         public const string GetTimeline = "getTimeline";
         public const string GetDesync = "getDesync";
         public const string GetReplaySaves = "getReplaySaves";
@@ -85,6 +87,8 @@ namespace HollowKnightTAS.Core.Automation
                     GetCapabilities,
                     GetState,
                     GetCombatState,
+                    GetWorldSnapshot,
+                    GetObjectDetails,
                     GetTimeline,
                     GetDesync,
                     GetReplaySaves,

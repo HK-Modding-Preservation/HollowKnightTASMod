@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using HollowKnightTAS.Core.Automation;
 using HollowKnightTAS.Core.Ipc;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -284,6 +285,23 @@ namespace HollowKnightTAS.Core.Tests.Ipc
                 IpcMessageTypes.IsRuntimeCommand("startProcess"));
             Assert.IsFalse(
                 IpcMessageTypes.IsRuntimeCommand("runShell"));
+        }
+
+        [TestMethod]
+        public void DeepObservationCommandsAndResponsesAreWhitelisted()
+        {
+            Assert.IsTrue(AutomationCommandIds.IsKnown(
+                AutomationCommandIds.GetWorldSnapshot));
+            Assert.IsTrue(AutomationCommandIds.IsKnown(
+                AutomationCommandIds.GetObjectDetails));
+            Assert.IsTrue(IpcMessageTypes.IsRuntimeCommand(
+                IpcMessageTypes.GetWorldSnapshot));
+            Assert.IsTrue(IpcMessageTypes.IsRuntimeCommand(
+                IpcMessageTypes.GetObjectDetails));
+            Assert.IsTrue(IpcMessageTypes.IsRuntimeEvent(
+                IpcMessageTypes.WorldSnapshot));
+            Assert.IsTrue(IpcMessageTypes.IsRuntimeEvent(
+                IpcMessageTypes.ObjectDetails));
         }
 
         [TestMethod]

@@ -277,6 +277,40 @@ namespace HollowKnightTAS.AgentBridge.Tests
         }
 
         [TestMethod]
+        public void DeepObservationToolsPublishClosedBoundedSchemas()
+        {
+            Assert.IsTrue(McpCatalog.TryGetTool(
+                "hktas_get_world_snapshot", out var world));
+            Assert.IsTrue(world.ReadOnly);
+            Assert.IsFalse(world.RequiresApprovedControl);
+            using var validWorld = JsonDocument.Parse(
+                "{\"snapshotId\":\"snap-1\",\"view\":\"colliders\","
+                + "\"includeInactive\":true,\"offset\":0,\"limit\":128}");
+            Assert.IsTrue(McpStdioServer.ValidateArguments(
+                world, validWorld.RootElement, out var worldError), worldError);
+            using var invalidWorld = JsonDocument.Parse("{\"limit\":129}");
+            Assert.IsFalse(McpStdioServer.ValidateArguments(
+                world, invalidWorld.RootElement, out _));
+
+            Assert.IsTrue(McpCatalog.TryGetTool(
+                "hktas_get_object_details", out var details));
+            var required = details.InputSchema["required"]!
+                .AsArray()
+                .Select(value => value!.GetValue<string>())
+                .ToArray();
+            CollectionAssert.AreEqual(new[] { "objectId" }, required);
+            using var validDetails = JsonDocument.Parse(
+                "{\"objectId\":\"enemy-1\",\"expectedNativeFrame\":4,"
+                + "\"cursor\":0,\"maxCharacters\":200000}");
+            Assert.IsTrue(McpStdioServer.ValidateArguments(
+                details, validDetails.RootElement, out var detailsError), detailsError);
+            using var invalidDetails = JsonDocument.Parse(
+                "{\"objectId\":\"enemy-1\",\"maxCharacters\":1023}");
+            Assert.IsFalse(McpStdioServer.ValidateArguments(
+                details, invalidDetails.RootElement, out _));
+        }
+
+        [TestMethod]
         public async Task BoundedLineReaderDrainsOversizedInputAndRecovers()
         {
             var input = new string('x', 33)

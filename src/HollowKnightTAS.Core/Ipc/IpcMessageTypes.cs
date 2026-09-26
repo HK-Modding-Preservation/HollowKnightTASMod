@@ -39,10 +39,14 @@ namespace HollowKnightTAS.Core.Ipc
         public const string FullRunSeek = "fullRunSeek";
         public const string FullRunSnapshot = "fullRunSnapshot";
         public const string FullRunStatus = "fullRunStatus";
+        public const string GetWorldSnapshot = "getWorldSnapshot";
+        public const string GetObjectDetails = "getObjectDetails";
         public const string FullRunStop = "fullRunStop";
         public const string FullRunMovie = "fullRunMovie";
         public const string FullRunState = "fullRunState";
         public const string FullRunMovieDocument = "fullRunMovieDocument";
+        public const string WorldSnapshot = "worldSnapshot";
+        public const string ObjectDetails = "objectDetails";
         public const string SetHeroPose = "setHeroPose";
         public const string SetPlayerResources =
             "setPlayerResources";
@@ -138,6 +142,8 @@ namespace HollowKnightTAS.Core.Ipc
                     FullRunSeek,
                     FullRunSnapshot,
                     FullRunStatus,
+                    GetWorldSnapshot,
+                    GetObjectDetails,
                     FullRunStop,
                     FullRunMovie,
                     SetHeroPose,
@@ -190,6 +196,8 @@ namespace HollowKnightTAS.Core.Ipc
                     MovieDocument,
                     FullRunState,
                     FullRunMovieDocument,
+                    WorldSnapshot,
+                    ObjectDetails,
                     StateMutationResult,
                     ColdRestoreIntentPrepared,
                     ColdRestoreSourceQuiesced,

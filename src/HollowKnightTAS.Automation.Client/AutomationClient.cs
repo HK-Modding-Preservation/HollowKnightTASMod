@@ -5,9 +5,12 @@ using System.IO;
 using System.IO.Pipes;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using HollowKnightTAS.Core.Automation;
+using HollowKnightTAS.Core.Cryptography;
 using HollowKnightTAS.Core.Ipc;
 
 namespace HollowKnightTAS.Automation.Client
@@ -264,6 +267,179 @@ namespace HollowKnightTAS.Automation.Client
                     AutomationCommandIds.GetCombatState,
                     AutomationScope.ObserveStateDeep),
                 cancellationToken);
+        }
+
+        public Task<AutomationResultEnvelope> GetWorldSnapshotAsync(
+            string? snapshotId = null,
+            string view = "world",
+            bool includeInactive = false,
+            int offset = 0,
+            int limit = 64,
+            CancellationToken cancellationToken = default)
+        {
+            if (!string.IsNullOrEmpty(snapshotId)
+                && !IpcIdentifier.IsValid(snapshotId, 96))
+                throw new ArgumentException("Snapshot ID is invalid.", nameof(snapshotId));
+            if (view != "world" && view != "all" && view != "colliders")
+                throw new ArgumentOutOfRangeException(nameof(view));
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            if (limit < 1 || limit > 128)
+                throw new ArgumentOutOfRangeException(nameof(limit));
+
+            return ExecuteAsync(
+                CreateCommand(
+                    AutomationCommandIds.GetWorldSnapshot,
+                    AutomationScope.ObserveStateDeep,
+                    new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["snapshotId"] = snapshotId ?? string.Empty,
+                        ["view"] = view,
+                        ["includeInactive"] = includeInactive ? "true" : "false",
+                        ["offset"] = offset.ToString(CultureInfo.InvariantCulture),
+                        ["limit"] = limit.ToString(CultureInfo.InvariantCulture)
+                    }),
+                cancellationToken);
+        }
+
+        public async Task<string> GetWorldSnapshotJsonAsync(
+            string? snapshotId = null,
+            string view = "world",
+            bool includeInactive = false,
+            int limit = 64,
+            CancellationToken cancellationToken = default)
+        {
+            if (limit < 1 || limit > 128)
+                throw new ArgumentOutOfRangeException(nameof(limit));
+
+            var offset = 0;
+            string? activeSnapshotId = snapshotId;
+            JsonObject? merged = null;
+            var mergedObjects = new JsonArray();
+            long expectedTotal = -1;
+            while (true)
+            {
+                var result = await GetWorldSnapshotAsync(
+                    activeSnapshotId,
+                    view,
+                    includeInactive,
+                    offset,
+                    limit,
+                    cancellationToken);
+                EnsureSuccessful(result);
+                var page = ParseObject(result, "snapshotJson");
+                if (merged == null)
+                {
+                    merged = (JsonObject)page.DeepClone();
+                    merged.Remove("objects");
+                }
+                if (page["objects"] is JsonArray objects)
+                {
+                    foreach (var item in objects)
+                        mergedObjects.Add(item?.DeepClone());
+                }
+                expectedTotal = ReadInt64(page, "total", expectedTotal);
+                activeSnapshotId = ReadField(result, "snapshotId");
+                var nextOffset = ReadInt64(page, "nextOffset", -1);
+                if (nextOffset < 0)
+                    break;
+                if (activeSnapshotId.Length == 0 || nextOffset <= offset)
+                    throw new InvalidDataException("World snapshot pagination is invalid.");
+                offset = checked((int)nextOffset);
+            }
+
+            if (merged == null)
+                throw new InvalidDataException("World snapshot response was empty.");
+            merged["objects"] = mergedObjects;
+            if (expectedTotal >= 0)
+                merged["total"] = expectedTotal;
+            merged["nextOffset"] = -1;
+            return merged.ToJsonString(new JsonSerializerOptions { WriteIndented = false });
+        }
+
+        public Task<AutomationResultEnvelope> GetObjectDetailsAsync(
+            string objectId,
+            long? expectedNativeFrame = null,
+            string? detailsId = null,
+            int cursor = 0,
+            int maxCharacters = 100000,
+            CancellationToken cancellationToken = default)
+        {
+            if (!IpcIdentifier.IsValid(objectId, 128))
+                throw new ArgumentException("Object ID is invalid.", nameof(objectId));
+            if (!string.IsNullOrEmpty(detailsId)
+                && !IpcIdentifier.IsValid(detailsId, 96))
+                throw new ArgumentException("Details ID is invalid.", nameof(detailsId));
+            if (expectedNativeFrame.HasValue && expectedNativeFrame.Value < 0)
+                throw new ArgumentOutOfRangeException(nameof(expectedNativeFrame));
+            if (cursor < 0)
+                throw new ArgumentOutOfRangeException(nameof(cursor));
+            if (maxCharacters < 1024 || maxCharacters > 200000)
+                throw new ArgumentOutOfRangeException(nameof(maxCharacters));
+
+            var arguments = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["objectId"] = objectId,
+                ["cursor"] = cursor.ToString(CultureInfo.InvariantCulture),
+                ["maxCharacters"] = maxCharacters.ToString(CultureInfo.InvariantCulture)
+            };
+            if (expectedNativeFrame.HasValue)
+                arguments["expectedNativeFrame"] = expectedNativeFrame.Value.ToString(CultureInfo.InvariantCulture);
+            if (!string.IsNullOrEmpty(detailsId))
+                arguments["detailsId"] = detailsId;
+            return ExecuteAsync(
+                CreateCommand(
+                    AutomationCommandIds.GetObjectDetails,
+                    AutomationScope.ObserveStateDeep,
+                    arguments),
+                cancellationToken);
+        }
+
+        public async Task<string> GetObjectDetailsJsonAsync(
+            string objectId,
+            long? expectedNativeFrame = null,
+            int maxCharacters = 100000,
+            CancellationToken cancellationToken = default)
+        {
+            var builder = new System.Text.StringBuilder();
+            string? detailsId = null;
+            var cursor = 0;
+            string? expectedSha256 = null;
+            var totalCharacters = -1L;
+            while (true)
+            {
+                var result = await GetObjectDetailsAsync(
+                    objectId,
+                    expectedNativeFrame,
+                    detailsId,
+                    cursor,
+                    maxCharacters,
+                    cancellationToken);
+                EnsureSuccessful(result);
+                if (ReadField(result, "objectId") != objectId)
+                    throw new InvalidDataException("Object details response changed objectId.");
+                var fragment = ReadField(result, "detailsJson");
+                builder.Append(fragment);
+                detailsId = ReadField(result, "detailsId");
+                expectedSha256 = ReadField(result, "sha256");
+                totalCharacters = ReadInt64(result, "totalCharacters", totalCharacters);
+                var complete = ReadField(result, "complete") == "true";
+                var nextCursor = ReadInt64(result, "nextCursor", -1);
+                if (complete || nextCursor < 0)
+                    break;
+                if (detailsId.Length == 0 || nextCursor <= cursor)
+                    throw new InvalidDataException("Object details pagination is invalid.");
+                cursor = checked((int)nextCursor);
+                expectedNativeFrame = null;
+            }
+
+            var json = builder.ToString();
+            if (totalCharacters >= 0 && json.Length != totalCharacters)
+                throw new InvalidDataException("Object details character count does not match.");
+            if (string.IsNullOrEmpty(expectedSha256)
+                || Sha256Utility.ComputeUtf8Hex(json) != expectedSha256)
+                throw new InvalidDataException("Object details SHA-256 does not match.");
+            return json;
         }
 
         public Task<AutomationResultEnvelope> GetReplaySavesAsync(
@@ -954,6 +1130,78 @@ namespace HollowKnightTAS.Automation.Client
 
                 await Task.Delay(interval, cancellationToken);
             }
+        }
+
+        private static void EnsureSuccessful(AutomationResultEnvelope result)
+        {
+            if (!result.Success)
+                throw new InvalidOperationException(
+                    result.ResultCode + ": " + result.Detail);
+        }
+
+        private static string ReadField(
+            AutomationResultEnvelope result,
+            string name)
+        {
+            if (!result.Data.TryGetValue(name, out var value))
+                throw new InvalidDataException(
+                    "Automation response omitted " + name + ".");
+            return value;
+        }
+
+        private static JsonObject ParseObject(
+            AutomationResultEnvelope result,
+            string name)
+        {
+            var json = ReadField(result, name);
+            try
+            {
+                return JsonNode.Parse(json) as JsonObject
+                    ?? throw new InvalidDataException(
+                        name + " is not a JSON object.");
+            }
+            catch (JsonException exception)
+            {
+                throw new InvalidDataException(
+                    name + " is invalid JSON.", exception);
+            }
+        }
+
+        private static long ReadInt64(
+            JsonObject value,
+            string name,
+            long fallback)
+        {
+            if (!value.TryGetPropertyValue(name, out var node)
+                || node == null)
+                return fallback;
+            try
+            {
+                return node.GetValue<long>();
+            }
+            catch (Exception exception)
+                when (exception is FormatException
+                      || exception is InvalidOperationException
+                      || exception is OverflowException)
+            {
+                throw new InvalidDataException(
+                    name + " is not an Int64.", exception);
+            }
+        }
+
+        private static long ReadInt64(
+            AutomationResultEnvelope result,
+            string name,
+            long fallback)
+        {
+            return result.Data.TryGetValue(name, out var text)
+                   && long.TryParse(
+                       text,
+                       NumberStyles.None,
+                       CultureInfo.InvariantCulture,
+                       out var value)
+                ? value
+                : fallback;
         }
 
         public ValueTask DisposeAsync()

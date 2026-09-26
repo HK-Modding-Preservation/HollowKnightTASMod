@@ -33,6 +33,14 @@ namespace HollowKnightTAS.Companion.Automation
                 Read(
                     AutomationCommandIds.GetCombatState,
                     AutomationScope.ObserveStateDeep),
+                FullRunObservation(
+                    AutomationCommandIds.GetWorldSnapshot,
+                    AutomationScope.ObserveStateDeep,
+                    fullRunOnly),
+                FullRunObservation(
+                    AutomationCommandIds.GetObjectDetails,
+                    AutomationScope.ObserveStateDeep,
+                    fullRunOnly),
                 Read(
                     AutomationCommandIds.GetTimeline,
                     AutomationScope.ObserveTimeline),
@@ -197,6 +205,8 @@ namespace HollowKnightTAS.Companion.Automation
                 || item.CommandId == AutomationCommandIds.FullRunSeek
                 || item.CommandId == AutomationCommandIds.FullRunSnapshot
                 || item.CommandId == AutomationCommandIds.FullRunStatus
+                || item.CommandId == AutomationCommandIds.GetWorldSnapshot
+                || item.CommandId == AutomationCommandIds.GetObjectDetails
                 || item.CommandId == AutomationCommandIds.FullRunMovie
                 || item.CommandId == AutomationCommandIds.BeginFullRunRecording
                 || item.CommandId == AutomationCommandIds.BeginFullRunReplay
@@ -281,6 +291,23 @@ namespace HollowKnightTAS.Companion.Automation
                     : "disabled",
                 "ApprovedControl; exclusive lease; expected mode/tick",
                 "typed deterministic Runtime control");
+        }
+
+        private static AutomationCapability FullRunObservation(
+            string command,
+            string scope,
+            bool fullRunOnly)
+        {
+            return new AutomationCapability(
+                command,
+                scope,
+                true,
+                false,
+                fullRunOnly ? "available" : "unsupported",
+                fullRunOnly
+                    ? "authenticated current-user session; immutable full-run snapshot"
+                    : "full-run v2 session only",
+                "none");
         }
 
         private static AutomationCapability LocalSideEffect(

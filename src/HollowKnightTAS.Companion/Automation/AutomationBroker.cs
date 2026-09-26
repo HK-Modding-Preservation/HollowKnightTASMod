@@ -654,6 +654,13 @@ namespace HollowKnightTAS.Companion.Automation
                     argumentValueError);
             }
 
+            if (command.CommandId == AutomationCommandIds.GetWorldSnapshot
+                || command.CommandId == AutomationCommandIds.GetObjectDetails)
+            {
+                return Result(command, false, "Unsupported",
+                    "This observation is available only in a full-run v2 session.");
+            }
+
             if (!session.IsConnected && coldRestoreSupervisor?.IsActive != true
                 && command.CommandId != AutomationCommandIds.GetStatus
                 && command.CommandId != AutomationCommandIds.GetCapabilities
@@ -713,6 +720,15 @@ namespace HollowKnightTAS.Companion.Automation
                     false,
                     "CapabilityDisabled",
                     "Capability is disabled by the user policy.");
+            }
+
+            if (capability.Availability == "unsupported")
+            {
+                return Result(
+                    command,
+                    false,
+                    "Unsupported",
+                    "This observation is available only in a full-run v2 session.");
             }
 
             if (capability.RequiresLease
@@ -863,6 +879,10 @@ namespace HollowKnightTAS.Companion.Automation
                         cancellationToken);
                 case AutomationCommandIds.GetCombatState:
                     return await GetCombatStateAsync(session, command, cancellationToken);
+                case AutomationCommandIds.GetWorldSnapshot:
+                case AutomationCommandIds.GetObjectDetails:
+                    return Result(command, false, "Unsupported",
+                        "This observation is available only in a full-run v2 session.");
                 case AutomationCommandIds.GetTimeline:
                     return GetTimeline(command);
                 case AutomationCommandIds.GetDesync:
@@ -3222,6 +3242,16 @@ namespace HollowKnightTAS.Companion.Automation
                 case AutomationCommandIds.GetCapabilities:
                 case AutomationCommandIds.GetStartupProfile:
                 case AutomationCommandIds.GetCombatState:
+                    required = Array.Empty<string>();
+                    break;
+                case AutomationCommandIds.GetWorldSnapshot:
+                    required = Array.Empty<string>();
+                    optional = new[] { "snapshotId", "view", "includeInactive", "offset", "limit" };
+                    break;
+                case AutomationCommandIds.GetObjectDetails:
+                    required = new[] { "objectId" };
+                    optional = new[] { "expectedNativeFrame", "detailsId", "cursor", "maxCharacters" };
+                    break;
                 case AutomationCommandIds.GetDesync:
                 case AutomationCommandIds.GetReplaySaves:
                 case AutomationCommandIds.GetRestoreStrategy:
@@ -3470,6 +3500,44 @@ namespace HollowKnightTAS.Companion.Automation
                 case AutomationCommandIds.GetState:
                     if (arguments.TryGetValue("statusOnly", out var statusOnly) && statusOnly != "true")
                         return "statusOnly must be true when supplied.";
+                    break;
+                case AutomationCommandIds.GetWorldSnapshot:
+                    if (arguments.TryGetValue("snapshotId", out var snapshotId)
+                        && snapshotId.Length != 0
+                        && !IpcIdentifier.IsValid(snapshotId, 96))
+                        return "snapshotId is invalid.";
+                    if (arguments.TryGetValue("view", out var view)
+                        && view != "world"
+                        && view != "all"
+                        && view != "colliders")
+                        return "view must be world, all, or colliders.";
+                    if (arguments.TryGetValue("includeInactive", out var includeInactive)
+                        && includeInactive != "true"
+                        && includeInactive != "false")
+                        return "includeInactive must be true or false.";
+                    if (arguments.TryGetValue("offset", out var offset)
+                        && !TryInt64(offset, 0, int.MaxValue, out _))
+                        return "offset must be a non-negative Int32.";
+                    if (arguments.TryGetValue("limit", out var limit)
+                        && !TryInt64(limit, 1, 128, out _))
+                        return "limit must be in [1,128].";
+                    break;
+                case AutomationCommandIds.GetObjectDetails:
+                    if (!IpcIdentifier.IsValid(arguments["objectId"], 128))
+                        return "objectId is invalid.";
+                    if (arguments.TryGetValue("expectedNativeFrame", out var expectedNativeFrame)
+                        && !TryInt64(expectedNativeFrame, 0, long.MaxValue, out _))
+                        return "expectedNativeFrame must be a non-negative Int64.";
+                    if (arguments.TryGetValue("detailsId", out var detailsId)
+                        && detailsId.Length != 0
+                        && !IpcIdentifier.IsValid(detailsId, 96))
+                        return "detailsId is invalid.";
+                    if (arguments.TryGetValue("cursor", out var cursor)
+                        && !TryInt64(cursor, 0, int.MaxValue, out _))
+                        return "cursor must be a non-negative Int32.";
+                    if (arguments.TryGetValue("maxCharacters", out var maxCharacters)
+                        && !TryInt64(maxCharacters, 1024, 200000, out _))
+                        return "maxCharacters must be in [1024,200000].";
                     break;
                 case AutomationCommandIds.Step:
                     if (!TryInt64(
@@ -4408,6 +4476,8 @@ namespace HollowKnightTAS.Companion.Automation
                 case AutomationCommandIds.GetStartupProfile:
                 case AutomationCommandIds.GetState:
                 case AutomationCommandIds.GetCombatState:
+                case AutomationCommandIds.GetWorldSnapshot:
+                case AutomationCommandIds.GetObjectDetails:
                 case AutomationCommandIds.GetTimeline:
                 case AutomationCommandIds.GetDesync:
                 case AutomationCommandIds.GetReplaySaves:

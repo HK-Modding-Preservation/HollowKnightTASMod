@@ -24,6 +24,35 @@ namespace HollowKnightTAS.Automation.Client
         Task<AutomationResultEnvelope> GetCombatStateAsync(
             CancellationToken cancellationToken = default);
 
+        Task<AutomationResultEnvelope> GetWorldSnapshotAsync(
+            string? snapshotId = null,
+            string view = "world",
+            bool includeInactive = false,
+            int offset = 0,
+            int limit = 64,
+            CancellationToken cancellationToken = default);
+
+        Task<string> GetWorldSnapshotJsonAsync(
+            string? snapshotId = null,
+            string view = "world",
+            bool includeInactive = false,
+            int limit = 64,
+            CancellationToken cancellationToken = default);
+
+        Task<AutomationResultEnvelope> GetObjectDetailsAsync(
+            string objectId,
+            long? expectedNativeFrame = null,
+            string? detailsId = null,
+            int cursor = 0,
+            int maxCharacters = 100000,
+            CancellationToken cancellationToken = default);
+
+        Task<string> GetObjectDetailsJsonAsync(
+            string objectId,
+            long? expectedNativeFrame = null,
+            int maxCharacters = 100000,
+            CancellationToken cancellationToken = default);
+
         Task<AutomationResultEnvelope> GetReplaySavesAsync(
             CancellationToken cancellationToken = default);
 

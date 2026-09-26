@@ -219,6 +219,33 @@ namespace HollowKnightTAS.Companion.Tests
             }
         }
 
+        [TestMethod]
+        public void DeepObservationIsFullRunV2Only()
+        {
+            foreach (var fullRunOnly in new[] { false, true })
+            {
+                var catalog = new AutomationCapabilityCatalog(
+                    AutomationMode.ReadOnly,
+                    false,
+                    fullRunOnly);
+                foreach (var command in new[]
+                         {
+                             AutomationCommandIds.GetWorldSnapshot,
+                             AutomationCommandIds.GetObjectDetails
+                         })
+                {
+                    Assert.IsTrue(catalog.TryGet(command, out var capability));
+                    Assert.IsTrue(capability.ReadOnly);
+                    Assert.IsFalse(capability.RequiresLease);
+                    Assert.AreEqual(AutomationScope.ObserveStateDeep, capability.Scope);
+                    Assert.AreEqual(
+                        fullRunOnly ? "available" : "unsupported",
+                        capability.Availability);
+                    Assert.IsTrue(IpcMessageTypes.IsRuntimeCommand(command));
+                }
+            }
+        }
+
         private static IpcEnvelope Hello(
             byte[] token,
             byte[] nonce)

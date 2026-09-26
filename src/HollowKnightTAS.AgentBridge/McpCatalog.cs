@@ -61,6 +61,29 @@ namespace HollowKnightTAS.AgentBridge
                     Schema(),
                     true),
                 Tool(
+                    "hktas_get_world_snapshot",
+                    "Read a bounded immutable full-run v2 world snapshot page; large objects are represented by detail stubs.",
+                    Schema(
+                        Props(
+                            ("snapshotId", String(96)),
+                            ("view", String(16)),
+                            ("includeInactive", Boolean()),
+                            ("offset", Integer(0)),
+                            ("limit", Integer(1, 128)))),
+                    true),
+                Tool(
+                    "hktas_get_object_details",
+                    "Read immutable full-run v2 details for one object, with bounded text pagination.",
+                    Schema(
+                        Props(
+                            ("objectId", String(128)),
+                            ("expectedNativeFrame", Integer(0)),
+                            ("detailsId", String(96)),
+                            ("cursor", Integer(0)),
+                            ("maxCharacters", Integer(1024, 200000))),
+                        new[] { "objectId" }),
+                    true),
+                Tool(
                     "hktas_get_timeline",
                     "Read a bounded non-visual Runtime event timeline.",
                     Schema(

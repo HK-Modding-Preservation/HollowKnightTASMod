@@ -501,6 +501,18 @@ namespace HollowKnightTAS.AgentBridge
                         AutomationScope.ObserveStateDeep,
                         Empty(),
                         cancellationToken);
+                case "hktas_get_world_snapshot":
+                    return await ReadCommandAsync(
+                        AutomationCommandIds.GetWorldSnapshot,
+                        AutomationScope.ObserveStateDeep,
+                        FlatArguments(arguments),
+                        cancellationToken);
+                case "hktas_get_object_details":
+                    return await ReadCommandAsync(
+                        AutomationCommandIds.GetObjectDetails,
+                        AutomationScope.ObserveStateDeep,
+                        FlatArguments(arguments),
+                        cancellationToken);
                 case "hktas_get_timeline":
                     return await ReadCommandAsync(
                         AutomationCommandIds.GetTimeline,
