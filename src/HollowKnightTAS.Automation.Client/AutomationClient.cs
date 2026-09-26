@@ -802,7 +802,8 @@ namespace HollowKnightTAS.Automation.Client
             string expectedRuntimeMode,
             long expectedMovieTick,
             bool replayLoadedMovie = false,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            long? endMovieFrame = null)
         {
             if (maximumFrames <= 0)
             {
@@ -811,20 +812,20 @@ namespace HollowKnightTAS.Automation.Client
                     "Maximum frames must be positive.");
             }
 
+            if (endMovieFrame.HasValue && endMovieFrame.Value <= 0)
+                throw new ArgumentOutOfRangeException(nameof(endMovieFrame));
+            var fields = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["ffmpegPath"] = ffmpegPath, ["outputPath"] = outputPath,
+                ["maximumFrames"] = maximumFrames.ToString(CultureInfo.InvariantCulture),
+                ["replayLoadedMovie"] = replayLoadedMovie ? "true" : "false"
+            };
+            if (endMovieFrame.HasValue) fields["endMovieFrame"] = endMovieFrame.Value.ToString(CultureInfo.InvariantCulture);
             return ExecuteAsync(
                 CreateCommand(
                     AutomationCommandIds.StartVideoExport,
                     AutomationScope.ControlPlayback,
-                    new Dictionary<string, string>(StringComparer.Ordinal)
-                    {
-                        ["ffmpegPath"] = ffmpegPath,
-                        ["outputPath"] = outputPath,
-                        ["maximumFrames"] = maximumFrames.ToString(
-                            CultureInfo.InvariantCulture),
-                        ["replayLoadedMovie"] = replayLoadedMovie
-                            ? "true"
-                            : "false"
-                    },
+                    fields,
                     leaseId,
                     expectedRuntimeMode,
                     expectedMovieTick),

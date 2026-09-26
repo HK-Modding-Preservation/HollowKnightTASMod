@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using HollowKnightTAS.Core.Movie;
 
 namespace HollowKnightTAS.AgentBridge
 {
@@ -313,13 +314,14 @@ namespace HollowKnightTAS.AgentBridge
                     false),
                 Tool(
                     "hktas_start_video_export",
-                    "Start exporting gameplay frames and audio to a video file.",
+                    "Start exporting gameplay frames and audio to a video file. Full-run v2 can stop capture at the optional inclusive endMovieFrame boundary.",
                     Schema(
                         Props(
                             ("ffmpegPath", String(1024)),
                             ("outputPath", String(1024)),
                             ("maximumFrames", Integer(1)),
                             ("replayLoadedMovie", Boolean()),
+                            ("endMovieFrame", Integer(1, MovieProtocolV2.MaximumExpandedFrames)),
                             ("expectedRuntimeMode", String(32)),
                             ("expectedMovieTick", Integer(0))),
                         new[]

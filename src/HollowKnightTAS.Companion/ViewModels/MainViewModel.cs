@@ -236,10 +236,19 @@ namespace HollowKnightTAS.Companion.ViewModels
                     await ExecuteHumanAsync(AutomationCommandIds.StopReplay,
                         AutomationScope.ControlPlayback);
                 }, allowStartupContinue: true);
-            StartVideoExportCommand = Command(StartVideoExportAsync);
-            CancelVideoExportCommand = Command(
-                CancelVideoExportAsync,
-                requireConnected: false);
+            StartVideoExportCommand = new AsyncRelayCommand(async () =>
+            {
+                try { await StartVideoExportAsync(); }
+                catch (Exception exception) { VideoExportStatus = Status = "MP4 导出失败：" + exception.Message; }
+            }, () => CanStartStudioVideo() || (!gridApplying && !videoExportBusy
+                && startupBoot?.IsPending != true && SelectedSession?.Client.IsConnected == true));
+            CancelVideoExportCommand = new AsyncRelayCommand(async () =>
+            {
+                try { await CancelVideoExportAsync(); }
+                catch (Exception exception) { VideoExportStatus = Status = exception.Message; }
+            }, () => videoExportBusy || !string.IsNullOrEmpty(videoExportOperationId));
+            runtimeCommands.Add((AsyncRelayCommand)StartVideoExportCommand);
+            runtimeCommands.Add((AsyncRelayCommand)CancelVideoExportCommand);
             PauseCommand =
                 Command(
                     () => ExecuteHumanAsync(
@@ -247,6 +256,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                         AutomationScope.ControlPlayback));
             TogglePauseCommand = Command(async () =>
             {
+                if (videoExportBusy) { await ToggleVideoPauseAsync(); return; }
                 if (this.startupBoot?.IsWaiting == true)
                 {
                     if (fullRunMovies?.IsPending == true)
@@ -271,7 +281,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     throw new InvalidOperationException("等待最新运行状态后再切换播放/暂停。");
                 await ExecuteHumanAsync(currentControlMode == "Paused"
                     ? AutomationCommandIds.Resume : AutomationCommandIds.Pause, AutomationScope.ControlPlayback);
-            }, allowStartupContinue: true, allowCompletedReplay: true);
+            }, allowStartupContinue: true, allowCompletedReplay: true, allowDuringVideoExport: true);
             StepCommand =
                 Command(
                     async () =>
@@ -783,7 +793,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         public ICommand StopRecordingCommand { get; }
         public ICommand RunUntilCommand { get; }
 
-        private async Task StartVideoExportAsync()
+        private async Task StartLegacyVideoExportAsync()
         {
             if (!string.Equals(currentControlMode, "Paused", StringComparison.Ordinal))
             {
@@ -857,7 +867,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             Status = "视频导出已开始。";
         }
 
-        private async Task CancelVideoExportAsync()
+        private async Task CancelLegacyVideoExportAsync()
         {
             if (string.IsNullOrEmpty(videoExportOperationId))
             {
@@ -890,7 +900,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             return null;
         }
 
-        private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true, bool allowStartupContinue = false, bool allowStartupStep = false, bool allowCompletedReplay = false)
+        private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true, bool allowStartupContinue = false, bool allowStartupStep = false, bool allowCompletedReplay = false, bool allowDuringVideoExport = false)
         {
             var command = new AsyncRelayCommand(
                 async () =>
@@ -904,7 +914,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                         Status = exception.Message;
                     }
                 },
-                () => !gridApplying && (startupBoot?.FullRunFaultCode ?? 0) == 0 && (startupBoot?.IsPending == true
+                () => (!gridApplying || (allowDuringVideoExport && videoCaptureStarted)) && (startupBoot?.FullRunFaultCode ?? 0) == 0 && (startupBoot?.IsPending == true
                     ? fullRunMovies?.IsPending == true
                         ? (fullRunMovies.IsArmed || fullRunMovies.Mode == "Unarmed"
                             || (allowCompletedReplay && fullRunMovies.Mode == "Completed" && restartProtectedGame != null)) && !startupBoot.IsCommandPending && (allowStartupContinue
@@ -918,6 +928,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private async Task QuitGameAsync()
         {
+            await CancelVideoExportAndWaitAsync();
             if (fullRunMovies?.IsPending != true)
             {
                 await ExecuteHumanAsync(AutomationCommandIds.QuitGame,

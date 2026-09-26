@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using HollowKnightTAS.Core.Movie;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace HollowKnightTAS.AgentBridge.Tests
@@ -28,6 +29,39 @@ namespace HollowKnightTAS.AgentBridge.Tests
             Assert.IsTrue(McpStdioServer.ValidateArguments(start, valid.RootElement, out var validation), validation);
             using var invalid = JsonDocument.Parse(valid.RootElement.GetRawText().Replace("true", "\"true\""));
             Assert.IsFalse(McpStdioServer.ValidateArguments(start, invalid.RootElement, out _));
+        }
+
+        [TestMethod]
+        public void VideoExportEndFrameIsOptionalBoundedAndForwardedWithoutChangingOldRequests()
+        {
+            Assert.IsTrue(McpCatalog.TryGetTool("hktas_start_video_export", out var tool));
+            var property = tool.InputSchema["properties"]!["endMovieFrame"]!;
+            Assert.AreEqual("integer", property["type"]!.GetValue<string>());
+            Assert.AreEqual(1L, property["minimum"]!.GetValue<long>());
+            Assert.AreEqual(MovieProtocolV2.MaximumExpandedFrames, property["maximum"]!.GetValue<long>());
+            Assert.IsFalse(tool.InputSchema["required"]!.AsArray().Any(value => value!.GetValue<string>() == "endMovieFrame"));
+            const string required = "\"ffmpegPath\":\"ffmpeg.exe\",\"outputPath\":\"movie.mp4\",\"maximumFrames\":1000,\"expectedRuntimeMode\":\"Paused\"";
+            using var oldRequest = JsonDocument.Parse("{" + required + "}");
+            using var newRequest = JsonDocument.Parse("{" + required + ",\"endMovieFrame\":3700}");
+            using var upperBound = JsonDocument.Parse("{" + required + ",\"endMovieFrame\":" + MovieProtocolV2.MaximumExpandedFrames + "}");
+            foreach (var request in new[] { oldRequest, newRequest, upperBound })
+                Assert.IsTrue(McpStdioServer.ValidateArguments(tool, request.RootElement, out var error), error);
+            foreach (var value in new[] { "0", "-1", "10000001", "1.5", "\"3700\"", "\"invalid\"", "null" })
+                AssertRejects(tool, "{" + required + ",\"endMovieFrame\":" + value + "}");
+
+            var select = typeof(McpStdioServer).GetMethod("SelectOptional",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+            var names = new[] { "ffmpegPath", "outputPath", "maximumFrames", "replayLoadedMovie", "endMovieFrame" };
+            var oldFields = (System.Collections.Generic.IReadOnlyDictionary<string, string>)select.Invoke(null,
+                new object[] { oldRequest.RootElement, names })!;
+            var newFields = (System.Collections.Generic.IReadOnlyDictionary<string, string>)select.Invoke(null,
+                new object[] { newRequest.RootElement, names })!;
+            Assert.IsFalse(oldFields.ContainsKey("endMovieFrame"));
+            Assert.IsFalse(oldFields.ContainsKey("replayLoadedMovie"));
+            Assert.AreEqual("3700", newFields["endMovieFrame"]);
+            Assert.AreEqual(oldFields["ffmpegPath"], newFields["ffmpegPath"]);
+            Assert.AreEqual(oldFields["outputPath"], newFields["outputPath"]);
+            Assert.AreEqual(oldFields["maximumFrames"], newFields["maximumFrames"]);
         }
 
         [TestMethod]

@@ -81,12 +81,12 @@
     <TabControl x:Name="MainTabs" AutomationProperties.AutomationId="HktasStudio.MainTabs"
                 SelectionChanged="OnMainTabsSelectionChanged">
       <TabItem x:Name="InputGridTab" Header="{ui:Text t8}" AutomationProperties.AutomationId="HktasStudio.InputGridTab">
-        <Grid Margin="6" IsEnabled="{Binding IsInputGridInteractive}">
+        <Grid Margin="6">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
             <RowDefinition Height="*" /><RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
-          <WrapPanel Margin="0,0,0,4">
+          <WrapPanel Margin="0,0,0,4" IsEnabled="{Binding IsInputGridInteractive}">
             <Button Content="{ui:Text t9}" Command="{Binding UndoGridCommand}" />
             <Button Content="{ui:Text t10}" Command="{Binding RedoGridCommand}" />
             <Button Content="{ui:Text t11}" Command="{Binding CopyGridCommand}" />
@@ -95,16 +95,20 @@
             <Button Content="{ui:Text t14}" Command="{Binding DeleteGridCommand}" />
           </WrapPanel>
           <WrapPanel Grid.Row="1" Margin="0,0,0,6">
-            <Button Content="{ui:Text t15}" Command="{Binding OpenMovieCommand}" />
-            <Button Content="{ui:Text t16}" Command="{Binding SaveMovieCommand}" />
-            <Button Content="{ui:Text t17}" Command="{Binding ApplyGridAndSeekCommand}" ToolTip="{ui:Text t18}" />
+            <Button Content="{ui:Text t15}" Command="{Binding OpenMovieCommand}" IsEnabled="{Binding IsInputGridInteractive}" />
+            <Button Content="{ui:Text t16}" Command="{Binding SaveMovieCommand}" IsEnabled="{Binding IsInputGridInteractive}" />
+            <Button Content="{ui:Text t17}" Command="{Binding ApplyGridAndSeekCommand}" ToolTip="{ui:Text t18}" IsEnabled="{Binding IsInputGridInteractive}" />
             <CheckBox Content="{ui:Text t19}" IsChecked="{Binding AutoFollowGrid, Mode=TwoWay}"
+                      IsEnabled="{Binding IsInputGridInteractive}"
                       AutomationProperties.AutomationId="HktasStudio.AutoFollowGrid"
                       ToolTip="{ui:Text t20}" VerticalAlignment="Center" Margin="8,0" />
-            <Button Content="{ui:Text t21}" Command="{Binding StartVideoExportCommand}" />
-            <Button Content="{ui:Text t22}" Command="{Binding CancelVideoExportCommand}" />
+            <Button Content="{ui:Text t21}" Command="{Binding StartVideoExportCommand}"
+                    AutomationProperties.AutomationId="HktasStudio.ExportFullVideo" />
+            <Button Content="{ui:Text t22}" Command="{Binding CancelVideoExportCommand}"
+                    AutomationProperties.AutomationId="HktasStudio.CancelVideoExport" />
           </WrapPanel>
           <controls:InputFrameGrid x:Name="InputGrid" Grid.Row="2" ItemsSource="{Binding InputRows}"
+                    IsEnabled="{Binding IsInputGridInteractive}"
                     InputMethod.IsInputMethodEnabled="False"
                     AutomationProperties.AutomationId="HktasStudio.InputGrid" AutoGenerateColumns="False"
                     IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
@@ -138,7 +142,8 @@
           </controls:InputFrameGrid>
           <StackPanel Grid.Row="3" Margin="4,6">
             <TextBlock Text="{ui:TextBinding GridStatus}" TextWrapping="Wrap" />
-            <TextBlock Text="{ui:TextBinding VideoExportStatus}" TextTrimming="CharacterEllipsis" ToolTip="{ui:TextBinding VideoExportStatus}" />
+            <TextBlock Text="{ui:TextBinding VideoExportStatus}" TextTrimming="CharacterEllipsis" ToolTip="{ui:TextBinding VideoExportStatus}"
+                       AutomationProperties.AutomationId="HktasStudio.VideoExportStatus" />
           </StackPanel>
         </Grid>
       </TabItem>
@@ -163,17 +168,50 @@
               <Button Content="{ui:Text t46}" Command="{Binding LoadQuickSlotCommand}" />
             </WrapPanel>
             <TextBlock Text="{ui:TextBinding QuickSlotStatus}" Margin="4,0,4,6" TextWrapping="Wrap" />
-            <TextBlock Text="{ui:Text t47}" Foreground="{StaticResource MutedTextBrush}" Margin="4,0,4,8" TextWrapping="Wrap" />
+            <Border Background="{StaticResource PanelBrush}" Padding="4" Margin="0,0,0,4">
+              <StackPanel>
+                <WrapPanel Margin="0,0,0,4">
+                  <Button Content="{ui:Text videoRangeMarkStart}" Command="{Binding MarkVideoStartCommand}"
+                          AutomationProperties.AutomationId="HktasStudio.MarkVideoStart" />
+                  <Button Content="{ui:Text videoRangeMarkEnd}" Command="{Binding MarkVideoEndCommand}"
+                          AutomationProperties.AutomationId="HktasStudio.MarkVideoEnd" />
+                  <Button Content="{ui:Text videoRangeExport}" Command="{Binding ExportTimelineVideoCommand}"
+                          AutomationProperties.AutomationId="HktasStudio.ExportTimelineVideo" />
+                  <Button Content="{ui:Text videoRangeClear}" Command="{Binding ClearVideoRangeCommand}"
+                          AutomationProperties.AutomationId="HktasStudio.ClearVideoRange" />
+                  <Button Content="{ui:Text t22}" Command="{Binding CancelVideoExportCommand}"
+                          AutomationProperties.AutomationId="HktasStudio.CancelTimelineVideoExport" />
+                </WrapPanel>
+                <TextBlock Text="{ui:TextBinding VideoRangeStatus}" TextTrimming="CharacterEllipsis" Margin="4,0,4,2"
+                           ToolTip="{ui:Text videoRangeHelp}" AutomationProperties.AutomationId="HktasStudio.VideoRangeStatus" />
+                <TextBlock Text="{ui:TextBinding VideoExportStatus}" TextTrimming="CharacterEllipsis" Margin="4,0,4,2"
+                           ToolTip="{ui:TextBinding VideoExportStatus}"
+                           AutomationProperties.AutomationId="HktasStudio.TimelineVideoExportStatus" />
+                <ProgressBar IsIndeterminate="True" Height="3" Margin="4,0"
+                             AutomationProperties.AutomationId="HktasStudio.TimelineVideoProgress">
+                  <ProgressBar.Style>
+                    <Style TargetType="ProgressBar">
+                      <Setter Property="Visibility" Value="Collapsed" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsVideoExportBusy}" Value="True">
+                          <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </ProgressBar.Style>
+                </ProgressBar>
+              </StackPanel>
+            </Border>
           </StackPanel>
           <TextBlock DockPanel.Dock="Bottom" Text="{ui:TextBinding TimelineTreeStatus}" Margin="4,8" TextWrapping="Wrap" />
           <Border DockPanel.Dock="Right" Width="240" Background="{StaticResource PanelBrush}" Padding="10" Margin="8,0,0,0">
             <DockPanel>
               <TextBlock DockPanel.Dock="Top" Text="{ui:Text t48}" FontWeight="Bold" Margin="0,0,0,8" />
-              <TextBlock DockPanel.Dock="Bottom" Text="{ui:TextBinding TimelineNodeDetail}" Margin="0,8,0,0" TextWrapping="Wrap" />
+              <TextBlock DockPanel.Dock="Bottom" Text="{ui:TextBinding TimelineNodeDetail}" Margin="0,4,0,0" MaxHeight="36" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" ToolTip="{ui:TextBinding TimelineNodeDetail}" />
               <ListBox ItemsSource="{Binding WorldlinePath}" SelectedItem="{Binding SelectedTimelineNode}" ><ListBox.ItemTemplate><DataTemplate><TextBlock Text="{ui:TextBinding Label}" /></DataTemplate></ListBox.ItemTemplate></ListBox>
             </DockPanel>
           </Border>
-          <controls:TimelineGraph />
+          <controls:TimelineGraph ToolTip="{ui:Text t47}" AutomationProperties.AutomationId="HktasStudio.TimelineGraph" />
         </DockPanel>
       </TabItem>
 

@@ -179,7 +179,8 @@ namespace HollowKnightTAS.Automation.Client
             string expectedRuntimeMode,
             long expectedMovieTick,
             bool replayLoadedMovie = false,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            long? endMovieFrame = null);
 
         Task<AutomationResultEnvelope> FinishVideoExportAsync(
             string operationId,

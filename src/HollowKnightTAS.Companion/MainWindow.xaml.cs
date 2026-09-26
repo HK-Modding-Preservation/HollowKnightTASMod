@@ -55,6 +55,7 @@ namespace HollowKnightTAS.Companion
                 globalHotkeys?.Configure(false, vm.ConfiguredPause, vm.ConfiguredAdvance);
                 try
                 {
+                    await vm.CancelVideoExportAndWaitAsync();
                     await vm.SaveCurrentBranchAsync(closing: true);
                     closeSaved = true;
                     await Dispatcher.InvokeAsync(Close);

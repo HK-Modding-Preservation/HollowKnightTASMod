@@ -128,6 +128,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         }
         private void NotifyWorldlines()
         {
+            NotifyVideoRange();
             OnPropertyChanged(nameof(TimelineTrees));
             OnPropertyChanged(nameof(WorldlineLeaves));
             OnPropertyChanged(nameof(WorldlinePath));

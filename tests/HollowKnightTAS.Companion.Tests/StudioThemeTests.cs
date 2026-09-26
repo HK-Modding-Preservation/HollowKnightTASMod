@@ -152,14 +152,26 @@ namespace HollowKnightTAS.Companion.Tests
                         root.UpdateLayout();
                         foreach (var button in Find<Button>(commonTab))
                         {
+                            // Settings intentionally scrolls; verify each control can be brought into view.
+                            if (name == "ShortcutSettingsTab")
+                            {
+                                button.BringIntoView();
+                                root.UpdateLayout();
+                            }
                             var bounds = button.TransformToAncestor(root).TransformBounds(new Rect(button.RenderSize));
                             Assert.IsTrue(bounds.Right <= root.ActualWidth + 0.5
                                 && bounds.Bottom <= root.ActualHeight + 0.5 && bounds.Top >= 0,
                                 $"{name}: '{button.Content}' is clipped at minimum size.");
                         }
                         if (name == "WorldlinesTab")
+                        {
+                            var diagnostic = new RenderTargetBitmap(880, 560, 96, 96, PixelFormats.Pbgra32);
+                            diagnostic.Render(root);
+                            var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(diagnostic));
+                            using (var image = File.Create(Path.Combine(AppContext.BaseDirectory, "studio-timeline-minimum.png"))) png.Save(image);
                             Assert.IsTrue(Find<ListBox>(commonTab).Single().ActualHeight >= 40,
-                                "The timeline node list must remain usable at minimum size.");
+                                "The timeline node list must remain usable at minimum size; height=" + Find<ListBox>(commonTab).Single().ActualHeight);
+                        }
                         else if (name == "HelpTab")
                         {
                             Assert.IsTrue(Find<ScrollViewer>(commonTab).Single().ActualHeight >= 50,

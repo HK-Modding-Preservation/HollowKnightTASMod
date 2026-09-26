@@ -680,7 +680,8 @@ namespace HollowKnightTAS.AgentBridge
                             "ffmpegPath",
                             "outputPath",
                             "maximumFrames",
-                            "replayLoadedMovie"),
+                            "replayLoadedMovie",
+                            "endMovieFrame"),
                         arguments,
                         cancellationToken);
                 case "hktas_finish_video_export":

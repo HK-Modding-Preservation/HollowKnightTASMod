@@ -128,8 +128,8 @@
   {
     "Key": "t21",
     "Source": "导出 MP4…",
-    "Zh": "导出 MP4…",
-    "En": "Export MP4…"
+    "Zh": "导出完整 MP4…",
+    "En": "Export full MP4…"
   },
   {
     "Key": "t22",
@@ -367,9 +367,9 @@
   },
   {
     "Key": "t61",
-    "Source": "MP4 导出目前仅支持旧版局内序列，需要 FFmpeg 和未存在的输出文件。全流程 v2 暂不支持此导出器。",
-    "Zh": "MP4 导出目前仅支持旧版局内序列，需要 FFmpeg 和未存在的输出文件。全流程 v2 暂不支持此导出器。",
-    "En": "MP4 export currently supports legacy in-game sequences only. It requires FFmpeg and a new output filename. Full-run v2 is not supported by this exporter."
+    "Source": "输入编辑器可导出当前完整序列；时间线可选择有祖先关系的两个节点，导出起点之后至终点的区间。导出会自动恢复并回放，准备过程不录入视频。当前支持固定 50 fps，需要 FFmpeg 和新的 .mp4 文件名。",
+    "Zh": "输入编辑器可导出当前完整序列；时间线可选择有祖先关系的两个节点，导出起点之后至终点的区间。导出会自动恢复并回放，准备过程不录入视频。当前支持固定 50 fps，需要 FFmpeg 和新的 .mp4 文件名。",
+    "En": "Export the entire current sequence from the input editor, or select an ancestor and descendant on the timeline to export the frames after the start node through the end node. Export restores and replays automatically; preparation is not recorded. Fixed 50 fps, FFmpeg and a new .mp4 filename are required."
   },
   {
     "Key": "t62",
@@ -1984,5 +1984,269 @@
     "Source": "当前场景没有可显示的碰撞箱。",
     "Zh": "当前场景没有可显示的碰撞箱。",
     "En": "The current scene has no visible colliders."
+  },
+  {
+    "Key": "videoRangeMarkStart",
+    "Source": "设为起点",
+    "Zh": "设为起点",
+    "En": "Set start"
+  },
+  {
+    "Key": "videoRangeMarkEnd",
+    "Source": "设为终点",
+    "Zh": "设为终点",
+    "En": "Set end"
+  },
+  {
+    "Key": "videoRangeExport",
+    "Source": "导出区间 MP4…",
+    "Zh": "导出区间 MP4…",
+    "En": "Export range MP4…"
+  },
+  {
+    "Key": "videoRangeClear",
+    "Source": "清除选择",
+    "Zh": "清除选择",
+    "En": "Clear selection"
+  },
+  {
+    "Key": "videoRangeNodeStart",
+    "Source": "导出起点",
+    "Zh": "导出起点",
+    "En": "Export start"
+  },
+  {
+    "Key": "videoRangeNodeEnd",
+    "Source": "导出终点",
+    "Zh": "导出终点",
+    "En": "Export end"
+  },
+  {
+    "Key": "videoRangeHelp",
+    "Source": "选择同一条分支上的两个节点，分别设为起点和终点。",
+    "Zh": "选择同一条分支上的两个节点，分别设为起点和终点。",
+    "En": "Select two nodes on the same branch and mark the start and end."
+  },
+  {
+    "Key": "videoRangeInitialStatus",
+    "Source": "选择节点并设为起点、终点；两点必须有祖先关系。当前支持固定 50 fps。",
+    "Zh": "选择节点并设为起点、终点；两点必须有祖先关系。当前支持固定 50 fps。",
+    "En": "Mark an ancestor node as the start and a descendant as the end. Fixed 50 fps is currently supported."
+  },
+  {
+    "Key": "videoRangeSelectedStatus",
+    "Source": "导出范围：第 {0}–{1} 帧（起点之后至终点）。",
+    "Zh": "导出范围：第 {0}–{1} 帧（起点之后至终点）。",
+    "En": "Export range: frames {0}–{1} (after the start node through the end node)."
+  },
+  {
+    "Key": "videoRangeMissingSelection",
+    "Source": "请先在同一时间线选择两个导出端点。",
+    "Zh": "请先在同一时间线选择两个导出端点。",
+    "En": "Select two export endpoints on the same timeline first."
+  },
+  {
+    "Key": "videoExportMissingFfmpeg",
+    "Source": "FFmpeg 不存在。",
+    "Zh": "FFmpeg 不存在。",
+    "En": "FFmpeg was not found."
+  },
+  {
+    "Key": "videoExportOutputExists",
+    "Source": "导出文件已存在；请选择新的 .mp4 文件。",
+    "Zh": "导出文件已存在；请选择新的 .mp4 文件。",
+    "En": "The output file already exists. Choose a new .mp4 filename."
+  },
+  {
+    "Key": "videoExportOutputExtension",
+    "Source": "导出文件必须使用 .mp4 扩展名。",
+    "Zh": "导出文件必须使用 .mp4 扩展名。",
+    "En": "The output file must use the .mp4 extension."
+  },
+  {
+    "Key": "videoExportBaselineMismatch",
+    "Source": "当前存档与时间线的原始起点不同，无法导出此区间。",
+    "Zh": "当前存档与时间线的原始起点不同，无法导出此区间。",
+    "En": "The current saves differ from the timeline's original baseline. This range cannot be exported."
+  },
+  {
+    "Key": "videoExportPreparing",
+    "Source": "准备导出：正在恢复到第 {0} 帧，准备过程不会录入视频。",
+    "Zh": "准备导出：正在恢复到第 {0} 帧，准备过程不会录入视频。",
+    "En": "Preparing export: restoring to frame {0}. Preparation is not recorded."
+  },
+  {
+    "Key": "videoExportStartMismatch",
+    "Source": "导出起点不一致：需要 {0}，实际 {1}。",
+    "Zh": "导出起点不一致：需要 {0}，实际 {1}。",
+    "En": "Export start mismatch: expected {0}, reached {1}."
+  },
+  {
+    "Key": "videoExportCapturingRange",
+    "Source": "正在导出第 {0}–{1} 帧 · {2}",
+    "Zh": "正在导出第 {0}–{1} 帧 · {2}",
+    "En": "Exporting frames {0}–{1} · {2}"
+  },
+  {
+    "Key": "videoExportSessionChanged",
+    "Source": "导出会话已断开或发生改变。",
+    "Zh": "导出会话已断开或发生改变。",
+    "En": "The export session disconnected or changed."
+  },
+  {
+    "Key": "videoExportOutputMissing",
+    "Source": "导出已结束，但未找到 MP4 文件。",
+    "Zh": "导出已结束，但未找到 MP4 文件。",
+    "En": "Export finished, but the MP4 file was not found."
+  },
+  {
+    "Key": "videoExportCompleted",
+    "Source": "MP4 导出完成。",
+    "Zh": "MP4 导出完成。",
+    "En": "MP4 export completed."
+  },
+  {
+    "Key": "videoExportTimedOut",
+    "Source": "视频导出超时。",
+    "Zh": "视频导出超时。",
+    "En": "Video export timed out."
+  },
+  {
+    "Key": "videoExportCleanupFailed",
+    "Source": "{0}；停止导出失败：{1}",
+    "Zh": "{0}；停止导出失败：{1}",
+    "En": "{0}; could not stop export: {1}"
+  },
+  {
+    "Key": "videoExportCancelled",
+    "Source": "MP4 导出已取消。",
+    "Zh": "MP4 导出已取消。",
+    "En": "MP4 export cancelled."
+  },
+  {
+    "Key": "videoExportFailed",
+    "Source": "MP4 导出失败：{0}",
+    "Zh": "MP4 导出失败：{0}",
+    "En": "MP4 export failed: {0}"
+  },
+  {
+    "Key": "videoExportReplayFailed",
+    "Source": "重放遇到错误：{0}",
+    "Zh": "重放遇到错误：{0}",
+    "En": "Replay failed: {0}"
+  },
+  {
+    "Key": "videoExportRestoreTimedOut",
+    "Source": "导出起点恢复超时。",
+    "Zh": "导出起点恢复超时。",
+    "En": "Restoring the export start timed out."
+  },
+  {
+    "Key": "videoExportClosingWait",
+    "Source": "正在停止视频导出，请稍后重试关闭。",
+    "Zh": "正在停止视频导出，请稍后重试关闭。",
+    "En": "Video export is stopping. Try closing again shortly."
+  },
+  {
+    "Key": "videoExportCancelling",
+    "Source": "正在取消 MP4 导出…",
+    "Zh": "正在取消 MP4 导出…",
+    "En": "Cancelling MP4 export…"
+  },
+  {
+    "Key": "videoRangeNodeMissing",
+    "Source": "导出节点不存在于所选时间线。",
+    "Zh": "导出节点不存在于所选时间线。",
+    "En": "An export node is missing from the selected timeline."
+  },
+  {
+    "Key": "videoRangeDistinctNodes",
+    "Source": "请选择两个不同的导出节点。",
+    "Zh": "请选择两个不同的导出节点。",
+    "En": "Select two different export nodes."
+  },
+  {
+    "Key": "videoRangeAncestryRequired",
+    "Source": "导出起止节点必须位于同一条祖先到后代的路径。",
+    "Zh": "导出起止节点必须位于同一条祖先到后代的路径。",
+    "En": "The export endpoints must lie on one ancestor-to-descendant path."
+  },
+  {
+    "Key": "videoRangeEmpty",
+    "Source": "导出区间不能为空，终点必须晚于起点。",
+    "Zh": "导出区间不能为空，终点必须晚于起点。",
+    "En": "The export range cannot be empty. Its end must follow its start."
+  },
+  {
+    "Key": "videoRangeNodeOutOfBounds",
+    "Source": "时间线节点帧超出其完整序列。",
+    "Zh": "时间线节点帧超出其完整序列。",
+    "En": "A timeline node lies beyond its complete sequence."
+  },
+  {
+    "Key": "videoRangePrefixMismatch",
+    "Source": "时间线祖先的已执行输入或运行环境与终点不一致。",
+    "Zh": "时间线祖先的已执行输入或运行环境与终点不一致。",
+    "En": "An ancestor's executed input or runtime environment differs from the endpoint."
+  },
+  {
+    "Key": "videoExportSequenceRequired",
+    "Source": "导出需要有效的 v2 序列。",
+    "Zh": "导出需要有效的 v2 序列。",
+    "En": "Export requires a valid v2 sequence."
+  },
+  {
+    "Key": "videoExportInvalidSequence",
+    "Source": "导出需要有效的 v2 序列：{0}",
+    "Zh": "导出需要有效的 v2 序列：{0}",
+    "En": "Export requires a valid v2 sequence: {0}"
+  },
+  {
+    "Key": "videoExportValidationFailed",
+    "Source": "导出序列校验失败：{0}",
+    "Zh": "导出序列校验失败：{0}",
+    "En": "Export sequence validation failed: {0}"
+  },
+  {
+    "Key": "videoExportEmptySequence",
+    "Source": "空序列无法导出视频。",
+    "Zh": "空序列无法导出视频。",
+    "En": "An empty sequence cannot be exported as video."
+  },
+  {
+    "Key": "videoExportFrameRateUnsupported",
+    "Source": "当前 MP4 导出仅支持全程 50 fps 的序列。",
+    "Zh": "当前 MP4 导出仅支持全程 50 fps 的序列。",
+    "En": "MP4 export currently requires a sequence that uses 50 fps throughout."
+  },
+  {
+    "Key": "videoRangeIncompleteTree",
+    "Source": "时间线数据不完整。",
+    "Zh": "时间线数据不完整。",
+    "En": "Timeline data is incomplete."
+  },
+  {
+    "Key": "videoRangeInvalidNodeId",
+    "Source": "时间线节点编号无效或重复。",
+    "Zh": "时间线节点编号无效或重复。",
+    "En": "Timeline node IDs are invalid or duplicated."
+  },
+  {
+    "Key": "videoRangeInvalidRoot",
+    "Source": "时间线起点无效。",
+    "Zh": "时间线起点无效。",
+    "En": "The timeline root is invalid."
+  },
+  {
+    "Key": "videoRangeInvalidParentChain",
+    "Source": "时间线父链缺失或帧顺序无效。",
+    "Zh": "时间线父链缺失或帧顺序无效。",
+    "En": "The timeline has missing parents or invalid frame order."
+  },
+  {
+    "Key": "videoRangeParentCycle",
+    "Source": "时间线父链存在循环。",
+    "Zh": "时间线父链存在循环。",
+    "En": "The timeline parent chain contains a cycle."
   }
 ]

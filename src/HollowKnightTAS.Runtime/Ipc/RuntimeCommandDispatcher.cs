@@ -1233,10 +1233,14 @@ namespace HollowKnightTAS.Runtime.Ipc
             switch (command.MessageType)
             {
                 case IpcMessageTypes.StartVideoExport:
-                    RequireFields(command.Fields, "ffmpegPath", "outputPath", "maximumFrames", "requestId", "replayLoadedMovie");
+                    RequireFields(command.Fields, command.Fields.ContainsKey("endMovieFrame")
+                        ? new[] { "ffmpegPath", "outputPath", "maximumFrames", "requestId", "replayLoadedMovie", "endMovieFrame" }
+                        : new[] { "ffmpegPath", "outputPath", "maximumFrames", "requestId", "replayLoadedMovie" });
                     return session.StartVideoExport(command.Fields["ffmpegPath"], command.Fields["outputPath"],
                         int.Parse(command.Fields["maximumFrames"], CultureInfo.InvariantCulture),
-                        bool.Parse(command.Fields["replayLoadedMovie"]));
+                        bool.Parse(command.Fields["replayLoadedMovie"]),
+                        command.Fields.TryGetValue("endMovieFrame", out var videoEndFrame)
+                            ? long.Parse(videoEndFrame, CultureInfo.InvariantCulture) : -1);
                 case IpcMessageTypes.CancelVideoExport:
                     RequireFields(command.Fields, "operationId", "requestId");
                     return session.CancelVideoExport(command.Fields["operationId"]);

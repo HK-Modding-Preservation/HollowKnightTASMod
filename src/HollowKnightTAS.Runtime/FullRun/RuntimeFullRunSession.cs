@@ -241,6 +241,7 @@ namespace HollowKnightTAS.Runtime.FullRun
         }
         public void SetPauseTarget(long target, long expectedNativeFrame)
         {
+            if (IsVideoExportActive) throw new InvalidOperationException("Finish or cancel video export before seeking the Movie.");
             if (!clock.IsPaused || clock.CurrentFrameIndex != expectedNativeFrame || target <= movieFrame)
                 throw new InvalidOperationException("Target requires a paused boundary and a future Movie frame.");
             pauseAtMovieFrame = target;
@@ -656,6 +657,9 @@ namespace HollowKnightTAS.Runtime.FullRun
             expectedNativeStart = frame;
             clock.RegisterBeforeFrame(OnNativeBeforeFrame);
             inputReady = true;
+            // The bootstrap PlayerLoop installs input without consuming Movie frame 0.
+            // Honour a zero target here so full-video export can include its first input.
+            if (pauseAtMovieFrame == 0) { pauseAtMovieFrame = -1; clock.RequestPause(); }
         }
 
         private System.Collections.IEnumerator OnReturnToMainMenu(

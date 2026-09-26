@@ -178,7 +178,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             GridStatus = $"已从当前进度播放到第 {frame} 帧并暂停。";
         }
 
-        private async Task RestartDraftAtAsync(long frame, string? sourceMovie = null)
+        private async Task RestartDraftAtAsync(long frame, string? sourceMovie = null, CancellationToken cancellationToken = default, bool pauseWhenInputReadyZero = false)
         {
             await SaveCurrentBranchAsync(closing: true);
             SetRestorePresentationFrozen(true);
@@ -186,7 +186,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             try
             {
                 if (sourceMovie != null) MovieText = sourceMovie;
-                await RestartDraftCoreAsync(frame);
+                await RestartDraftCoreAsync(frame, cancellationToken, pauseWhenInputReadyZero);
                 completed = true;
             }
             finally
@@ -196,14 +196,14 @@ namespace HollowKnightTAS.Companion.ViewModels
             }
         }
 
-        private async Task RestartDraftCoreAsync(long frame)
+        private async Task RestartDraftCoreAsync(long frame, CancellationToken cancellationToken = default, bool pauseWhenInputReadyZero = false)
         {
             var candidate = GridAny().V2Document ?? throw new InvalidOperationException("需要有效的 v2 Movie。");
             if (candidate.Header.EnvironmentSha256 == "none" && startupBoot?.NativeCompletedFrames == 0)
             {
                 if (fullRunMovies!.Mode == "Unarmed") fullRunMovies.ArmRecording(candidate.Header.MouseEnabled, ParseFrameRate(DefaultFrameRate));
                 if (fullRunMovies.Mode != "Recording") throw new InvalidOperationException("草稿环境尚未初始化，请新建录制后重试。");
-                await fullRunMovies.StepAsync(0, CancellationToken.None);
+                await fullRunMovies.StepAsync(0, cancellationToken);
             }
             if (candidate.Header.EnvironmentSha256 == "none" && startupBoot?.NativeCompletedFrames > 0)
             {
@@ -219,22 +219,25 @@ namespace HollowKnightTAS.Companion.ViewModels
             MovieText = gridSource = new MovieV2Codec().WriteCanonical(candidate);
             if (restartProtectedGame == null) throw new InvalidOperationException("受控重启入口不可用。");
             GridStatus = "正在恢复，请稍候…";
+            cancellationToken.ThrowIfCancellationRequested();
             await restartProtectedGame();
-            fullRunMovies!.ArmReplay(candidate, frame);
+            cancellationToken.ThrowIfCancellationRequested();
+            fullRunMovies!.ArmReplay(candidate, frame == 0 && !pauseWhenInputReadyZero ? -1 : frame);
             currentFullRunMovieFrame = 0;
             RefreshInputGrid();
             if (frame > 0)
             {
-                var started = await fullRunMovies.RunAsync(0, CancellationToken.None);
+                var started = await fullRunMovies.RunAsync(0, cancellationToken);
                 if (started.Mode == "Fault") throw new InvalidOperationException(started.Error);
                 var deadline = DateTime.UtcNow.AddMinutes(10);
                 while (true)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     startupBoot!.Refresh();
                     if (startupBoot.FullRunFaultCode != 0) throw new InvalidOperationException("重放遇到原生错误：" + startupBoot.FullRunFaultCode);
                     if (startupBoot.IsWaiting) break;
                     if (DateTime.UtcNow >= deadline) throw new TimeoutException("重放等待超时，可手动暂停检查状态。");
-                    await Task.Delay(100);
+                    await Task.Delay(100, cancellationToken);
                 }
             }
             if (frame > 0)

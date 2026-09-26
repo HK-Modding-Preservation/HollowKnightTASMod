@@ -1,14 +1,44 @@
 # 全流程 v2 MP4 导出
 
-全流程导出复用既有 Unity 离线音频和 FFmpeg H.264 / AAC 管线，不修改游戏时钟、输入或 RNG。当前支持每条输入都为 50 fps 的 v2 Movie；混合帧率会明确拒绝。Studio 的旧版 MP4 按钮没有改为 v2 流程；使用正式 SDK / MCP / CLI 接口调用。
+全流程导出复用既有 Unity 离线音频和 FFmpeg H.264 / AAC 管线，不修改游戏时钟、输入或 RNG。Studio 现已接入完整序列导出和时间线节点区间导出。当前只支持完整输入正文中每条输入都为 50 fps 的 v2 Movie；其他帧率或混合帧率会明确拒绝。
 
-1. 通过受保护启动器加载完整 v2 Movie，并停在输入系统已经就绪的暂停边界（例如 Movie 第 1 帧）。此时 Runtime 已连接。
-2. 持有 `control.playback` 租约，调用 `startVideoExport`：`ffmpegPath` 为现有 FFmpeg 的绝对路径，`outputPath` 为不存在的 `.mp4` 绝对路径，`maximumFrames` 大于剩余输入帧数并留出加载余量，`replayLoadedMovie=true`，期望模式为 `Paused`。
-3. 接口自动开始播放当前暂停点之后的剩余 Movie，到 Movie 末尾自动结束采集和封装。它不会回档到 Movie 起点；开头已经执行过的帧不进入视频。
-4. 通过 `getStatus` / `fullRunStatus` 查询 `videoExport.state`，等到 `Completed` 再使用文件；开始回执的 `data.detail` 是操作 ID。`videoExport.frames`、`fps`、`outputPath`、`startNativeFrame`、`startMovieFrame` 标识输出范围。仅回放完成并不代表后台编码已经完成。
+**验证状态（2026-09-26）：** 本次 Studio 两种入口的规划与参数定向测试已通过，新的完整入口、节点区间、暂停续录和取消仍待安装版实机验收。下方旧版视频证据不作为本次新入口的 PASS。
 
-采集发生在原始 Unity PlayerLoop 返回后的原生帧边界，包括切场景实际执行的加载帧；暂停期间没有 PlayerLoop，因此等待不增加音视频时长。`fullRunPause` / `fullRunPlay` 可暂停、继续同一导出，`cancelVideoExport(operationId)` 取消输出并请求暂停。v2 序列导出自动结束，不提供手动 `finishVideoExport`。
+## 在 Studio 导出完整序列
 
-导出期间拒绝编辑 Movie 或终止 Movie；请先取消导出。不要改变分辨率或音频格式。扬声器在 Unity 离线音频采集期间静音，结束后恢复。沿用有界音画传输、已有文件保护和临时输出发布规则；编码失败会暂停，失败、取消均不发布成片。
+1. 从 Studio 启动受控游戏，打开要导出的 `.hktas` v2 序列。也可以使用当前录制或编辑中的序列；导出前会同步已经录下的输入。
+2. 点击输入编辑器工具栏中的 **“导出完整 MP4…”**。如果未在 PATH 中找到 FFmpeg，选择已有的 `ffmpeg.exe`；再选择一个尚不存在的 `.mp4` 文件名。
+3. Studio 自动保存当前分支，并通过受保护的冷重放回到 Movie 第 0 帧边界。Unity 初始化完成、第一帧输入尚未消耗时开始采集，因此无需手动回档或先播放一帧。
+4. 等待状态显示 **“MP4 导出完成” / `Completed`**。序列播放结束后仍可能显示 `Finalizing`，这时编码和封装尚未结束。
 
-固定 50 fps 的编码器及租约权限有离线定向测试。2026-09-26 安装版已用嫉妒马尔穆 3700 帧击杀序列实测：一次普通冷回放与一次导出冷回放均正常击杀并返回神居，21 个暂停检查点的角色、敌人、FSM、分裂组件和碰撞几何语义一致，fault/mismatch=0。成片从 Movie 1400 后开始，包含加载帧共 2661 帧，800×450 / 50 fps H.264、48 kHz 双声道 AAC，音视频各 53.22 秒；画面抽查正常，解码音频非静音。证据位于 `artifacts/envious-marmu-kill/`。这是该序列和环境的检查点验证，不代表其他场景或逐帧 RNG 一致性已验证。
+## 在时间线导出两个节点之间的片段
+
+1. 打开时间线页，选择时间线及分支。在节点图或右侧节点列表中选择一个节点，点击 **“设为起点”**。
+2. 选择同一条祖先到后代路径上的另一个节点，点击 **“设为终点”**。选择顺序颠倒时会自动按祖先关系排序；不同分支上互不为祖先的节点不能合成一段回放。相同节点或相同帧构成空区间，也会拒绝。
+3. 检查显示的帧范围，点击 **“导出区间 MP4…”**，选择 FFmpeg 和新的输出文件。需要重新选点时点击 **“清除选择”**。
+4. Studio 从原始存档起点冷重放到祖先节点，再开始采集，达到后代节点即停止采集并封装。准备重放的画面不进入成片。未验证的节点可以作为目标，由这次正常重放检查能否到达。
+
+区间精确定义为 **`(ancestor.Frame, descendant.Frame]`**：节点表示已经完成的 Movie 帧边界。选择第 100 帧和第 300 帧时，录制第 101–300 帧的推进。使用后代节点保存的完整输入正文恢复历史，不拼接节点、不删除开头输入，也不截掉后代节点之后的未来草稿。节点的 `Frame` 是 Movie 帧数，不能当作原生加载帧计数。
+
+导出前会校验原始存档哈希、运行环境和祖先已执行输入。导出结束或取消后保留完整草稿及 Undo/Redo；若导出采用另一条分支，编辑器仍恢复原草稿，下次播放按该草稿重新建立游戏进度。
+
+## 暂停、取消与音视频范围
+
+采集期间可以使用顶部播放/暂停按钮暂停、继续同一次导出，或点击 **“取消 MP4 导出”**。准备冷重放期间也可取消。取消会停止本次操作并请求游戏暂停，不发布成片；关闭 Studio 时先停止活动导出。导出期间锁定序列编辑、切换分支及其他会改变回放的操作，结束或取消后恢复。
+
+采集发生在原始 Unity PlayerLoop 返回后的原生帧边界，包括切场景实际执行的加载帧；暂停期间没有 PlayerLoop，等待不增加音视频时长。因此输出视频帧数可能大于两个 Movie 端点的差。不要在采集中改变分辨率或音频格式。扬声器在 Unity 离线音频采集期间静音，结束后恢复。已有输出文件不会被覆盖，编码失败也不发布成片。
+
+## SDK / MCP / CLI 接口
+
+1. 加载完整 v2 Movie，停在输入系统已经就绪的暂停边界；直接使用接口的调用者需自行完成起点冷恢复。`startVideoExport` 本身不会回档到 Movie 起点。
+2. 持有 `control.playback` 租约，调用 `startVideoExport`：`ffmpegPath` 为现有 FFmpeg 的绝对路径，`outputPath` 为不存在的 `.mp4` 绝对路径，`maximumFrames` 为包含加载余量的采集上限，`replayLoadedMovie=true`，期望模式为 `Paused`。
+3. 可选 `endMovieFrame` 指定包含在成片中的最后一个 Movie 帧边界，取值 `1..10000000`，并必须晚于当前起点且不超过已加载 Movie。省略时维持旧行为，导出当前暂停点之后的剩余 Movie 至末尾。该参数仅供全流程 v2，v1 明确拒绝。
+4. 通过 `getStatus` / `fullRunStatus` 查询 `videoExport.state`，等到 `Completed` 再使用文件；开始回执的 `data.detail` 是操作 ID。`videoExport.frames`、`fps`、`outputPath`、`startNativeFrame`、`startMovieFrame` 标识输出情况。仅回放完成不代表后台编码已完成。
+
+`fullRunPause` / `fullRunPlay` 暂停、继续同一导出；`cancelVideoExport(operationId)` 取消并请求暂停。v2 自动结束，不提供手动 `finishVideoExport`。SDK 保持旧调用参数顺序，可用命名参数 `endMovieFrame:` 传入区间末帧。
+
+## 验证范围
+
+本次离线定向验证：`StudioVideoExportPlanTests` 11 项、`VideoExportArgumentTests` 4 项及 MCP 视频参数测试 2 项通过。覆盖逆序选点、跨分支拒绝、祖先输入与环境冲突、损坏父链、未来草稿保留、只读基线副本，以及 SDK 旧调用兼容、末帧精确传递和非法参数拒绝。它们不替代新 Studio 界面的真实游戏导出验证。
+
+历史 v2 导出管线证据：2026-09-26 的嫉妒马尔穆 3700 帧序列通过一次普通冷回放及一次接口导出冷回放，两次均击杀并返回神居；21 个暂停检查点的角色、敌人、FSM、分裂组件和碰撞几何语义一致，fault/mismatch=0。成片从 Movie 1400 后开始，包含加载帧共 2661 帧，800×450 / 50 fps H.264、48 kHz 双声道 AAC，音视频各 53.22 秒；画面抽查及非静音音频检查通过，证据为 `artifacts/envious-marmu-kill/`。这验证当时序列、环境和接口管线，不证明本次新增的 Movie 0 起录或节点区间入口，也不代表逐帧 RNG 一致性。

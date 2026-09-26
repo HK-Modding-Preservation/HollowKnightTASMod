@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="..\..\src\HollowKnightTAS.Runtime\Manifest\VerificationPreflight.cs" Link="Manifest\VerificationPreflight.cs" />
     <Compile Include="..\..\src\HollowKnightTAS.Runtime\FullRun\FrameObservationQueue.cs" Link="FullRun\FrameObservationQueue.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\FullRun\FullRunVideoExportRange.cs" Link="FullRun\FullRunVideoExportRange.cs" />
     <Compile Include="..\..\src\HollowKnightTAS.Runtime\FullRun\WorldObservationCache.cs" Link="FullRun\WorldObservationCache.cs" />
     <Reference Include="Newtonsoft.Json"><HintPath>$(HKManagedDir)\Newtonsoft.Json.dll</HintPath></Reference>
     <Compile Include="..\..\src\HollowKnightTAS.Runtime\FullRun\FullRunFrameJournal.cs"

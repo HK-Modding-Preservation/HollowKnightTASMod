@@ -654,6 +654,10 @@ namespace HollowKnightTAS.Companion.Automation
                     argumentValueError);
             }
 
+            if (command.CommandId == AutomationCommandIds.StartVideoExport
+                && command.Arguments.ContainsKey("endMovieFrame"))
+                return Result(command, false, "Unsupported", "A video endMovieFrame requires a full-run v2 session.");
+
             if (command.CommandId == AutomationCommandIds.GetWorldSnapshot
                 || command.CommandId == AutomationCommandIds.GetObjectDetails)
             {
@@ -3232,7 +3236,7 @@ namespace HollowKnightTAS.Companion.Automation
             {
                 case AutomationCommandIds.StartVideoExport:
                     required = new[] { "ffmpegPath", "outputPath", "maximumFrames" };
-                    optional = new[] { "replayLoadedMovie" };
+                    optional = new[] { "replayLoadedMovie", "endMovieFrame" };
                     break;
                 case AutomationCommandIds.FinishVideoExport:
                 case AutomationCommandIds.CancelVideoExport:
@@ -3478,6 +3482,11 @@ namespace HollowKnightTAS.Companion.Automation
             var arguments = command.Arguments;
             switch (command.CommandId)
             {
+                case AutomationCommandIds.StartVideoExport:
+                    if (arguments.TryGetValue("endMovieFrame", out var videoEnd)
+                        && !TryInt64(videoEnd, 1, MovieProtocolV2.MaximumExpandedFrames, out _))
+                        return "endMovieFrame must be a positive Movie frame within the supported limit.";
+                    break;
                 case AutomationCommandIds.BeginFullRunRecording:
                 case AutomationCommandIds.BeginFullRunReplay:
                 case AutomationCommandIds.FullRunStep:
