@@ -16,9 +16,32 @@ namespace HollowKnightTAS.Runtime.Observation
             internal bool Closed;
         }
 
+        private readonly struct ShapePose
+        {
+            internal readonly bool HasBody;
+            internal readonly Vector3 DisplayBodyPosition;
+            internal readonly Vector2 PhysicsBodyPosition;
+            internal readonly float RotationDeltaDegrees;
+            internal readonly int? BodyInstanceId;
+
+            internal ShapePose(Rigidbody2D? body)
+            {
+                HasBody = body != null;
+                DisplayBodyPosition = body != null ? body.transform.position : Vector3.zero;
+                PhysicsBodyPosition = body != null ? body.position : Vector2.zero;
+                RotationDeltaDegrees = body != null ? body.rotation - body.transform.eulerAngles.z : 0;
+                BodyInstanceId = body != null ? body.GetInstanceID() : (int?)null;
+            }
+
+            internal Vector3 Point(Vector3 worldPoint) => ApplyPhysicsPoint(worldPoint, HasBody,
+                DisplayBodyPosition, PhysicsBodyPosition, RotationDeltaDegrees);
+            internal Vector3 Direction(Vector3 worldDirection) => ApplyPhysicsDirection(worldDirection, HasBody, RotationDeltaDegrees);
+        }
+
         internal object Capture(Collider2D collider, int componentIndex, Camera? camera, string classification)
         {
-            var paths = Paths(collider, out var definition, out bool approximate, out string? note, out string semantics);
+            var pose = new ShapePose(collider.attachedRigidbody);
+            var paths = Paths(collider, pose, out var definition, out bool approximate, out string? note, out string semantics, out string poseSource);
             bool active = collider.enabled && collider.gameObject.activeInHierarchy;
             return ObservationData.Map("componentIndex", componentIndex, "instanceId", collider.GetInstanceID(), "type", collider.GetType().FullName,
                 "enabled", collider.enabled, "activeInHierarchy", collider.gameObject.activeInHierarchy,
@@ -30,6 +53,10 @@ namespace HollowKnightTAS.Runtime.Observation
                 "geometry", ObservationData.Map("source", "readOnlyColliderDefinitionAndBounds", "approximation", approximate,
                     "note", note, "pathSemantics", semantics, "pathCount", paths.Count, "pointCount", paths.Sum(path => path.Points.Length),
                     "arcSegments", approximate ? ArcSegments : (int?)null, "boundsAvailable", active,
+                    "poseSource", poseSource, "attachedRigidbodyInstanceId", pose.BodyInstanceId,
+                    "bodyDisplayPosition", pose.HasBody ? ObservationData.Vector(pose.DisplayBodyPosition) : null,
+                    "bodyPhysicsPosition", pose.HasBody ? ObservationData.Vector(pose.PhysicsBodyPosition) : null,
+                    "bodyRotationDeltaDegrees", pose.RotationDeltaDegrees,
                     "screenCoordinates", "normalized-full-viewport-top-left", "physicsTransformSynchronization", "notRequested",
                     "configuredShapeOnly", !active || collider.usedByComposite, "nativeObjectAllocation", false));
         }
@@ -55,14 +82,16 @@ namespace HollowKnightTAS.Runtime.Observation
             return inFront && camera.rect.width > 0 && camera.rect.height > 0 && maxX >= 0 && minX <= 1 && maxY >= 0 && minY <= 1;
         }
 
-        private static List<PathData> Paths(Collider2D collider, out object definition, out bool approximate, out string? note, out string semantics)
+        private static List<PathData> Paths(Collider2D collider, ShapePose pose, out object definition, out bool approximate, out string? note, out string semantics, out string poseSource)
         {
             approximate = false; note = null; semantics = "outlinePaths";
+            poseSource = pose.HasBody ? "attachedRigidbody2DPhysicsPose" : "transformWithoutAttachedRigidbody";
             var result = new List<PathData>();
             var transform = collider.transform;
             void Add(IEnumerable<Vector2> points, bool closed)
             {
-                result.Add(new PathData { Closed = closed, Points = points.Select(point => transform.TransformPoint(point + collider.offset)).ToArray() });
+                result.Add(new PathData { Closed = closed,
+                    Points = points.Select(point => pose.Point(transform.TransformPoint(point + collider.offset))).ToArray() });
             }
             var scale = transform.lossyScale;
             float radiusScale = Math.Max(Math.Abs(scale.x), Math.Abs(scale.y));
@@ -76,10 +105,10 @@ namespace HollowKnightTAS.Runtime.Observation
             }
             else if (collider is CircleCollider2D circle)
             {
-                var center = transform.TransformPoint(circle.offset);
+                var center = pose.Point(transform.TransformPoint(circle.offset));
                 float radius = circle.radius * radiusScale;
                 bool fromBounds = collider.enabled && collider.gameObject.activeInHierarchy && collider.bounds.size.x > 0;
-                if (fromBounds) { center = collider.bounds.center; radius = collider.bounds.extents.x; }
+                if (fromBounds) { center = collider.bounds.center; radius = collider.bounds.extents.x; poseSource = "activeColliderBounds"; }
                 definition = ObservationData.Map("radius", circle.radius, "worldRadius", radius, "worldRadiusSource", fromBounds ? "activeColliderBounds" : "definitionMaxAbsoluteXYScale");
                 result.Add(Circle(center, radius)); approximate = true;
                 note = fromBounds ? "Circle tessellated to 64 segments from live world bounds."
@@ -88,13 +117,14 @@ namespace HollowKnightTAS.Runtime.Observation
             else if (collider is CapsuleCollider2D capsule)
             {
                 bool vertical = capsule.direction == CapsuleDirection2D.Vertical;
-                Vector2 direction = (Vector2)transform.TransformVector(vertical ? Vector3.up : Vector3.right);
-                if (direction.sqrMagnitude <= 0) direction = vertical ? Vector2.up : Vector2.right;
+                var displayDirection = transform.TransformVector(vertical ? Vector3.up : Vector3.right);
+                if (displayDirection.sqrMagnitude <= 0) displayDirection = vertical ? Vector3.up : Vector3.right;
+                Vector2 direction = (Vector2)pose.Direction(displayDirection);
                 direction.Normalize();
                 float width = Math.Abs(capsule.size.x * scale.x), height = Math.Abs(capsule.size.y * scale.y);
                 float radius = (vertical ? width : height) * 0.5f;
                 float halfLine = Math.Max(0, (vertical ? height : width) * 0.5f - radius);
-                var center = transform.TransformPoint(capsule.offset);
+                var center = pose.Point(transform.TransformPoint(capsule.offset));
                 string fit = "definitionAndLossyScale";
                 float denominator = Math.Abs(direction.x) - Math.Abs(direction.y);
                 if (collider.enabled && collider.gameObject.activeInHierarchy && Math.Abs(denominator) > 0.05f)
@@ -105,6 +135,7 @@ namespace HollowKnightTAS.Runtime.Observation
                     if (candidateLine >= 0 && candidateRadius > 0)
                     {
                         center = bounds.center; radius = candidateRadius; halfLine = candidateLine; fit = "axisAndLiveBounds";
+                        poseSource = pose.HasBody ? "activeColliderBoundsCenterAndPhysicsAxis" : "activeColliderBoundsCenterAndTransformAxis";
                     }
                 }
                 definition = ObservationData.Map("size", ObservationData.Vector(capsule.size), "direction", Enum.GetName(typeof(CapsuleDirection2D), capsule.direction),
@@ -157,6 +188,26 @@ namespace HollowKnightTAS.Runtime.Observation
                 note = "Nonzero edgeRadius is shown as a union of 64-segment capsules; transformed radius uses maximum absolute XY scale. Raw edgeRadius and live bounds remain authoritative; this scaled reconstruction is approximate.";
             }
             return result;
+        }
+
+        // TransformPoint has already applied collider offset, hierarchy and scale. Replace
+        // only its body's interpolated XY pose with the read-only physics pose. In particular,
+        // do not re-transform live bounds or call SyncTransforms to make the poses agree.
+        private static Vector3 ApplyPhysicsPoint(Vector3 point, bool hasBody, Vector3 displayBodyPosition,
+            Vector2 physicsBodyPosition, float rotationDeltaDegrees)
+        {
+            if (!hasBody) return point;
+            var relative = ApplyPhysicsDirection(point - displayBodyPosition, true, rotationDeltaDegrees);
+            return new Vector3(physicsBodyPosition.x + relative.x, physicsBodyPosition.y + relative.y, point.z);
+        }
+
+        private static Vector3 ApplyPhysicsDirection(Vector3 direction, bool hasBody, float rotationDeltaDegrees)
+        {
+            if (!hasBody) return direction;
+            double angle = rotationDeltaDegrees * Math.PI / 180;
+            double cosine = Math.Cos(angle), sine = Math.Sin(angle);
+            return new Vector3((float)(direction.x * cosine - direction.y * sine),
+                (float)(direction.x * sine + direction.y * cosine), direction.z);
         }
 
         private static PathData Circle(Vector3 center, float radius)

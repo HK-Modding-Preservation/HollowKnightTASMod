@@ -85,5 +85,31 @@ namespace HollowKnightTAS.Core.Tests.FullRun
             try { cache.ReadDetails(id, "enemy", null, 0, 1024); Assert.Fail(); } catch (InvalidOperationException) { }
             try { cache.ReadDetails(id, "hero", 124, 0, 1024); Assert.Fail(); } catch (InvalidOperationException) { }
         }
+
+        [TestMethod]
+        public void MetadataBudgetRejectsUnreadablePagesAndDetailsRespectWireBudget()
+        {
+            var cache = new WorldObservationCache();
+            try
+            {
+                cache.AddSnapshot(1, 1, "{\"name\":\"" + new string('中', 400000) + "\"}", Array.Empty<Tuple<string, string, string>>());
+                Assert.Fail();
+            }
+            catch (InvalidOperationException ex) { StringAssert.Contains(ex.Message, "metadata"); }
+            var id = cache.AddDetails("hero", 1, 1, new string('\0', 250000));
+            var chunk = cache.ReadDetails(id, "hero", 1, 0, 200000);
+            chunk["requestId"] = new string('x', 128);
+            Assert.IsTrue(HollowKnightTAS.Core.Ipc.IpcPayloadCodec.Serialize(chunk).Length < 1024 * 1024);
+        }
+
+        [TestMethod]
+        public void DisplayRefreshCannotEvictPaginatedWorldQuery()
+        {
+            var cache = new WorldObservationCache();
+            var empty = Array.Empty<Tuple<string, string, string>>();
+            var world = cache.AddSnapshot(1, 1, "{}", empty);
+            for (int i = 0; i < 20; i++) cache.AddSnapshot(i, i, "{}", empty, "colliders");
+            Assert.AreEqual("1", cache.ReadSnapshot(world, 0, 1)["nativeFrame"]);
+        }
     }
 }

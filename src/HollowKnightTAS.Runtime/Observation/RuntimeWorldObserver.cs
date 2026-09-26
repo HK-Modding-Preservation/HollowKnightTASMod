@@ -150,7 +150,8 @@ namespace HollowKnightTAS.Runtime.Observation
                 : "Active enabled Collider2D intersecting selected camera viewport; excludes source colliders consumed by CompositeCollider2D and unsimulated rigidbodies.";
             metadata["counts"] = ObservationData.Map("enumeratedObjects", total, "returnedObjects", results.Count,
                 "inactiveFiltered", inactiveFiltered, "viewFiltered", viewFiltered, "failedObjects", failed, "truncatedObjects", 0);
-            metadata["complete"] = errors.Count == 0;
+            metadata["enumerationComplete"] = errors.Count == 0;
+            metadata["semanticCompleteness"] = "Not guaranteed for arbitrary Mods; inspect omissions, limits, geometry approximations and component errors.";
             metadata["errors"] = errors;
             metadata["gameManager"] = manager == null ? null : ObservationData.Map("reference", Reference(manager), "state", KnownFields(manager, "gameState", "isPaused", "sceneName", "nextSceneName", "entryGateName"));
             metadata["uiManager"] = ui == null ? null : ObservationData.Map("reference", Reference(ui), "state", KnownFields(ui, "uiState", "menuState", "inventoryFSM", "pauseMenuFSM"));

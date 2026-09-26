@@ -179,7 +179,7 @@ namespace HollowKnightTAS.Runtime.FullRun
                 var capture = observationQueue.Invoke(frame => Tuple.Create(frame, movieFrame,
                     worldObserver.Capture(frame, movieFrame, view, inactive == "true")));
                 id = observationCache.AddSnapshot(capture.Item1, capture.Item2, capture.Item3.MetadataJson,
-                    capture.Item3.Objects.Select(x => Tuple.Create(x.Id, x.Kind, x.Json)));
+                    capture.Item3.Objects.Select(x => Tuple.Create(x.Id, x.Kind, x.Json)), view);
             }
             return observationCache.ReadSnapshot(id, offset, limit);
         }

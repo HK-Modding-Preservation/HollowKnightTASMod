@@ -38,10 +38,7 @@ namespace HollowKnightTAS.Runtime.Observation
             var active = values.Read(fsm, "activeState") as FsmState;
             result["startState"] = values.Read(fsm, "startState");
             result["globalTransitions"] = Transitions(values.Read(fsm, "globalTransitions") as FsmTransition[]);
-            result["states"] = states.Select(state => ObservationData.Map("name", values.Read(state, "name"),
-                "transitions", Transitions(values.Read(state, "transitions") as FsmTransition[]),
-                "actionsLoaded", values.Read(state, "actions") != null,
-                "actionTypes", (values.Read(state, "actions") as FsmStateAction[])?.Select(action => action?.GetType().FullName).ToArray())).ToArray();
+            result["states"] = states.Select(State).ToArray();
             if (active == null) result["currentState"] = null;
             else
             {
@@ -50,11 +47,28 @@ namespace HollowKnightTAS.Runtime.Observation
                     "stateTime", values.Read(active, "<StateTime>k__BackingField"),
                     "realStartTime", values.Read(active, "<RealStartTime>k__BackingField"),
                     "activeActionIndex", values.Read(active, "activeActionIndex"),
-                    "actions", actions == null ? ObservationData.Omitted("actionsNotInitialized")
-                        : (object)actions.Select((action, index) => action == null ? ObservationData.Map("index", index, "value", null)
-                            : ObservationData.Map("index", index, "type", action.GetType().FullName, "data", values.CaptureFields(action))).ToArray());
+                    "actions", Actions(actions));
             }
             return result;
+        }
+
+        private object State(FsmState state)
+        {
+            var actions = values.Read(state, "actions") as FsmStateAction[];
+            return ObservationData.Map("name", values.Read(state, "name"),
+                "transitions", Transitions(values.Read(state, "transitions") as FsmTransition[]),
+                "actionsLoaded", actions != null,
+                "actionTypes", actions?.Select(action => action?.GetType().FullName).ToArray(),
+                "actions", Actions(actions));
+        }
+
+        private object Actions(FsmStateAction[]? actions)
+        {
+            if (actions == null) return ObservationData.Omitted("actionsNotInitialized; actions were not loaded by observation");
+            return actions.Select((action, index) => action == null ? ObservationData.Map("index", index, "value", null)
+                : ObservationData.Map("index", index, "type", action.GetType().FullName,
+                    "enabled", values.Read(action, "enabled"), "active", values.Read(action, "active"),
+                    "finished", values.Read(action, "finished"), "data", values.CaptureFields(action))).ToArray();
         }
 
         private object[] Transitions(FsmTransition[]? transitions)
