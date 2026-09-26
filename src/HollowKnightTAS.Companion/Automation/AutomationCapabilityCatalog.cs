@@ -214,6 +214,8 @@ namespace HollowKnightTAS.Companion.Automation
                 || item.CommandId == AutomationCommandIds.FullRunPlay
                 || item.CommandId == AutomationCommandIds.FullRunPause
                 || item.CommandId == AutomationCommandIds.FullRunStop
+                || item.CommandId == AutomationCommandIds.StartVideoExport
+                || item.CommandId == AutomationCommandIds.CancelVideoExport
                 || item.CommandId == AutomationCommandIds.QuitGame) : items;
             capabilities = selected.ToDictionary(
                 item => item.CommandId,

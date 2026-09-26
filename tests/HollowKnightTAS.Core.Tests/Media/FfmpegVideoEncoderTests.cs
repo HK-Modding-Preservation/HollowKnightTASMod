@@ -13,29 +13,31 @@ namespace HollowKnightTAS.Core.Tests.Media
     public sealed class FfmpegVideoEncoderTests
     {
         [TestMethod]
-        public void EncodesSixtyFramesWithStereoAudioAndPublishesOnlyOnCompletion()
+        [DataRow(50)]
+        [DataRow(60)]
+        public void EncodesOneSecondWithStereoAudioAndPublishesOnlyOnCompletion(int fps)
         {
             WithEncoderTools((ffmpeg, ffprobe, directory) =>
             {
                 var output = Path.Combine(directory, "test video.mp4");
-                var format = new VideoExportFormat(1280, 720);
+                var format = new VideoExportFormat(1280, 720, fps);
                 var timeline = new VideoExportTimeline(format);
                 using (var encoder = new FfmpegVideoEncoder(ffmpeg, output, format))
                 {
-                    for (var frame = 0; frame < 60; frame++)
+                    for (var frame = 0; frame < fps; frame++)
                     {
                         var rgb = new byte[format.VideoFrameBytes];
                         for (var p = 0; p < rgb.Length; p += 3) rgb[p] = (byte)(frame * 4);
                         var samples = new float[timeline.AudioValueCountForFrame(frame)];
                         for (var i = 0; i < samples.Length; i += 2)
-                            samples[i] = samples[i + 1] = (float)(0.2 * Math.Sin(2 * Math.PI * 440 * (frame * 800 + i / 2) / 48000));
+                            samples[i] = samples[i + 1] = (float)(0.2 * Math.Sin(2 * Math.PI * 440 * (frame * (48000 / fps) + i / 2) / 48000));
                         var pcm = new byte[samples.Length * sizeof(float)];
                         Buffer.BlockCopy(samples, 0, pcm, 0, pcm.Length);
                         encoder.WriteFrame(rgb, pcm);
                     }
                     Assert.IsFalse(File.Exists(output));
                     encoder.Complete();
-                    Assert.AreEqual(60L, encoder.FrameCount);
+                    Assert.AreEqual((long)fps, encoder.FrameCount);
                 }
                 using var process = new Process();
                 process.StartInfo = new ProcessStartInfo(ffprobe)
@@ -51,8 +53,8 @@ namespace HollowKnightTAS.Core.Tests.Media
                 var streams = document.RootElement.GetProperty("streams");
                 Assert.AreEqual(2, streams.GetArrayLength());
                 Assert.AreEqual("h264", streams[0].GetProperty("codec_name").GetString());
-                Assert.AreEqual("60", streams[0].GetProperty("nb_frames").GetString());
-                Assert.AreEqual("60/1", streams[0].GetProperty("avg_frame_rate").GetString());
+                Assert.AreEqual(fps.ToString(), streams[0].GetProperty("nb_frames").GetString());
+                Assert.AreEqual(fps + "/1", streams[0].GetProperty("avg_frame_rate").GetString());
                 Assert.AreEqual("1.000000", streams[0].GetProperty("duration").GetString());
                 Assert.AreEqual("aac", streams[1].GetProperty("codec_name").GetString());
                 Assert.AreEqual("48000", streams[1].GetProperty("sample_rate").GetString());

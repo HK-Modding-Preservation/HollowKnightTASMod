@@ -1232,6 +1232,16 @@ namespace HollowKnightTAS.Runtime.Ipc
             var session = fullRunSession ?? throw new InvalidOperationException("Full-run session is unavailable.");
             switch (command.MessageType)
             {
+                case IpcMessageTypes.StartVideoExport:
+                    RequireFields(command.Fields, "ffmpegPath", "outputPath", "maximumFrames", "requestId", "replayLoadedMovie");
+                    return session.StartVideoExport(command.Fields["ffmpegPath"], command.Fields["outputPath"],
+                        int.Parse(command.Fields["maximumFrames"], CultureInfo.InvariantCulture),
+                        bool.Parse(command.Fields["replayLoadedMovie"]));
+                case IpcMessageTypes.CancelVideoExport:
+                    RequireFields(command.Fields, "operationId", "requestId");
+                    return session.CancelVideoExport(command.Fields["operationId"]);
+                case IpcMessageTypes.FinishVideoExport:
+                    throw new InvalidOperationException("v2 sequence export finishes automatically; cancel to stop it early.");
                 case IpcMessageTypes.FullRunSeek:
                     RequireFields(command.Fields, "requestId", "targetFrame", "expectedNativeFrame");
                     session.SetPauseTarget(long.Parse(command.Fields["targetFrame"], CultureInfo.InvariantCulture),
@@ -1325,6 +1335,7 @@ namespace HollowKnightTAS.Runtime.Ipc
                 ["bossSceneEntryMovieFrame"] = status.BossSceneEntryMovieFrame.ToString(CultureInfo.InvariantCulture)
             };
             foreach (var binding in fullRunSession.ReadBindingLabels()) fields[binding.Key] = binding.Value;
+            fullRunSession.AppendVideoExportStatus(fields);
             Publish(IpcMessageTypes.FullRunState, fields);
         }
 

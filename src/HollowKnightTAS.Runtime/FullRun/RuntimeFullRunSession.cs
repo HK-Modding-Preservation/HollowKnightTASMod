@@ -88,7 +88,7 @@ namespace HollowKnightTAS.Runtime.FullRun
         public long BossSceneEntryMovieFrame { get; }
     }
 
-    public sealed class RuntimeFullRunSession : IDisposable
+    public sealed partial class RuntimeFullRunSession : IDisposable
     {
         private readonly NativeFullRunFrameClock clock;
         private readonly FullRunActionSetAdapter input;
@@ -259,6 +259,7 @@ namespace HollowKnightTAS.Runtime.FullRun
 
         public void UpdateFutureMovie(string path, long expectedNativeFrame)
         {
+            if (IsVideoExportActive) throw new InvalidOperationException("Finish or cancel video export before editing the Movie.");
             if (!clock.IsPaused || clock.CurrentFrameIndex != expectedNativeFrame || !inputReady
                 || (mode != "Recording" && mode != "Replay"))
                 throw new InvalidOperationException("Pause at an input-ready boundary before updating the Movie.");
@@ -380,6 +381,7 @@ namespace HollowKnightTAS.Runtime.FullRun
 
         public FullRunResult Stop(long expectedFrame)
         {
+            if (IsVideoExportActive) throw new InvalidOperationException("Finish or cancel video export before stopping the Movie.");
             if (expectedFrame < 0 || expectedFrame != clock.CurrentFrameIndex || !clock.IsPaused)
                 return Reject("NativeFrameMismatch");
             if (mode == "Recording")
@@ -615,6 +617,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             }
             finally
             {
+                CaptureVideoFrame(completed);
                 try
                 {
                     Volatile.Write(ref observedWorld, CaptureWorldStatus());
@@ -746,6 +749,12 @@ namespace HollowKnightTAS.Runtime.FullRun
             mode = "Failed";
             error = detail;
             mismatchCount++;
+            // An input or before-frame failure may prevent OnNativeCompleted from
+            // running at all. Stop offline audio before faulting the native gate,
+            // because that gate no longer services the observation queue in Fault.
+            // Active exports only exist in Replay: their failures enter here from
+            // Unity's input/native callbacks, never the worker's Recording freeze.
+            FailVideoExport(detail);
             if (bossTraceEnabled && bossTraceRows > 0)
             {
                 try
@@ -780,6 +789,7 @@ namespace HollowKnightTAS.Runtime.FullRun
         {
             if (disposed) return;
             disposed = true;
+            videoCapture?.Dispose();
             observationQueue.Dispose();
             if (returnToMainMenuHooked)
                 On.GameManager.ReturnToMainMenu -= OnReturnToMainMenu;

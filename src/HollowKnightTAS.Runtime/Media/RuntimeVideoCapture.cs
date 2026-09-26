@@ -20,7 +20,8 @@ namespace HollowKnightTAS.Runtime.Media
         private volatile string detail = string.Empty;
         private volatile bool cancelled;
         private volatile bool failed;
-        private int lastUnityFrame;
+        private long lastCompletedFrame;
+        private readonly bool externalFrameBoundary;
         private bool detached;
         private readonly bool finishAtFrameLimit;
         private readonly Action? onFailure;
@@ -28,7 +29,8 @@ namespace HollowKnightTAS.Runtime.Media
         public static bool HideTasOverlays { get; private set; }
 
         public RuntimeVideoCapture(string ffmpeg, string output, int maximumFrames, Action<string> log,
-            bool finishAtFrameLimit = true, Action? onFailure = null, Action? afterFrame = null)
+            bool finishAtFrameLimit = true, Action? onFailure = null, Action? afterFrame = null,
+            Func<double>? frameDuration = null, long? nativeStartFrame = null)
         {
             if (maximumFrames <= 0) throw new ArgumentOutOfRangeException(nameof(maximumFrames));
             this.maximumFrames = maximumFrames;
@@ -37,18 +39,19 @@ namespace HollowKnightTAS.Runtime.Media
             this.onFailure = onFailure;
             this.afterFrame = afterFrame;
             OperationId = "video-" + Guid.NewGuid().ToString("N");
-            var delta = Time.captureDeltaTime;
-            if (float.IsNaN(delta) || float.IsInfinity(delta) || delta <= 0 || delta < 1f / 240f)
+            var delta = frameDuration?.Invoke() ?? Time.captureDeltaTime;
+            if (double.IsNaN(delta) || double.IsInfinity(delta) || delta <= 0 || delta < 1d / 240d)
                 throw new InvalidOperationException("No supported stable TAS frame duration: " + delta.ToString("R", CultureInfo.InvariantCulture));
             framesPerSecond = checked((int)Math.Round(1d / delta));
             var format = new VideoExportFormat(Screen.width, Screen.height, framesPerSecond, 1, AudioSettings.outputSampleRate,
                 AudioSettings.speakerMode == AudioSpeakerMode.Mono ? 1 : 2);
             encoder = new FfmpegVideoEncoder(ffmpeg, output, format);
-            try { capture = new UnityFrameCapture(format); }
+            try { capture = new UnityFrameCapture(format, frameDuration); }
             catch { encoder.Dispose(); throw; }
             // Start is accepted while paused at an already-rendered boundary. Do not recapture it.
-            lastUnityFrame = Time.frameCount;
-            CompletedFrameBoundarySignal.Reached += OnCompletedFrame;
+            externalFrameBoundary = nativeStartFrame.HasValue;
+            lastCompletedFrame = nativeStartFrame ?? Time.frameCount;
+            if (!externalFrameBoundary) CompletedFrameBoundarySignal.Reached += OnCompletedFrame;
             HideTasOverlays = true;
             log("video capture started: " + OperationId);
         }
@@ -128,12 +131,18 @@ namespace HollowKnightTAS.Runtime.Media
             catch { /* Diagnostics must not break the frame gate. */ }
         }
 
-        private void OnCompletedFrame()
+        private void OnCompletedFrame() => CaptureCompletedFrame(Time.frameCount);
+
+        // v2 calls this on the Unity thread after the original PlayerLoop returns,
+        // before the native frame gate can wait. Loading frames remain in the video.
+        public void CaptureCompletedFrame(long completedFrame)
         {
-            if (state != "Capturing" || Time.frameCount == lastUnityFrame) return;
-            lastUnityFrame = Time.frameCount;
+            if (state != "Capturing" || completedFrame == lastCompletedFrame) return;
             try
             {
+                if (externalFrameBoundary && completedFrame != lastCompletedFrame + 1)
+                    throw new InvalidOperationException("Video native frame boundary was not sequential.");
+                lastCompletedFrame = completedFrame;
                 capture.Capture(encoder.FrameCount, out var rgb, out var pcm);
                 encoder.WriteFrame(rgb, pcm);
                 afterFrame?.Invoke();
@@ -154,7 +163,7 @@ namespace HollowKnightTAS.Runtime.Media
             if (detached) return;
             detached = true;
             HideTasOverlays = false;
-            CompletedFrameBoundarySignal.Reached -= OnCompletedFrame;
+            if (!externalFrameBoundary) CompletedFrameBoundarySignal.Reached -= OnCompletedFrame;
             capture.Dispose();
         }
     }

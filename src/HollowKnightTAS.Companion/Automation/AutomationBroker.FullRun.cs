@@ -86,6 +86,44 @@ namespace HollowKnightTAS.Companion.Automation
                         "mode", binding.Mode.ToString(),
                         "debugMutationEnabled", "false"));
 
+            if (command.CommandId == AutomationCommandIds.StartVideoExport
+                || command.CommandId == AutomationCommandIds.CancelVideoExport)
+            {
+                var runtime = GetBoundSession();
+                if (runtime == null || !runtime.IsConnected)
+                    return Result(command, false, "RuntimeNotReady", "The full-run Runtime has not connected yet.");
+                if (command.CommandId == AutomationCommandIds.StartVideoExport
+                    && (!gate.IsWaiting || command.ExpectedRuntimeMode != "Paused"))
+                    return Result(command, false, "PreconditionFailed", "Pause the v2 replay before exporting video.");
+                var fields = new System.Collections.Generic.Dictionary<string, string>(command.Arguments, StringComparer.Ordinal)
+                { ["requestId"] = command.RequestId };
+                if (command.CommandId == AutomationCommandIds.StartVideoExport
+                    && !fields.ContainsKey("replayLoadedMovie")) fields["replayLoadedMovie"] = "true";
+                var result = await ForwardAsync(runtime, command, command.CommandId,
+                    fields, IpcMessageTypes.CommandAccepted, cancellationToken);
+                if (result.Success && command.CommandId == AutomationCommandIds.StartVideoExport)
+                {
+                    // Match v1's start-and-replay contract. The Runtime captures the
+                    // current remaining suffix and auto-finishes at the loaded Movie end.
+                    var boundary = await VideoExportStartRecovery.RunAsync(
+                        () => coordinator.RunAsync(gate.NativeCompletedFrames, cancellationToken),
+                        () => gate.FullRunFaultCode != 0,
+                        async cleanupToken =>
+                        {
+                            if (!result.Data.TryGetValue("detail", out var operationId) || string.IsNullOrWhiteSpace(operationId))
+                                throw new InvalidOperationException("Accepted capture has no operation ID.");
+                            var cleanupId = "video-start-cancel-" + Guid.NewGuid().ToString("N");
+                            var cancelled = await SendRuntimeAsync(runtime, IpcMessageTypes.CancelVideoExport,
+                                Fields("requestId", cleanupId, "operationId", operationId), cleanupId,
+                                IpcMessageTypes.CommandAccepted, cleanupToken);
+                            if (cancelled.MessageType != IpcMessageTypes.CommandAccepted)
+                                throw new InvalidOperationException("Runtime rejected video cancellation.");
+                        });
+                    if (boundary.Mode == "Fault") return BoundaryResult(command, boundary);
+                }
+                return result;
+            }
+
             if (command.CommandId == AutomationCommandIds.GetWorldSnapshot
                 || command.CommandId == AutomationCommandIds.GetObjectDetails)
             {

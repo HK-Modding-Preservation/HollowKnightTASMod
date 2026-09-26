@@ -36,6 +36,24 @@ namespace HollowKnightTAS.Companion.Tests
         }
 
         [TestMethod]
+        public void FullRunVideoExportHasPlaybackLeaseAndNoManualFinish()
+        {
+            foreach (var mode in new[] { AutomationMode.ReadOnly, AutomationMode.ApprovedControl })
+            {
+                var catalog = new AutomationCapabilityCatalog(mode, false, fullRunOnly: true);
+                foreach (var command in new[] { AutomationCommandIds.StartVideoExport, AutomationCommandIds.CancelVideoExport })
+                {
+                    Assert.IsTrue(catalog.TryGet(command, out var capability));
+                    Assert.IsTrue(capability.RequiresLease);
+                    Assert.IsFalse(capability.ReadOnly);
+                    Assert.AreEqual(AutomationScope.ControlPlayback, capability.Scope);
+                    Assert.AreEqual(mode == AutomationMode.ReadOnly ? "disabled" : "available", capability.Availability);
+                }
+                Assert.IsFalse(catalog.TryGet(AutomationCommandIds.FinishVideoExport, out _));
+            }
+        }
+
+        [TestMethod]
         public void CompetingClientsHaveExactlyOneLeaseOwner()
         {
             var now = DateTimeOffset.Parse(

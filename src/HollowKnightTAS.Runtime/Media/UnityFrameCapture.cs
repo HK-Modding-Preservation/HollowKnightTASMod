@@ -11,14 +11,18 @@ namespace HollowKnightTAS.Runtime.Media
         private readonly VideoExportFormat format;
         private readonly VideoExportTimeline timeline;
         private readonly AudioBlockReframer audioBlocks;
+        private readonly Func<double> frameDuration;
         private bool recordingAudio;
         public int LastAudioSampleFrames { get; private set; }
         public float MaximumAudioPeak { get; private set; }
         public int DspBlockSampleFrames { get; }
 
-        public UnityFrameCapture(VideoExportFormat format)
+        public UnityFrameCapture(VideoExportFormat format, Func<double>? frameDuration = null)
         {
             this.format = format;
+            // v2 advances the native clock without changing Unity captureDeltaTime.
+            // Both paths only observe their clock; video export never sets it.
+            this.frameDuration = frameDuration ?? (() => Time.captureDeltaTime);
             timeline = new VideoExportTimeline(format);
             ValidateConfiguration();
             AudioSettings.GetDSPBufferSize(out var blockSize, out _);
@@ -82,8 +86,10 @@ namespace HollowKnightTAS.Runtime.Media
                     : AudioSettings.speakerMode != AudioSpeakerMode.Mono))
                 throw new InvalidOperationException("Export audio format must match Unity's output configuration.");
             var duration = (double)format.FpsDenominator / format.FpsNumerator;
-            if (Math.Abs(Time.captureDeltaTime - duration) > 0.000001)
-                throw new InvalidOperationException("Export frame duration mismatch: Unity=" + Time.captureDeltaTime
+            var observedDuration = frameDuration();
+            if (double.IsNaN(observedDuration) || double.IsInfinity(observedDuration)
+                || Math.Abs(observedDuration - duration) > 0.000001)
+                throw new InvalidOperationException("Export frame duration mismatch: observed=" + observedDuration
                     + ", requested=" + duration + ". Capture does not change the clock.");
         }
     }
