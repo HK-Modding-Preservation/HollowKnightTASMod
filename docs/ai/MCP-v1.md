@@ -34,6 +34,8 @@ Companion/win-x64/Tools/HollowKnightTAS.AgentBridge.exe
 
 ## 工具可见性
 
+全流程 v2 的完整对象观察使用 `hktas_get_world_snapshot` 和 `hktas_get_object_details`，支持暂停查询、FSM 和碰撞形状。参数、分页与遗漏说明见 [世界观察接口](WORLD-OBSERVATION.md)。
+
 `hktas_get_state` 默认返回角色和游戏语义快照。主菜单没有角色时，传入
 `{"statusOnly":true}` 可读取最新控制模式、帧号和自动存档策略；返回值标记
 `availability.semanticSnapshot=not-requested`，不包含 `stateJson`。

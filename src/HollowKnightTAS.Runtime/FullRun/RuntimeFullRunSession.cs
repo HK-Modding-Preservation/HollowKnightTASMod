@@ -4,11 +4,14 @@ using System.IO;
 using System.Text;
 using System.Reflection;
 using System.Threading;
+using System.Linq;
+using System.Globalization;
 using GlobalEnums;
 using HollowKnightTAS.Core.Movie;
 using HollowKnightTAS.Runtime.Input;
 using HollowKnightTAS.Runtime.Timing;
 using HollowKnightTAS.Runtime.Rng;
+using HollowKnightTAS.Runtime.Observation;
 
 namespace HollowKnightTAS.Runtime.FullRun
 {
@@ -91,6 +94,9 @@ namespace HollowKnightTAS.Runtime.FullRun
         private readonly FullRunActionSetAdapter input;
         private readonly FullRunMouseBridge mouse;
         private readonly string sessionDirectory;
+        private readonly FrameObservationQueue observationQueue;
+        private readonly RuntimeWorldObserver worldObserver = new RuntimeWorldObserver();
+        private readonly WorldObservationCache observationCache = new WorldObservationCache();
         private FullRunFrameJournal? journal;
         private MovieV2Document? replayMovie;
         private bool editableReplay;
@@ -150,6 +156,66 @@ namespace HollowKnightTAS.Runtime.FullRun
                 throw new ArgumentException("Full-run session directory is required.", nameof(sessionDirectory));
             this.sessionDirectory = Path.GetFullPath(sessionDirectory);
             Directory.CreateDirectory(this.sessionDirectory);
+            observationQueue = new FrameObservationQueue(clock.RequestObservation);
+            clock.RegisterObservation(observationQueue.Service);
+        }
+
+        public Dictionary<string, string> ObserveWorld(IReadOnlyDictionary<string, string> fields)
+        {
+            ValidateObservationFields(fields, "snapshotId", "view", "includeInactive", "offset", "limit");
+            string Value(string key, string fallback) => fields.TryGetValue(key, out var value) ? value : fallback;
+            var id = Value("snapshotId", "");
+            var view = Value("view", "world");
+            if (view != "world" && view != "all" && view != "colliders") throw new ArgumentException("Unknown observation view.");
+            var inactive = Value("includeInactive", "false");
+            if (inactive != "true" && inactive != "false") throw new ArgumentException("includeInactive must be true or false.");
+            var offset = int.Parse(Value("offset", "0"), CultureInfo.InvariantCulture);
+            var limit = int.Parse(Value("limit", "64"), CultureInfo.InvariantCulture);
+            if (id.Length > 96 || offset < 0 || limit < 1 || limit > 128)
+                throw new ArgumentException("Snapshot pagination arguments are invalid.");
+            if (id.Length == 0)
+            {
+                if (offset != 0) throw new ArgumentException("First snapshot request must start at offset zero.");
+                var capture = observationQueue.Invoke(frame => Tuple.Create(frame, movieFrame,
+                    worldObserver.Capture(frame, movieFrame, view, inactive == "true")));
+                id = observationCache.AddSnapshot(capture.Item1, capture.Item2, capture.Item3.MetadataJson,
+                    capture.Item3.Objects.Select(x => Tuple.Create(x.Id, x.Kind, x.Json)));
+            }
+            return observationCache.ReadSnapshot(id, offset, limit);
+        }
+
+        public Dictionary<string, string> ObserveObject(IReadOnlyDictionary<string, string> fields)
+        {
+            ValidateObservationFields(fields, "objectId", "expectedNativeFrame", "detailsId", "cursor", "maxCharacters");
+            string Value(string key, string fallback) => fields.TryGetValue(key, out var value) ? value : fallback;
+            var objectId = Value("objectId", "");
+            if (objectId.Length == 0 || objectId.Length > 128) throw new ArgumentException("objectId is required.");
+            var id = Value("detailsId", "");
+            long? expected = fields.TryGetValue("expectedNativeFrame", out var expectedText)
+                ? long.Parse(expectedText, CultureInfo.InvariantCulture) : (long?)null;
+            var cursor = int.Parse(Value("cursor", "0"), CultureInfo.InvariantCulture);
+            var maximum = int.Parse(Value("maxCharacters", "100000"), CultureInfo.InvariantCulture);
+            if (id.Length > 96 || expected < 0 || cursor < 0 || maximum < 1024 || maximum > 200000)
+                throw new ArgumentException("Details pagination arguments are invalid.");
+            if (id.Length == 0)
+            {
+                if (cursor != 0) throw new ArgumentException("First details request must start at cursor zero.");
+                var capture = observationQueue.Invoke(frame =>
+                {
+                    if (expected.HasValue && expected.Value != frame)
+                        throw new InvalidOperationException("Expected native frame is stale; pause and obtain a current snapshot.");
+                    return Tuple.Create(frame, movieFrame, worldObserver.CaptureObjectDetails(objectId, frame, movieFrame));
+                });
+                id = observationCache.AddDetails(objectId, capture.Item1, capture.Item2, capture.Item3);
+            }
+            return observationCache.ReadDetails(id, objectId, expected, cursor, maximum);
+        }
+
+        private static void ValidateObservationFields(IReadOnlyDictionary<string, string> fields, params string[] optional)
+        {
+            if (!fields.TryGetValue("requestId", out var requestId) || string.IsNullOrWhiteSpace(requestId)
+                || fields.Keys.Any(key => key != "requestId" && !optional.Contains(key)))
+                throw new ArgumentException("Observation request fields are invalid.");
         }
 
         public MovieV2Document? RecordedMovie => recordedMovie;
@@ -714,6 +780,7 @@ namespace HollowKnightTAS.Runtime.FullRun
         {
             if (disposed) return;
             disposed = true;
+            observationQueue.Dispose();
             if (returnToMainMenuHooked)
                 On.GameManager.ReturnToMainMenu -= OnReturnToMainMenu;
             input.Sampled -= OnSampled;

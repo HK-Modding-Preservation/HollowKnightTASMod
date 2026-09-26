@@ -1237,6 +1237,16 @@ namespace HollowKnightTAS.Runtime.Ipc
                     session.SetPauseTarget(long.Parse(command.Fields["targetFrame"], CultureInfo.InvariantCulture),
                         long.Parse(command.Fields["expectedNativeFrame"], CultureInfo.InvariantCulture));
                     return "Movie pause target set.";
+                case IpcMessageTypes.GetWorldSnapshot:
+                    var world = session.ObserveWorld(command.Fields);
+                    world["requestId"] = command.Fields["requestId"];
+                    Publish(IpcMessageTypes.WorldSnapshot, world);
+                    return "World snapshot published.";
+                case IpcMessageTypes.GetObjectDetails:
+                    var details = session.ObserveObject(command.Fields);
+                    details["requestId"] = command.Fields["requestId"];
+                    Publish(IpcMessageTypes.ObjectDetails, details);
+                    return "Object details published.";
                 case IpcMessageTypes.FullRunSnapshot:
                     RequireFields(command.Fields, "requestId");
                     Publish(IpcMessageTypes.FullRunMovieDocument, new Dictionary<string, string>

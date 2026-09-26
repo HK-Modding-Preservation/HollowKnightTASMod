@@ -78,6 +78,10 @@
       <HintPath>$(HKManagedDir)\PlayMaker.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(HKManagedDir)\Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="MMHOOK_PlayMaker">
       <HintPath>$(HKManagedDir)\MMHOOK_PlayMaker.dll</HintPath>
       <Private>false</Private>

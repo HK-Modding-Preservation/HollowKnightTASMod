@@ -4,6 +4,8 @@ Studio 用来逐帧播放、编辑和回退《空洞骑士》的 TAS 输入。�
 
 ## 快速开始
 
+「设置」中的「显示碰撞箱」可显示或隐藏游戏碰撞轮廓，默认关闭并记住选择。轮廓按角色、敌人、地形、触发器等分类着色；显示不会改变游戏碰撞判定。AI 的角色、Boss/FSM、障碍物查询见 [世界观察接口](ai/WORLD-OBSERVATION.md)，暂停时也可读取。
+
 1. 等待游戏停在 Native frame 0。
 2. 在 Input Editor 打开 `.hktas`，然后 Play 或逐帧。不需要手动 Validate、Format、Upload。
 3. 没有打开文件时，直接 Play 或逐帧会新建录制；输入表格会随运行增长。

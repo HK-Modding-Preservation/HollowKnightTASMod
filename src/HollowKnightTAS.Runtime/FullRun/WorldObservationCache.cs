@@ -85,7 +85,9 @@ namespace HollowKnightTAS.Runtime.FullRun
             if (cursor < 0 || cursor > item.Json.Length || maxCharacters < 1024 || maxCharacters > 200000
                 || (cursor > 0 && cursor < item.Json.Length && char.IsLowSurrogate(item.Json[cursor])))
                 throw new ArgumentOutOfRangeException(nameof(cursor));
-            var length = Math.Min(maxCharacters, item.Json.Length - cursor);
+            // Worst-case JSON escaping uses six bytes per UTF-16 code unit. Leave room
+            // for the IPC envelope even if a Mod exposes a string of control characters.
+            var length = Math.Min(Math.Min(maxCharacters, 150000), item.Json.Length - cursor);
             if (length > 0 && cursor + length < item.Json.Length && char.IsHighSurrogate(item.Json[cursor + length - 1])) length--;
             int next = cursor + length < item.Json.Length ? cursor + length : -1;
             var result = Frames(item.NativeFrame, item.MovieFrame);

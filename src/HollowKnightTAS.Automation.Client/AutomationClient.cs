@@ -328,18 +328,29 @@ namespace HollowKnightTAS.Automation.Client
                     cancellationToken);
                 EnsureSuccessful(result);
                 var page = ParseObject(result, "snapshotJson");
+                var responseId = ReadField(result, "snapshotId");
+                var pageTotal = ReadInt64(page, "total", -1);
+                if (string.IsNullOrEmpty(responseId)
+                    || (!string.IsNullOrEmpty(activeSnapshotId) && activeSnapshotId != responseId)
+                    || ReadInt64(page, "offset", -1) != offset || pageTotal < 0
+                    || (expectedTotal >= 0 && expectedTotal != pageTotal))
+                    throw new InvalidDataException("World snapshot identity, offset, or total changed between pages.");
                 if (merged == null)
                 {
                     merged = (JsonObject)page.DeepClone();
                     merged.Remove("objects");
                 }
+                else if (ReadInt64(page, "nativeFrame", -1) != ReadInt64(merged, "nativeFrame", -1)
+                    || ReadInt64(page, "movieFrame", -1) != ReadInt64(merged, "movieFrame", -1))
+                    throw new InvalidDataException("World snapshot sampling frame changed between pages.");
                 if (page["objects"] is JsonArray objects)
                 {
                     foreach (var item in objects)
                         mergedObjects.Add(item?.DeepClone());
                 }
-                expectedTotal = ReadInt64(page, "total", expectedTotal);
-                activeSnapshotId = ReadField(result, "snapshotId");
+                else throw new InvalidDataException("World snapshot objects array is missing.");
+                expectedTotal = pageTotal;
+                activeSnapshotId = responseId;
                 var nextOffset = ReadInt64(page, "nextOffset", -1);
                 if (nextOffset < 0)
                     break;
@@ -350,6 +361,8 @@ namespace HollowKnightTAS.Automation.Client
 
             if (merged == null)
                 throw new InvalidDataException("World snapshot response was empty.");
+            if (mergedObjects.Count != expectedTotal)
+                throw new InvalidDataException("World snapshot object count does not match the declared total.");
             merged["objects"] = mergedObjects;
             if (expectedTotal >= 0)
                 merged["total"] = expectedTotal;
@@ -419,15 +432,26 @@ namespace HollowKnightTAS.Automation.Client
                 if (ReadField(result, "objectId") != objectId)
                     throw new InvalidDataException("Object details response changed objectId.");
                 var fragment = ReadField(result, "detailsJson");
+                var responseDetailsId = ReadField(result, "detailsId");
+                var responseHash = ReadField(result, "sha256");
+                var responseTotal = ReadInt64(result, "totalCharacters", -1);
+                if (string.IsNullOrEmpty(responseDetailsId)
+                    || (detailsId != null && detailsId != responseDetailsId)
+                    || (expectedSha256 != null && expectedSha256 != responseHash)
+                    || (totalCharacters >= 0 && totalCharacters != responseTotal)
+                    || ReadInt64(result, "cursor", -1) != cursor || responseTotal < 0)
+                    throw new InvalidDataException("Object details identity, cursor, or checksum changed between chunks.");
                 builder.Append(fragment);
-                detailsId = ReadField(result, "detailsId");
-                expectedSha256 = ReadField(result, "sha256");
-                totalCharacters = ReadInt64(result, "totalCharacters", totalCharacters);
+                detailsId = responseDetailsId;
+                expectedSha256 = responseHash;
+                totalCharacters = responseTotal;
                 var complete = ReadField(result, "complete") == "true";
                 var nextCursor = ReadInt64(result, "nextCursor", -1);
-                if (complete || nextCursor < 0)
+                if (complete != (nextCursor == -1))
+                    throw new InvalidDataException("Object details completion flags disagree.");
+                if (complete)
                     break;
-                if (detailsId.Length == 0 || nextCursor <= cursor)
+                if (detailsId.Length == 0 || nextCursor <= cursor || nextCursor != cursor + fragment.Length)
                     throw new InvalidDataException("Object details pagination is invalid.");
                 cursor = checked((int)nextCursor);
                 expectedNativeFrame = null;
