@@ -14,8 +14,9 @@ namespace HollowKnightTAS.Companion.Services
         public int? ParentId { get; set; }
         public long Frame { get; set; }
         public string Movie { get; set; } = "";
+        public bool IsBranchTip { get; set; }
         public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
-        [JsonIgnore] public string Label => Id == 0 ? "起点 · Frame 0" : $"存档 {Id} · Frame {Frame}";
+        [JsonIgnore] public string Label => Id == 0 ? "起点 · Frame 0" : IsBranchTip ? $"最远进度 · Frame {Frame}" : $"存档 {Id} · Frame {Frame}";
     }
 
     public sealed class TimelineTree
@@ -33,6 +34,7 @@ namespace HollowKnightTAS.Companion.Services
             var node = byId[id];
             while (true)
             {
+                if (path.Count >= Nodes.Count) throw new InvalidDataException("时间线父子关系存在循环。");
                 path.Add(node);
                 if (node.ParentId == null) break;
                 node = byId[node.ParentId.Value];
@@ -60,12 +62,53 @@ namespace HollowKnightTAS.Companion.Services
             if (!SameBaseline(OriginalHashes, hashes) || !MovieV2Prefix.Matches(Parse(root.Movie), candidate, 0))
                 throw new InvalidOperationException("存档起点或运行环境不同，请新建序列以建立独立时间线。");
             // Match only history already executed at a node, never its future draft.
-            var parent = Nodes.Where(n => n.Frame <= frame)
+            var parent = Nodes.Where(n => !n.IsBranchTip && n.Frame <= frame)
                 .OrderByDescending(n => n.Frame).ThenByDescending(n => n.Id)
                 .First(n => MovieV2Prefix.Matches(Parse(n.Movie), candidate, n.Frame));
             var node = new TimelineNode { Id = NextId++, ParentId = parent.Id, Frame = frame, Movie = movie };
             Nodes.Add(node);
             return node;
+        }
+
+        public TimelineNode UpdateTip(long frame, string movie, IReadOnlyDictionary<string, string> hashes, int? preferredTip)
+        {
+            var candidate = Parse(movie);
+            _ = MovieV2Prefix.Take(candidate, frame);
+            var root = Nodes.Single(n => n.Id == 0);
+            if (root.Movie.Length == 0 || Parse(root.Movie).Header.EnvironmentSha256 == "none")
+            {
+                root.Movie = movie;
+                OriginalHashes = new Dictionary<string, string>(hashes);
+                foreach (var unresolved in Nodes.Where(n => n.Frame == 0 && n.Movie.Length != 0
+                    && Parse(n.Movie).Header.EnvironmentSha256 == "none")) unresolved.Movie = movie;
+            }
+            var tip = Nodes.FirstOrDefault(n => n.Id == preferredTip && n.IsBranchTip);
+            if (tip != null && tip.Frame <= candidate.Runs.Sum(r => r.RepeatCount)
+                && MovieV2Prefix.Matches(Parse(tip.Movie), candidate, tip.Frame)
+                && SameBaseline(OriginalHashes, hashes))
+            {
+                _ = MovieV2Prefix.Take(candidate, frame);
+                tip.Frame = Math.Max(tip.Frame, frame);
+                tip.Movie = movie;
+                // A new explicit save can become the tip's parent without changing
+                // the tip id (quick-slot references remain stable).
+                tip.ParentId = Nodes.Where(n => !n.IsBranchTip && n.Frame <= tip.Frame)
+                    .OrderByDescending(n => n.Frame).ThenByDescending(n => n.Id)
+                    .First(n => MovieV2Prefix.Matches(Parse(n.Movie), candidate, n.Frame)).Id;
+                return tip;
+            }
+            var created = Add(frame, movie, hashes);
+            created.IsBranchTip = true;
+            return created;
+        }
+
+        public long MatchingSavedFrame(string movie)
+        {
+            var candidate = Parse(movie);
+            var count = candidate.Runs.Sum(r => r.RepeatCount);
+            return Nodes.Where(n => !n.IsBranchTip && n.Movie.Length > 0 && n.Frame <= count
+                    && MovieV2Prefix.Matches(Parse(n.Movie), candidate, n.Frame))
+                .Select(n => n.Frame).DefaultIfEmpty(0).Max();
         }
         public HashSet<int> Subtree(int id)
         {
@@ -146,9 +189,12 @@ namespace HollowKnightTAS.Companion.Services
                 var root = tree.Nodes.Single(n => n.Id == 0);
                 if (root.ParentId != null || root.Frame != 0) throw new InvalidDataException("时间线起点无效。");
                 foreach (var node in tree.Nodes.Where(n => n.Id != 0))
-                    if (node.ParentId == null || node.ParentId < 0 || node.ParentId >= node.Id || !ids.Contains(node.ParentId.Value)
+                    if (node.ParentId == null || node.ParentId < 0 || node.ParentId == node.Id || !ids.Contains(node.ParentId.Value)
                         || node.Frame < tree.Nodes.Single(n => n.Id == node.ParentId).Frame || node.Movie.Length == 0)
                         throw new InvalidDataException("时间线父子关系无效。");
+                foreach (var node in tree.Nodes) _ = tree.PathTo(node.Id);
+                if (tree.Nodes.Any(n => n.IsBranchTip && tree.Nodes.Any(c => c.ParentId == n.Id)))
+                    throw new InvalidDataException("最远进度必须是叶子节点。");
             }
         }
     }

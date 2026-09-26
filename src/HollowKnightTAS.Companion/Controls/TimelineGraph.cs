@@ -46,7 +46,7 @@ namespace HollowKnightTAS.Companion.Controls
             canvas.Children.Clear();
             var tree = vm?.SelectedTimelineTree;
             if (tree == null) return;
-            var nodes = tree.Nodes.OrderBy(n => n.Id).ToArray();
+            var nodes = tree.Nodes.OrderBy(n => tree.PathTo(n.Id).Count).ThenBy(n => n.Id).ToArray();
             var children = nodes.Where(n => n.ParentId != null).ToLookup(n => n.ParentId!.Value);
             var depth = new Dictionary<int, int>();
             foreach (var node in nodes) depth[node.Id] = node.ParentId == null ? 0 : depth[node.ParentId.Value] + 1;

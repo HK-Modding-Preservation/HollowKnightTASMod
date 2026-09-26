@@ -97,7 +97,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         }
         private async System.Threading.Tasks.Task SyncRecordingGridAsync()
         {
-            if (recordingGridSync || gridApplying || fullRunMovies?.Mode != "Recording"
+            if (recordingGridSync || gridApplying || draftRequiresRestart || fullRunMovies?.Mode != "Recording"
                 || startupBoot?.IsWaiting != true || startupBoot.NativeCompletedFrames == 0
                 || recordingGridNativeFrame == startupBoot.NativeCompletedFrames) return;
             recordingGridSync = true;
@@ -128,6 +128,13 @@ namespace HollowKnightTAS.Companion.ViewModels
         private async System.Threading.Tasks.Task ApplyPendingInputsAsync(bool withinGridOperation = false)
         {
             if (fullRunMovies?.IsPending != true) return;
+            if (draftRequiresRestart)
+            {
+                SetGridApplying(true);
+                try { await RestartDraftAtAsync(0); }
+                finally { if (!withinGridOperation) SetGridApplying(false); }
+                return;
+            }
             var completed = fullRunMovies.Mode == "Completed";
             if (!gridHasUserEdits && !completed)
             {

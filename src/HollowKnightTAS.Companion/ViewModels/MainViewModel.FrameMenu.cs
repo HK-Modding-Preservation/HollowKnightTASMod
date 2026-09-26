@@ -58,6 +58,12 @@ namespace HollowKnightTAS.Companion.ViewModels
                     var node = FindTimelineFrame(frame) ?? throw new InvalidOperationException("所选世界线此帧尚未存档，请到时间线选择其他分支。");
                     await RestoreTimelineCoreAsync(selectedTimelineTree!, selectedWorldline!, node);
                 }
+                else if (action == "rebuild")
+                {
+                    if (frame < 0 || frame > gridTotalFrames)
+                        throw new InvalidOperationException("目标帧超出序列。");
+                    await RestartDraftAtAsync(frame);
+                }
                 else if (action == "seek" || action == "restore")
                 {
                     if (frame < 0 || frame > gridTotalFrames)
@@ -169,6 +175,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private async Task RestartDraftAtAsync(long frame, string? sourceMovie = null)
         {
+            await SaveCurrentBranchAsync(closing: true);
             SetRestorePresentationFrozen(true);
             var completed = false;
             try
@@ -206,7 +213,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     new NativeFrameRun(500, Array.Empty<GameInputSample>(), new MovieSourceSpan("<resume>", 1, 1, 1), ParseFrameRate(DefaultFrameRate), true) }));
             MovieText = gridSource = new MovieV2Codec().WriteCanonical(candidate);
             if (restartProtectedGame == null) throw new InvalidOperationException("受控重启入口不可用。");
-            GridStatus = $"正在重启并重放到第 {frame} 帧…";
+            GridStatus = "正在恢复，请稍候…";
             await restartProtectedGame();
             fullRunMovies!.ArmReplay(candidate, frame);
             currentFullRunMovieFrame = 0;
@@ -232,6 +239,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             }
             currentFullRunMovieFrame = frame;
             gridHasUserEdits = false;
+            draftRequiresRestart = false;
             earliestGridEdit = long.MaxValue;
             TrackGridFrame(frame, true);
             GridStatus = $"已停在第 {frame} 帧边界。";

@@ -249,7 +249,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 {
                     if (fullRunMovies?.IsPending == true)
                     {
-                        if (fullRunMovies.Mode == "Unarmed") NewFullRunMovie();
+                        if (fullRunMovies.Mode == "Unarmed" && !draftRequiresRestart) NewFullRunMovie();
                         await ApplyPendingInputsAsync();
                         var boundary = await fullRunMovies.RunAsync(
                             this.startupBoot.NativeCompletedFrames, CancellationToken.None);
@@ -278,7 +278,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                         {
                             if (fullRunMovies?.IsPending == true)
                             {
-                                if (fullRunMovies.Mode == "Unarmed") NewFullRunMovie();
+                                if (fullRunMovies.Mode == "Unarmed" && !draftRequiresRestart) NewFullRunMovie();
                                 await ApplyPendingInputsAsync();
                                 var boundary = await fullRunMovies.StepAsync(
                                     this.startupBoot.NativeCompletedFrames, CancellationToken.None);
@@ -538,7 +538,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         public string RuntimeSummary
         {
-            get => runtimeSummary;
+            get => IsRestorePresentationFrozen ? "正在恢复，请稍候…" : runtimeSummary;
             private set => Set(ref runtimeSummary, value);
         }
 
@@ -1016,29 +1016,41 @@ namespace HollowKnightTAS.Companion.ViewModels
                 return;
             }
 
-            var info = new FileInfo(dialog.FileName);
-            if (info.Length > 16 * 1024 * 1024)
-            {
-                throw new InvalidDataException(
-                    "Movie source exceeds 16 MiB.");
-            }
+            await OpenMovieFileAsync(dialog.FileName);
+        }
 
-            MovieText = await File.ReadAllTextAsync(
-                dialog.FileName,
-                new UTF8Encoding(false, true));
-            ValidateMovie(false);
-            RefreshGridCommand.Execute(null);
-            if (fullRunMovies?.IsPending == true)
+        public async Task OpenMovieFileAsync(string path)
+        {
+            if (gridApplying) throw new InvalidOperationException("请等待当前恢复完成。");
+            var info = new FileInfo(path);
+            if (info.Length > 16 * 1024 * 1024) throw new InvalidDataException("序列文件超过 16 MiB。");
+            var text = await File.ReadAllTextAsync(path, new UTF8Encoding(false, true));
+            var candidate = movieEditor.ValidateAny(text, path);
+            if (!candidate.Success) throw new InvalidDataException("序列文件无效，当前草稿未改变。");
+            if (fullRunMovies?.IsPending == true && candidate.V2Document == null)
+                throw new InvalidDataException("当前会话需要 v2 全流程序列，当前草稿未改变。");
+            SetGridApplying(true);
+            try
             {
-                var candidate = movieEditor.ValidateAny(MovieText, dialog.FileName);
-                if (!candidate.Success || candidate.V2Document == null)
-                    throw new InvalidDataException("第 0 帧只能预置有效的 v2 全流程 Movie；v1 文件仍可查看。 ");
-                fullRunMovies.ArmReplay(candidate.V2Document);
-                StartTimeline(MovieText);
-                OnPropertyChanged(nameof(PlaybackStateText));
+                if (fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true)
+                    await fullRunMovies.PauseAsync(CancellationToken.None);
+                await SaveCurrentBranchAsync(closing: true);
+                MovieText = gridSource = text;
+                gridHasUserEdits = false; earliestGridEdit = long.MaxValue;
+                recordingGridNativeFrame = -1;
+                draftRequiresRestart = fullRunMovies?.IsPending == true;
+                RefreshInputGrid();
+                if (candidate.V2Document != null) StartTimeline(MovieText);
+                if (fullRunMovies?.IsPending == true && fullRunMovies.Mode == "Unarmed"
+                    && startupBoot?.IsWaiting == true && startupBoot.NativeCompletedFrames == 0)
+                {
+                    fullRunMovies.ArmReplay(candidate.V2Document!);
+                    draftRequiresRestart = false;
+                }
                 foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
-                Status = "v2 Movie 已在原生第 0 帧预置；可单步或播放。";
+                Status = draftRequiresRestart ? "序列已切换；播放将从起点开始，也可右键恢复到指定帧。" : "序列已打开。";
             }
+            finally { SetGridApplying(false); }
         }
 
         private async Task SaveMovieAsync()
@@ -2041,6 +2053,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             }
         }
 
+        private readonly LatestUiUpdate runtimeProgressUpdate = new();
+
         private void OnEnvelopeReceived(
             object? sender,
             SessionEnvelopeEventArgs eventArgs)
@@ -2048,6 +2062,18 @@ namespace HollowKnightTAS.Companion.ViewModels
             var payload =
                 IpcPayloadCodec.TryDeserialize(
                     eventArgs.Envelope.PayloadUtf8);
+            if (eventArgs.Envelope.MessageType == IpcMessageTypes.FullRunState
+                && payload.Success && payload.Fields != null
+                && payload.Fields.TryGetValue("requestId", out var progressRequest)
+                && progressRequest == "runtime-progress")
+            {
+                runtimeProgressUpdate.Post(() =>
+                {
+                    if (ReferenceEquals(SelectedSession?.Client, eventArgs.Session))
+                        HandleTypedEvent(eventArgs.Envelope.MessageType, payload.Fields);
+                }, Dispatch);
+                return;
+            }
             if (string.Equals(
                     eventArgs.Envelope.MessageType,
                     IpcMessageTypes.CapabilityCatalog,

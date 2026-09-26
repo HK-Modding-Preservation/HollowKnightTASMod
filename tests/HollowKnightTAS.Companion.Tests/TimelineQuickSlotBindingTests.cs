@@ -52,6 +52,7 @@ public sealed class TimelineQuickSlotBindingTests
         StringAssert.Contains(vm.QuickSlotLabels[3], "F4");
         vm.SelectedWorldline = vm.WorldlineLeaves.Last();
         vm.SelectedTimelineNode = vm.WorldlinePath.Single(n => n.Frame == 5);
+        count = store.Library.Trees[0].Nodes.Count; // Switching saves a branch tip; binding itself creates nothing.
         vm.BindTimelineQuickSlotCommand.Execute(null);
         Assert.AreNotEqual(reloaded.Library.QuickSlots[3], new StudioTimelineStore(path).Library.QuickSlots[3]);
         Assert.AreEqual(count, store.Library.Trees[0].Nodes.Count);

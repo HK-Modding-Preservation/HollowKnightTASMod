@@ -276,11 +276,28 @@ namespace HollowKnightTAS.Runtime.FullRun
             recordingHeader = header;
         }
 
-        public IReadOnlyDictionary<string, string> ReadBindingLabels() => input.ReadBindingLabels();
+        private FullRunStatus? observedWorld;
+        private IReadOnlyDictionary<string, string> observedBindings = new Dictionary<string, string>();
+        private int nextBindingsRefresh;
+        private bool observationFaultLogged;
+        public IReadOnlyDictionary<string, string> ReadBindingLabels() => Volatile.Read(ref observedBindings);
 
         public FullRunStatus GetStatus()
         {
-            var hero = HeroController.instance;
+            // IPC runs on a worker. Unity object APIs must stay on the PlayerLoop.
+            var world = Volatile.Read(ref observedWorld);
+            return new FullRunStatus(mode, clock.CurrentFrameIndex, movieFrame,
+                skippedLoadFrames, frameBoundary, inputReady, mismatchCount, error,
+                world?.SceneName ?? string.Empty, world?.SaveSlot ?? 0,
+                world?.HeroX ?? string.Empty, world?.HeroY ?? string.Empty,
+                world?.RespawnScene ?? string.Empty, world?.HeroHealth ?? 0,
+                bossSceneEntered, bossDeathObserved, bossesDeadObserved,
+                bossSceneCompleteObserved, bossDeathFrame, bossSceneEntryMovieFrame);
+        }
+
+        private FullRunStatus CaptureWorldStatus()
+        {
+            var hero = HeroController.SilentInstance;
             var position = hero == null ? default(UnityEngine.Vector3) : hero.transform.position;
             return new FullRunStatus(mode, clock.CurrentFrameIndex, movieFrame,
                 skippedLoadFrames, frameBoundary, inputReady,
@@ -529,6 +546,25 @@ namespace HollowKnightTAS.Runtime.FullRun
             catch (Exception exception)
             {
                 Fail("FrameCompletionFault: " + exception.Message);
+            }
+            finally
+            {
+                try
+                {
+                    Volatile.Write(ref observedWorld, CaptureWorldStatus());
+                    var now = Environment.TickCount;
+                    if (unchecked(now - nextBindingsRefresh) >= 0)
+                    {
+                        nextBindingsRefresh = unchecked(now + 200);
+                        Volatile.Write(ref observedBindings, input.ReadBindingLabels());
+                    }
+                    observationFaultLogged = false;
+                }
+                catch (Exception exception)
+                {
+                    if (!observationFaultLogged) Modding.Logger.LogWarn("TAS progress observation failed: " + exception.Message);
+                    observationFaultLogged = true;
+                }
             }
         }
 

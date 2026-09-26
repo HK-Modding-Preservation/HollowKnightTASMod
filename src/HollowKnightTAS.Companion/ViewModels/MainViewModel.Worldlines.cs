@@ -38,9 +38,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             set
             {
                 if (value == null || gridApplying || value == selectedTimelineTree) return;
-                selectedTimelineTree = value;
-                selectedWorldline = value.Leaves.Last(); selectedTimelineNode = selectedWorldline;
-                NotifyWorldlines();
+                _ = SwitchWorldlineAsync(value.Id, value.Leaves.Last().Id);
             }
         }
         public IReadOnlyList<TimelineNode> WorldlineLeaves => selectedTimelineTree?.Leaves.ToArray() ?? Array.Empty<TimelineNode>();
@@ -52,7 +50,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             set
             {
                 if (value == null || gridApplying || value == selectedWorldline) return;
-                selectedWorldline = value; selectedTimelineNode = value; NotifyWorldlines();
+                if (selectedTimelineTree != null) _ = SwitchWorldlineAsync(selectedTimelineTree.Id, value.Id);
             }
         }
         public TimelineNode? SelectedTimelineNode
@@ -179,26 +177,40 @@ namespace HollowKnightTAS.Companion.ViewModels
             });
             freshTimeline = null;
             RefreshWorldlines(id);
+            activeDraftTree = id; activeDraftTip = null;
+            lastSavedBranchMovie = null; lastSavedBranchNative = -1;
         }
         private void SaveTimelineSnapshot(FrameSave snapshot)
         {
             InitializeWorldlines();
             if (worldlines == null) throw new InvalidOperationException(TimelineTreeStatus);
-            var id = worldlines.Library.ActiveTreeId;
+            var id = activeDraftTree ?? worldlines.Library.ActiveTreeId;
             int nodeId = 0;
+            var candidate = movieEditor.ValidateAny(MovieText).V2Document;
+            var tipMovie = candidate != null && snapshot.Frame <= InputGridEditor.Count(candidate)
+                && HollowKnightTAS.Core.Movie.MovieV2Prefix.Matches(TimelineTree.Parse(snapshot.Movie), candidate, snapshot.Frame)
+                ? MovieText : snapshot.Movie;
             worldlines.Update(library =>
             {
                 var tree = library.Trees.FirstOrDefault(t => t.Id == id) ?? library.Trees.Last();
                 id = library.ActiveTreeId = tree.Id;
                 nodeId = tree.Add(snapshot.Frame, snapshot.Movie, snapshot.OriginalHashes).Id;
+                activeDraftTip = tree.UpdateTip(snapshot.Frame, tipMovie, snapshot.OriginalHashes, activeDraftTip).Id;
             });
-            RefreshWorldlines(id, nodeId, nodeId);
+            activeDraftTree = id;
+            RefreshWorldlines(id, activeDraftTip, nodeId);
             GridStatus = TimelineTreeStatus = $"已保存节点 {nodeId} · Frame {snapshot.Frame}；旧世界线已保留。";
         }
         public void SelectTimelineNode(int id)
         {
             if (gridApplying || selectedTimelineTree == null) return;
             var node = selectedTimelineTree.Nodes.Single(n => n.Id == id);
+            if (selectedTimelineTree.Leaves.Any(n => n.Id == id)
+                && (selectedWorldline?.Id != id || activeDraftTree != selectedTimelineTree.Id))
+            {
+                _ = SwitchWorldlineAsync(selectedTimelineTree.Id, id);
+                return;
+            }
             if (selectedWorldline == null || !selectedTimelineTree.PathTo(selectedWorldline.Id).Any(n => n.Id == id))
                 selectedWorldline = selectedTimelineTree.Leaves.Last(n => selectedTimelineTree.PathTo(n.Id).Any(p => p.Id == id));
             selectedTimelineNode = node; NotifyWorldlines();
@@ -228,6 +240,9 @@ namespace HollowKnightTAS.Companion.ViewModels
             worldlines!.Update(library => library.ActiveTreeId = tree.Id);
             freshTimeline = null;
             RefreshWorldlines(tree.Id, leaf.Id, node.Id);
+            activeDraftTree = tree.Id;
+            activeDraftTip = leaf.IsBranchTip ? leaf.Id : null;
+            lastSavedBranchMovie = null;
             TimelineTreeStatus = $"世界线 {leaf.Id} · 已恢复 {node.Label}。";
         }
         private void DeleteTimelineSelection()

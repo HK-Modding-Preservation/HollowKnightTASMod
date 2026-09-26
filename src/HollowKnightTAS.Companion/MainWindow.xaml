@@ -21,8 +21,6 @@
                   IsCheckable="True" IsChecked="{Binding GameMouseEnabled, Mode=TwoWay}"
                   AutomationProperties.AutomationId="HktasStudio.GameMouseEnabled" />
         <Separator />
-        <MenuItem Header="Hotkeys 快捷键…" Tag="ShortcutSettingsTab" Click="OnNavigate" />
-        <MenuItem Header="Runtime 运行控制…" Tag="ControlTab" Click="OnNavigate" />
       </MenuItem>
       <MenuItem Header="_Movie 序列">
         <MenuItem Header="New full-run Movie 从第 0 帧新建" Command="{Binding NewFullRunMovieCommand}"
@@ -31,20 +29,10 @@
         <MenuItem Header="Save Movie 保存…" InputGestureText="Ctrl+S" Command="{Binding SaveMovieCommand}" />
         <Separator />
         <MenuItem Header="Input Editor 输入编辑器" Tag="InputGridTab" Click="OnNavigate" />
-        <MenuItem Header="Movie Text 文本脚本" Tag="MovieTextTab" Click="OnNavigate" />
         <MenuItem Header="Timeline 时间线" Tag="WorldlinesTab" Click="OnNavigate" />
         <Separator />
         <MenuItem Header="Encode to MP4 导出视频…" Command="{Binding StartVideoExportCommand}" />
         <MenuItem Header="Cancel Encoding 取消视频导出" Command="{Binding CancelVideoExportCommand}" />
-      </MenuItem>
-      <MenuItem Header="_Tools 工具">
-        <MenuItem Header="Advanced Authoring 高级编排" Tag="AuthoringTab" Click="OnNavigate" />
-        <MenuItem Header="State Inspector 状态检查" Tag="ControlTab" Click="OnNavigate" />
-        <MenuItem Header="Event Log 事件日志" Tag="EventLogTab" Click="OnNavigate" />
-        <MenuItem Header="Canonical Diff 文本差异" Tag="DiffTab" Click="OnNavigate" />
-        <MenuItem Header="External Control 外部控制" Tag="CapabilitiesTab" Click="OnNavigate" />
-        <Separator />
-        <MenuItem Header="Close Tool Panels 收起工具面板" Click="OnHideTools" />
       </MenuItem>
       <MenuItem Header="_Input 输入">
         <MenuItem Header="Play / Pause 播放与暂停" InputGestureText="{Binding ConfiguredPause}" Command="{Binding TogglePauseCommand}" />
@@ -56,13 +44,10 @@
       </MenuItem>
     </Menu>
     <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-      <Button Content="Start 启动" AutomationProperties.AutomationId="HktasStudio.LaunchGameButton"
-              ToolTip="已有游戏时请先正常保存退出，再从这里启动。" Command="{Binding LaunchGameCommand}" />
       <Button Content="{Binding PlayPauseLabel}" Command="{Binding TogglePauseCommand}"
               AutomationProperties.AutomationId="HktasStudio.PlayPauseButton" ToolTip="{Binding ConfiguredPause}" />
       <Button Content="Frame Advance 逐帧" Command="{Binding StepCommand}"
               AutomationProperties.AutomationId="HktasStudio.FrameAdvanceButton" ToolTip="{Binding ConfiguredAdvance}" />
-      <Button Content="Stop 停止序列" Command="{Binding StopReplayCommand}" />
       <Button Content="Quit Game 退出游戏" Command="{Binding QuitGameCommand}"
               AutomationProperties.AutomationId="HktasStudio.QuitGameButton"
               ToolTip="退出受控游戏；全流程播放中会先暂停到原生帧边界。请先保存需要保留的 Movie。" />
@@ -70,6 +55,13 @@
                  FontFamily="Consolas" AutomationProperties.AutomationId="HktasStudio.FrameCounter" />
       <TextBlock Text="{Binding PlaybackStateText}" VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}" />
     </WrapPanel>
+    <Border DockPanel.Dock="Top" Padding="8" Margin="0,0,0,6">
+      <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed" />
+        <Style.Triggers><DataTrigger Binding="{Binding IsRestorePresentationFrozen}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
+      </Style></Border.Style>
+      <StackPanel><TextBlock Text="正在恢复，请稍候…" Margin="0,0,0,5" />
+        <ProgressBar IsIndeterminate="True" Height="5" /></StackPanel>
+    </Border>
     <Border DockPanel.Dock="Bottom" Padding="6" Margin="0,6,0,0" Background="{StaticResource PanelBrush}">
       <TextBlock Text="{Binding Status}" TextWrapping="Wrap" MaxHeight="54"
                  AutomationProperties.AutomationId="HktasStudio.StatusText" />
@@ -125,40 +117,25 @@
             <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
             <RowDefinition Height="*" /><RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
-          <WrapPanel>
-            <Button Content="刷新表格" Command="{Binding RefreshGridCommand}" />
-            <Button Content="◀" ToolTip="上一页" Command="{Binding PreviousGridPageCommand}" />
-            <Button Content="▶" ToolTip="下一页" Command="{Binding NextGridPageCommand}" />
-            <TextBlock Text="Frame" VerticalAlignment="Center" Margin="8,0,4,0" />
-            <TextBox Text="{Binding GridStart, UpdateSourceTrigger=PropertyChanged}" Width="75" VerticalContentAlignment="Center" />
-            <TextBlock Text="Count" VerticalAlignment="Center" Margin="8,0,4,0" />
-            <TextBox Text="{Binding GridCount, UpdateSourceTrigger=PropertyChanged}" Width="65" VerticalContentAlignment="Center" />
-            <Button Content="定位" Command="{Binding GoToGridFrameCommand}" />
-            <Button Content="当前帧" Command="{Binding FollowGridFrameCommand}" />
-            <CheckBox Content="播放时跟随" IsChecked="{Binding AutoFollowGrid, Mode=TwoWay}"
-                      AutomationProperties.AutomationId="HktasStudio.AutoFollowGrid"
-                      ToolTip="播放时让输入表格跟随当前 Movie 帧；关闭后可停在其他帧查看。"
-                      VerticalAlignment="Center" Margin="8,0" />
-            <Button Content="应用分支" Command="{Binding ApplyGridCommand}" />
-            <Button Content="应用并重放到 Frame" Command="{Binding ApplyGridAndSeekCommand}" />
-          </WrapPanel>
-          <WrapPanel Grid.Row="1" Margin="0,0,0,6">
+          <WrapPanel Margin="0,0,0,4">
             <Button Content="Undo 撤销" Command="{Binding UndoGridCommand}" />
             <Button Content="Redo 重做" Command="{Binding RedoGridCommand}" />
             <Button Content="Copy 复制" Command="{Binding CopyGridCommand}" />
             <Button Content="Paste 替换选区" Command="{Binding PasteGridCommand}" />
             <Button Content="Insert 插入空帧" Command="{Binding InsertGridCommand}" />
             <Button Content="Delete 删除帧" Command="{Binding DeleteGridCommand}" />
-            <ComboBox ItemsSource="{Binding GridActions}" SelectedItem="{Binding GridAction}" Width="100" Margin="6,3" />
-            <Button Content="切换选区按键" Command="{Binding ToggleGridCommand}" />
-            <Button Content="Axes 模拟轴…" Click="OnEditGridAxes" />
-            <TextBlock Text="默认 FPS" VerticalAlignment="Center" Margin="8,0,4,0" />
-            <TextBox Text="{Binding DefaultFrameRate, UpdateSourceTrigger=PropertyChanged}" Width="48" ToolTip="新补空帧的实际游戏帧率（1–1000）" />
-            <TextBlock Text="选区 FPS" VerticalAlignment="Center" Margin="8,0,4,0" />
-            <TextBox Text="{Binding SelectedFrameRate, UpdateSourceTrigger=PropertyChanged}" Width="48" />
-            <Button Content="设置帧率" Command="{Binding SetFrameRateCommand}" />
           </WrapPanel>
-          <DataGrid x:Name="InputGrid" Grid.Row="2" ItemsSource="{Binding InputRows}"
+          <WrapPanel Grid.Row="1" Margin="0,0,0,6">
+            <Button Content="打开序列…" Command="{Binding OpenMovieCommand}" />
+            <Button Content="保存序列…" Command="{Binding SaveMovieCommand}" />
+            <Button Content="设置帧率…" Click="OnDefaultFrameRate" ToolTip="设置新输入帧的默认帧率；选区帧率在右键菜单修改。" />
+            <Button Content="重新计算到选中帧" Command="{Binding ApplyGridAndSeekCommand}" ToolTip="修改过去输入后，从起点重放到选中帧。" />
+            <CheckBox Content="播放时跟随" IsChecked="{Binding AutoFollowGrid, Mode=TwoWay}"
+                      AutomationProperties.AutomationId="HktasStudio.AutoFollowGrid"
+                      ToolTip="播放时实时跟随；回档重放期间保持静止。" VerticalAlignment="Center" Margin="8,0" />
+            <Button Content="导出 MP4…" Command="{Binding StartVideoExportCommand}" />
+          </WrapPanel>
+          <controls:InputFrameGrid x:Name="InputGrid" Grid.Row="2" ItemsSource="{Binding InputRows}"
                     InputMethod.IsInputMethodEnabled="False"
                     AutomationProperties.AutomationId="HktasStudio.InputGrid" AutoGenerateColumns="False"
                     IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
@@ -191,7 +168,7 @@
               <DataGridCheckBoxColumn Header="DreamNail" Binding="{Binding DreamNail, Mode=OneWay}" SortMemberPath="DreamNail" Width="85" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
               <DataGridTextColumn Header="Axes (X,Y)" Binding="{Binding Axes}" SortMemberPath="Axes" Width="110" />
             </DataGrid.Columns>
-          </DataGrid>
+          </controls:InputFrameGrid>
           <TextBlock Grid.Row="3" Text="{Binding GridStatus}" TextWrapping="Wrap" Margin="4,6" />
         </Grid>
       </TabItem>
@@ -230,64 +207,7 @@
           <controls:TimelineGraph />
         </DockPanel>
       </TabItem>
-      <TabItem x:Name="MovieTextTab" Header="Movie Text"
-               AutomationProperties.AutomationId="HktasStudio.MovieEditorTab">
-        <Grid Margin="8">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="120" />
-          </Grid.RowDefinitions>
-          <WrapPanel Margin="0,0,0,6">
-            <Button Content="Open" Command="{Binding OpenMovieCommand}" />
-            <Button Content="Save" Command="{Binding SaveMovieCommand}" />
-            <Button Content="Validate"
-                    AutomationProperties.AutomationId="HktasStudio.MovieValidateButton"
-                    Command="{Binding ValidateMovieCommand}" />
-            <Button Content="Format" Command="{Binding FormatMovieCommand}" />
-            <Button Content="Upload"
-                    AutomationProperties.AutomationId="HktasStudio.MovieUploadButton"
-                    Command="{Binding UploadMovieCommand}" />
-            <Button Content="Read Runtime Movie" Command="{Binding RefreshRuntimeMovieCommand}" />
-            <Button Content="Start Replay"
-                    AutomationProperties.AutomationId="HktasStudio.MovieStartReplayButton"
-                    Command="{Binding StartReplayCommand}" />
-            <Button Content="Stop" Command="{Binding StopReplayCommand}" />
-            <Button Content="导出 MP4"
-                    AutomationProperties.AutomationId="HktasStudio.VideoExportButton"
-                    Command="{Binding StartVideoExportCommand}"
-                    ToolTip="请先将游戏恢复到序列要求的合法起点并暂停；导出会先上传当前 MovieText，再从该起点重放。导出期间游戏扬声器会静音；FFmpeg 和输出文件由此处选择，已有文件不会覆盖。" />
-            <Button Content="取消 MP4 导出"
-                    AutomationProperties.AutomationId="HktasStudio.VideoExportCancelButton"
-                    Command="{Binding CancelVideoExportCommand}" />
-          </WrapPanel>
-          <TextBlock Grid.Row="2"
-                     Text="{Binding VideoExportStatus}"
-                     Margin="4,8,4,0"
-                     Foreground="#A8B7C8"
-                     TextWrapping="Wrap" />
-          <TextBox Grid.Row="1"
-                   AutomationProperties.AutomationId="HktasStudio.MovieText"
-                   Text="{Binding MovieText, UpdateSourceTrigger=PropertyChanged}"
-                   AcceptsReturn="True"
-                   AcceptsTab="True"
-                   FontFamily="Cascadia Mono, Consolas"
-                   FontSize="13"
-                   HorizontalScrollBarVisibility="Auto"
-                   VerticalScrollBarVisibility="Auto"
-                   SpellCheck.IsEnabled="False" />
-          <TextBox Grid.Row="3"
-                   AutomationProperties.AutomationId="HktasStudio.MovieValidationOutput"
-                   Text="{Binding ValidationOutput, Mode=OneWay}"
-                   Margin="0,8,0,0"
-                   IsReadOnly="True"
-                   TextWrapping="Wrap"
-                   VerticalScrollBarVisibility="Auto" />
-        </Grid>
-      </TabItem>
-
-      <TabItem x:Name="ControlTab" Header="Runtime / State" Visibility="Collapsed"
+      <TabItem x:Name="ControlTab" Header="Runtime / State"
                AutomationProperties.AutomationId="HktasStudio.ControlStateTab">
         <Grid Margin="8">
           <Grid.RowDefinitions>
@@ -336,7 +256,7 @@
         </Grid>
       </TabItem>
 
-      <TabItem x:Name="AuthoringTab" Header="Advanced Authoring" Visibility="Collapsed" AutomationProperties.AutomationId="HktasStudio.FrameAuthoringTab">
+      <TabItem x:Name="AuthoringTab" Header="Advanced Authoring" AutomationProperties.AutomationId="HktasStudio.FrameAuthoringTab">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="10">
             <TextBlock Text="Live frame input"
@@ -482,7 +402,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem x:Name="EventLogTab" Header="Event Log" Visibility="Collapsed">
+      <TabItem x:Name="EventLogTab" Header="Event Log">
         <Grid Margin="8">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -510,7 +430,7 @@
         </Grid>
       </TabItem>
 
-      <TabItem x:Name="DiffTab" Header="Canonical Diff" Visibility="Collapsed">
+      <TabItem x:Name="DiffTab" Header="Canonical Diff">
         <TextBox Margin="8"
                  Text="{Binding CanonicalDiff, Mode=OneWay}"
                  IsReadOnly="True"
@@ -521,7 +441,7 @@
       </TabItem>
 
 
-      <TabItem x:Name="HelpTab" Header="操作手册" Visibility="Collapsed"
+      <TabItem x:Name="HelpTab" Header="操作手册"
                AutomationProperties.AutomationId="HktasStudio.HelpTab">
         <ScrollViewer Margin="12" VerticalScrollBarVisibility="Auto">
           <StackPanel MaxWidth="940" HorizontalAlignment="Left">
@@ -552,7 +472,7 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem x:Name="ShortcutSettingsTab" Header="Hotkeys" Visibility="Collapsed">
+      <TabItem x:Name="ShortcutSettingsTab" Header="Hotkeys">
         <StackPanel Margin="12">
           <TextBlock Text="Studio 快捷键" FontSize="18" Margin="0,0,0,12" />
           <WrapPanel>
@@ -567,7 +487,7 @@
           <TextBlock Text="固定快捷键：Ctrl+O 打开、Ctrl+S 保存；F1…F10 恢复，Shift+F1…F10 存档。&#10;输入表格：Ctrl+C/V 复制/粘贴、Ctrl+Z/Y 撤销/重做、Insert/Delete 插入/删除。&#10;按住按键不会重复提交。焦点在游戏或其他窗口时，这些 Studio 快捷键不生效。&#10;当前没有可用的加速播放命令，Tab 保留界面焦点导航，不冒充快进。" TextWrapping="Wrap" />
         </StackPanel>
       </TabItem>
-      <TabItem x:Name="CapabilitiesTab" Header="External Control" Visibility="Collapsed">
+      <TabItem x:Name="CapabilitiesTab" Header="External Control">
         <Grid Margin="8">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

@@ -27,16 +27,18 @@ namespace HollowKnightTAS.Companion.ViewModels
         private DateTime gridProgressRequestedUtc;
         private TasAction gridAction = TasAction.Attack;
         private bool gridApplying;
+        private bool draftRequiresRestart;
         private bool isRestorePresentationFrozen;
         private string frozenFrameCounter = string.Empty;
         public bool IsRestorePresentationFrozen => isRestorePresentationFrozen;
-        public bool IsInputGridInteractive => !isRestorePresentationFrozen;
+        public bool IsInputGridInteractive => !isRestorePresentationFrozen && !gridApplying;
         private void SetRestorePresentationFrozen(bool value)
         {
             if (isRestorePresentationFrozen == value) return;
             if (value) frozenFrameCounter = FrameCounterText;
             isRestorePresentationFrozen = value;
             OnPropertyChanged(nameof(IsRestorePresentationFrozen));
+            OnPropertyChanged(nameof(RuntimeSummary));
             OnPropertyChanged(nameof(IsInputGridInteractive));
             OnPropertyChanged(nameof(FrameCounterText));
             if (!value)
@@ -48,6 +50,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private void SetGridApplying(bool value)
         {
             gridApplying = value;
+            OnPropertyChanged(nameof(IsInputGridInteractive));
             // A native pause can arrive while the operation still owns the UI.
             // Publish again after releasing it, even when the gate has not changed.
             startupBoot?.Refresh();
@@ -201,7 +204,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             var result = movieEditor.ValidateAny(MovieText);
             if (!result.Success)
                 throw new InvalidOperationException(
-                    "当前文本无效，请先在 Movie Text 修正并校验。");
+                    "序列无效，请打开有效的 .hktas 文件。");
             if (gridSource != MovieText)
             {
                 gridUndo.Clear();
@@ -230,7 +233,12 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (session?.IsConnected != true
                 || (startupBoot?.IsPending != true && InputRows.Count == 0))
                 return;
-            if (!IsRestorePresentationFrozen) await SyncRecordingGridAsync();
+            if (!IsRestorePresentationFrozen)
+            {
+                await SyncRecordingGridAsync();
+                try { await SaveCurrentBranchAsync(); }
+                catch (Exception exception) { GridStatus = "分支保存失败：" + exception.Message; }
+            }
             var now = DateTime.UtcNow;
             var interval = startupBoot?.IsWaiting == true || currentControlMode == "Paused"
                 ? TimeSpan.FromSeconds(1) : TimeSpan.FromMilliseconds(200);
@@ -391,7 +399,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (gridApplying) throw new InvalidOperationException("表格分支提交正在进行。");
             if (GridAny().V2Document != null)
             {
-                await FrameMenuAsync("seek", seek ? GridIndex() : CurrentGridFrame);
+                await FrameMenuAsync("rebuild", seek ? GridIndex() : CurrentGridFrame);
                 return;
             }
             GridMovie();

@@ -18,6 +18,7 @@ namespace HollowKnightTAS.Companion
     {
         private bool restoringGridSelection;
         private double? restoreScrollOffset;
+        private bool closeSaved;
         private readonly DispatcherTimer gridFollowTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(200)
@@ -34,6 +35,23 @@ namespace HollowKnightTAS.Companion
                     await vm.PollInputGridProgressAsync();
             };
             Loaded += (_, _) => gridFollowTimer.Start();
+            Closing += async (_, e) =>
+            {
+                if (closeSaved || DataContext is not MainViewModel vm) return;
+                e.Cancel = true;
+                gridFollowTimer.Stop();
+                try
+                {
+                    await vm.SaveCurrentBranchAsync(closing: true);
+                    closeSaved = true;
+                    await Dispatcher.InvokeAsync(Close);
+                }
+                catch (Exception exception)
+                {
+                    MessageBox.Show(this, "序列保存失败，Studio 保持打开：" + exception.Message, "保存失败");
+                    gridFollowTimer.Start();
+                }
+            };
             Closed += (_, _) =>
             {
                 gridFollowTimer.Stop();
@@ -139,13 +157,6 @@ namespace HollowKnightTAS.Companion
         }
 
         private void OnCloseStudio(object sender, RoutedEventArgs e) => Close();
-
-        private void OnHideTools(object sender, RoutedEventArgs e)
-        {
-            MainTabs.SelectedItem = InputGridTab;
-            foreach (var tab in new[] { ControlTab, AuthoringTab, EventLogTab, DiffTab, CapabilitiesTab, ShortcutSettingsTab, HelpTab })
-                tab.Visibility = Visibility.Collapsed;
-        }
 
         private void OnInputGridSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -312,10 +323,24 @@ namespace HollowKnightTAS.Companion
             FrameItem($"保存第 {row.Tick} 帧", "save");
             menu.Items.Add(new Separator());
             foreach (var entry in new[] { ("复制选区", vm.CopyGridCommand), ("粘贴到选区", vm.PasteGridCommand),
-                ("插入空帧", vm.InsertGridCommand), ("删除选区", vm.DeleteGridCommand), ("应用选区 FPS", vm.SetFrameRateCommand) })
+                ("插入空帧", vm.InsertGridCommand), ("删除选区", vm.DeleteGridCommand) })
                 menu.Items.Add(new MenuItem { Header = entry.Item1, Command = entry.Item2 });
+            var rate = new MenuItem { Header = "修改选区帧率…" };
+            rate.Click += (_, _) => EditFrameRate(true);
+            menu.Items.Add(rate);
             menu.PlacementTarget = InputGrid; menu.IsOpen = true;
             e.Handled = true;
+        }
+
+        private void OnDefaultFrameRate(object sender, RoutedEventArgs e) => EditFrameRate(false);
+        private void EditFrameRate(bool selection)
+        {
+            if (DataContext is not MainViewModel vm) return;
+            var dialog = new FrameRateWindow(selection ? "修改选区帧率" : "设置默认帧率",
+                selection ? vm.SelectedFrameRate : vm.DefaultFrameRate) { Owner = this };
+            if (dialog.ShowDialog() != true) return;
+            if (selection) { vm.SelectedFrameRate = dialog.Value; vm.SetFrameRateCommand.Execute(null); }
+            else vm.DefaultFrameRate = dialog.Value;
         }
 
         private void OnEditGridAxes(object sender, RoutedEventArgs e)

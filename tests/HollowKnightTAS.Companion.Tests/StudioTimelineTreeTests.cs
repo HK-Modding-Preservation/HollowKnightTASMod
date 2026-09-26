@@ -18,6 +18,86 @@ namespace HollowKnightTAS.Companion.Tests
         private static Dictionary<string, string> Baseline() => new() { ["user1.dat"] = "original" };
 
         [TestMethod]
+        public void InitialTipResolvesRecordingHeaderWithoutDuplicatingBranch()
+        {
+            var tree = new TimelineTree();
+            var unknown = new MovieV2Document("test", new MovieV2Header("unknown", "unknown", "unknown",
+                MovieProtocolV2.NativeProfileId, MovieProtocolV2.ActionSchemaId, false, "none", 0, 0), Movie().Runs);
+            var initial = tree.UpdateTip(0, Text(unknown), Baseline(), null);
+            var resolved = tree.UpdateTip(10, Text(Movie()), Baseline(), initial.Id);
+            Assert.AreEqual(initial.Id, resolved.Id);
+            Assert.AreEqual(1, tree.Leaves.Count());
+            Assert.AreEqual(10L, resolved.Frame);
+        }
+
+        [TestMethod]
+        public void BranchTipKeepsFurthestReachedFrameAndFutureDraftWithoutAccumulatingNodes()
+        {
+            var tree = new TimelineTree();
+            var tip = tree.UpdateTip(20, Text(Movie()), Baseline(), null);
+            var edited = MovieV2RangeEditor.Paint(Movie(), 40, 1, "Left", true);
+            var updated = tree.UpdateTip(10, Text(edited), Baseline(), tip.Id);
+            Assert.AreEqual(tip.Id, updated.Id);
+            Assert.AreEqual(20L, updated.Frame);
+            Assert.AreEqual(Text(edited), updated.Movie);
+            Assert.AreEqual(2, tree.Nodes.Count);
+            tree.UpdateTip(50, Text(edited), Baseline(), tip.Id);
+            Assert.AreEqual(50L, tip.Frame);
+        }
+
+        [TestMethod]
+        public void EditingExecutedHistoryCreatesAnotherTipAndKeepsOldWorld()
+        {
+            var tree = new TimelineTree();
+            var saved = tree.Add(10, Text(Movie()), Baseline());
+            var first = tree.UpdateTip(30, Text(Movie()), Baseline(), null);
+            var edit = Text(MovieV2RangeEditor.Paint(Movie(), 15, 1, "Left", true));
+            var second = tree.UpdateTip(tree.MatchingSavedFrame(edit), edit, Baseline(), first.Id);
+            Assert.AreEqual(10L, second.Frame);
+            Assert.AreEqual(saved.Id, second.ParentId);
+            Assert.AreEqual(30L, first.Frame);
+            Assert.AreEqual(Text(Movie()), first.Movie);
+            Assert.AreEqual(2, tree.Leaves.Count());
+        }
+
+        [TestMethod]
+        public void ExplicitSaveCanReparentStableTipAndReloadWithoutCycle()
+        {
+            var directory = Path.Combine(Path.GetTempPath(), "hktas-tip-" + Guid.NewGuid().ToString("N"));
+            var path = Path.Combine(directory, "timelines.json");
+            try
+            {
+                var store = new StudioTimelineStore(path);
+                store.Update(l => l.Trees[0].UpdateTip(30, Text(Movie()), Baseline(), null));
+                store.Update(l =>
+                {
+                    var tree = l.Trees[0];
+                    var tip = tree.Leaves.Single();
+                    tree.Add(20, Text(Movie()), Baseline());
+                    tree.UpdateTip(20, Text(Movie()), Baseline(), tip.Id);
+                });
+                var reloaded = new StudioTimelineStore(path).Library.Trees[0];
+                CollectionAssert.AreEqual(new[] { 0, 2, 1 }, reloaded.PathTo(1).Select(n => n.Id).ToArray());
+                Assert.AreEqual(30L, reloaded.Nodes.Single(n => n.Id == 1).Frame);
+                Assert.AreEqual(1, reloaded.Leaves.Count());
+                Assert.ThrowsExactly<InvalidDataException>(() => store.Update(l => l.Trees[0].Nodes.Single(n => n.Id == 2).ParentId = 1));
+            }
+            finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+        }
+
+        [TestMethod]
+        public void ShortenedDraftDoesNotOverwriteFartherExecutedTip()
+        {
+            var tree = new TimelineTree();
+            var original = tree.UpdateTip(100, Text(Movie()), Baseline(), null);
+            var shorter = Text(MovieV2Prefix.Take(Movie(), 20));
+            var next = tree.UpdateTip(tree.MatchingSavedFrame(shorter), shorter, Baseline(), original.Id);
+            Assert.AreNotEqual(original.Id, next.Id);
+            Assert.AreEqual(100L, original.Frame);
+            Assert.AreEqual(0L, next.Frame);
+        }
+
+        [TestMethod]
         public void EditedHistoryBranchesAtLatestMatchingSaveForBothEditingWorkflows()
         {
             foreach (var truncateAtSave in new[] { false, true })

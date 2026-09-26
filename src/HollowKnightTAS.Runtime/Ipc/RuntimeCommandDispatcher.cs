@@ -1204,13 +1204,25 @@ namespace HollowKnightTAS.Runtime.Ipc
 
         private void FullRunWorkerLoop()
         {
+            var nextProgress = DateTime.UtcNow;
             while (!disposed)
             {
-                if (!commands.WaitForActivity(TimeSpan.FromMilliseconds(50))) continue;
+                commands.WaitForActivity(TimeSpan.FromMilliseconds(50));
                 while (!disposed && commands.TryDequeue(out var command))
                 {
                     Dispatch(command);
                     if (gameExitRequested) ExitApprovedGameProcess();
+                }
+                // Push progress independently of editor polling and paused snapshots.
+                // This observer never advances, pauses, or changes the input stream.
+                if (!disposed && server.IsConnected && DateTime.UtcNow >= nextProgress)
+                {
+                    nextProgress = DateTime.UtcNow.AddMilliseconds(200);
+                    try { PublishFullRunState("runtime-progress"); }
+                    catch (Exception exception)
+                    {
+                        emit("full-run-progress-failed", new Dictionary<string, string> { ["reason"] = exception.Message });
+                    }
                 }
             }
         }
