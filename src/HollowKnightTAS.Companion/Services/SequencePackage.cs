@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using HollowKnightTAS.Core.Cryptography;
 using HollowKnightTAS.Core.ReplaySave;
@@ -154,17 +155,17 @@ public static class SequencePackage
 
     private sealed class Manifest
     {
-        public string Format { get; set; } = "HK-TAS-Sequence";
-        public int Version { get; set; } = 1;
-        public int[] Slots { get; set; } = new[] { 1, 2, 3, 4 };
-        public string InitialSavesId { get; set; } = "";
-        public string MovieSha256 { get; set; } = "";
-        public List<SaveFile> Files { get; set; } = new();
+        [JsonRequired] public string Format { get; set; } = "HK-TAS-Sequence";
+        [JsonRequired] public int Version { get; set; } = 1;
+        [JsonRequired] public int[] Slots { get; set; } = new[] { 1, 2, 3, 4 };
+        [JsonRequired] public string InitialSavesId { get; set; } = "";
+        [JsonRequired] public string MovieSha256 { get; set; } = "";
+        [JsonRequired] public List<SaveFile> Files { get; set; } = new();
     }
     private sealed class SaveFile
     {
-        public string Name { get; set; } = "";
-        public long Length { get; set; }
-        public string Sha256 { get; set; } = "";
+        [JsonRequired] public string Name { get; set; } = "";
+        [JsonRequired] public long Length { get; set; }
+        [JsonRequired] public string Sha256 { get; set; } = "";
     }
 }

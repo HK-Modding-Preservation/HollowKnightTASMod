@@ -1031,7 +1031,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             var dialog = new OpenFileDialog
             {
                 Filter =
-                    UiText.T("HK-TAS Movie (*.hktas)|*.hktas|Text files (*.txt)|*.txt|All files (*.*)|*.*"),
+                    "HK-TAS Sequence (*.hktaspack;*.hktas)|*.hktaspack;*.hktas|Text files (*.txt)|*.txt|All files (*.*)|*.*",
                 CheckFileExists = true,
                 Multiselect = false
             };
@@ -1045,12 +1045,13 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         public async Task OpenMovieFileAsync(string path)
         {
-            if (gridApplying) throw new InvalidOperationException("请等待当前恢复完成。");
-            var info = new FileInfo(path);
-            if (info.Length > 16 * 1024 * 1024) throw new InvalidDataException("序列文件超过 16 MiB。");
-            var text = await File.ReadAllTextAsync(path, new UTF8Encoding(false, true));
+            if (gridApplying || sequenceSaving) throw new InvalidOperationException("请等待当前恢复或保存完成。");
+            var sequence = SequencePackage.Read(path);
+            var text = sequence.Movie;
             var candidate = movieEditor.ValidateAny(text, path);
             if (!candidate.Success) throw new InvalidDataException("序列文件无效，当前草稿未改变。");
+            if (sequence.InitialSaves != null && candidate.V2Document == null)
+                throw new InvalidDataException("绑定存档的序列包需要 v2 全流程序列。");
             if (fullRunMovies?.IsPending == true && candidate.V2Document == null)
                 throw new InvalidDataException("当前会话需要 v2 全流程序列，当前草稿未改变。");
             SetGridApplying(true);
@@ -1059,14 +1060,15 @@ namespace HollowKnightTAS.Companion.ViewModels
                 if (fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true)
                     await fullRunMovies.PauseAsync(CancellationToken.None);
                 await SaveCurrentBranchAsync(closing: true);
+                SetSequenceInitialSaves(sequence.InitialSaves);
                 ResetSequenceSaveTarget(path);
                 MovieText = gridSource = text;
                 gridHasUserEdits = false; earliestGridEdit = long.MaxValue;
                 recordingGridNativeFrame = -1;
-                draftRequiresRestart = fullRunMovies?.IsPending == true;
+                draftRequiresRestart = candidate.V2Document != null;
                 RefreshInputGrid();
                 if (candidate.V2Document != null) StartTimeline(MovieText);
-                if (fullRunMovies?.IsPending == true && fullRunMovies.Mode == "Unarmed"
+                if (sequence.InitialSaves == null && fullRunMovies?.IsPending == true && fullRunMovies.Mode == "Unarmed"
                     && startupBoot?.IsWaiting == true && startupBoot.NativeCompletedFrames == 0)
                 {
                     fullRunMovies.ArmReplay(candidate.V2Document!);

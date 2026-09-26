@@ -121,6 +121,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             var token = videoExportCancellation.Token;
             string[]? savedUndo = null, savedRedo = null;
             string? savedMovie = null;
+            InitialSaveSnapshot? savedInitialSaves = null;
             bool savedEdits = false;
             long savedEarliestEdit = long.MaxValue;
             string? operationId = null;
@@ -138,12 +139,14 @@ namespace HollowKnightTAS.Companion.ViewModels
                 if (!string.Equals(Path.GetExtension(files.Value.Output), ".mp4", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("导出文件必须使用 .mp4 扩展名。");
                 fullRunMovies!.VerifyOriginalSavesUnchanged();
-                if (plan.OriginalHashes != null && !TimelineTree.SameBaseline(plan.OriginalHashes, fullRunMovies.OriginalHashes))
-                    throw new InvalidOperationException("当前存档与时间线的原始起点不同，无法导出此区间。");
+                var exportInitialSaves = plan.TreeId == null ? sequenceInitialSaves
+                    : GetTimelineInitialSaves(worldlines!.Library.Trees.Single(t => t.Id == plan.TreeId));
                 savedMovie = MovieText; savedEdits = gridHasUserEdits; savedEarliestEdit = earliestGridEdit;
+                savedInitialSaves = sequenceInitialSaves;
                 savedUndo = gridUndo.ToArray(); savedRedo = gridRedo.ToArray();
+                SetSequenceInitialSaves(exportInitialSaves);
                 VideoExportStatus = $"准备导出：正在恢复到第 {plan.StartMovieFrame} 帧，准备过程不会录入视频。";
-                await RestartDraftAtAsync(plan.StartMovieFrame, plan.Movie, token, pauseWhenInputReadyZero: true);
+                await RestartDraftAtAsync(plan.StartMovieFrame, plan.Movie, token, pauseWhenInputReadyZero: true, saveCurrentBranch: false);
                 token.ThrowIfCancellationRequested();
                 // Native frame zero precedes Unity initialization. Run only the bootstrap;
                 // pauseAtMovieFrame=0 stops before the very first input is consumed.
@@ -230,6 +233,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 if (savedMovie != null)
                 {
+                    SetSequenceInitialSaves(savedInitialSaves);
                     MovieText = gridSource = savedMovie;
                     gridHasUserEdits = savedEdits; earliestGridEdit = savedEarliestEdit;
                     gridUndo.Clear(); gridRedo.Clear();

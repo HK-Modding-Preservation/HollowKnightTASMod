@@ -2290,5 +2290,29 @@
   "Source": "自动保存将完整草稿写入默认文件夹下的 Autosave 独立副本，不覆盖手动保存文件。Ctrl+S 保存当前序列。",
   "Zh": "自动保存将完整草稿写入默认文件夹下的 Autosave 独立副本，不覆盖手动保存文件。Ctrl+S 保存当前序列。",
   "En": "Autosave writes the full draft to a separate copy in the Autosave subfolder. Ctrl+S saves the current sequence."
+},
+{
+  "Key": "sequenceUnbound",
+  "Source": "未绑定初始存档（旧序列）",
+  "Zh": "未绑定初始存档（旧序列）",
+  "En": "Initial saves not bound (legacy sequence)"
+},
+{
+  "Key": "sequenceBound",
+  "Source": "初始存档已绑定：{0} / {1} / {2} / {3}",
+  "Zh": "初始存档已绑定：{0} / {1} / {2} / {3}",
+  "En": "Initial saves bound: {0} / {1} / {2} / {3}"
+},
+{
+  "Key": "sequenceSlotPresent",
+  "Source": "{0} 槽有档",
+  "Zh": "{0} 槽有档",
+  "En": "Slot {0} saved"
+},
+{
+  "Key": "sequenceSlotEmpty",
+  "Source": "{0} 槽空槽",
+  "Zh": "{0} 槽空槽",
+  "En": "Slot {0} empty"
 }
 ]

@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Win32;
+using HollowKnightTAS.Companion.Services;
 
 namespace HollowKnightTAS.Companion.ViewModels
 {
@@ -93,12 +94,12 @@ namespace HollowKnightTAS.Companion.ViewModels
                 if (saveAs || path == null)
                 {
                     Directory.CreateDirectory(activeSequenceDirectory);
-                    var dialog = new SaveFileDialog { Filter = "HK-TAS Movie (*.hktas)|*.hktas", AddExtension = true, DefaultExt = ".hktas", InitialDirectory = activeSequenceDirectory, FileName = path == null ? "sequence.hktas" : Path.GetFileName(path) };
+                    var extension = sequenceInitialSaves == null ? ".hktas" : SequencePackage.Extension;
+                    var dialog = new SaveFileDialog { Filter = sequenceInitialSaves == null ? "HK-TAS Movie (*.hktas)|*.hktas" : "HK-TAS Sequence (*.hktaspack)|*.hktaspack", AddExtension = true, DefaultExt = extension, InitialDirectory = activeSequenceDirectory, FileName = path == null ? "sequence" + extension : Path.GetFileName(path) };
                     if (dialog.ShowDialog() != true) return;
                     path = dialog.FileName;
                 }
-                await WriteSequenceFileAsync(path, MovieText);
-                sequenceSavePath = path;
+                await SaveSequenceToPathAsync(path);
                 SequenceSaveStatus = Status = "序列已保存：" + path;
             }
             catch (Exception ex) { SequenceSaveStatus = Status = "序列保存失败：" + ex.Message; }
@@ -116,8 +117,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 var directory = Path.Combine(activeSequenceDirectory, "Autosave");
                 Directory.CreateDirectory(directory);
-                var path = Path.Combine(directory, "sequence-" + autoSaveName + ".hktas");
-                await WriteSequenceFileAsync(path, text);
+                var path = Path.Combine(directory, "sequence-" + autoSaveName + (sequenceInitialSaves == null ? ".hktas" : SequencePackage.Extension));
+                await SequencePackage.WriteAsync(path, text, sequenceInitialSaves);
                 lastAutoSaveText = text;
                 SequenceSaveStatus = "序列自动保存：" + path;
             }
@@ -125,15 +126,10 @@ namespace HollowKnightTAS.Companion.ViewModels
             finally { sequenceSaving = false; }
         }
 
-        internal static async Task WriteSequenceFileAsync(string path, string text)
+        internal async Task SaveSequenceToPathAsync(string path)
         {
-            var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
-            {
-                await File.WriteAllTextAsync(temp, text, new UTF8Encoding(false, true));
-                File.Move(temp, path, true);
-            }
-            finally { if (File.Exists(temp)) File.Delete(temp); }
+            await SequencePackage.WriteAsync(path, MovieText, sequenceInitialSaves);
+            sequenceSavePath = path;
         }
 
         private sealed class SequenceSettings

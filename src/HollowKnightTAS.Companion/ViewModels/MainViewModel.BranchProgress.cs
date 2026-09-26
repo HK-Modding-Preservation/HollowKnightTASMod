@@ -93,10 +93,14 @@ namespace HollowKnightTAS.Companion.ViewModels
         private void UseSelectedWorldline()
         {
             if (selectedTimelineTree == null || selectedWorldline?.Movie.Length is not > 0) return;
+            var initialSaves = GetTimelineInitialSaves(selectedTimelineTree);
+            var changedTree = activeDraftTree != selectedTimelineTree.Id;
+            SetSequenceInitialSaves(initialSaves);
+            if (changedTree) ResetSequenceSaveTarget(null);
             var movie = selectedWorldline.Movie;
             activeDraftTree = selectedTimelineTree.Id;
             activeDraftTip = selectedWorldline.IsBranchTip ? selectedWorldline.Id : null;
-            if (MovieText == movie) return;
+            if (MovieText == movie && !changedTree) return;
             MovieText = gridSource = movie;
             gridHasUserEdits = false; earliestGridEdit = long.MaxValue;
             draftRequiresRestart = fullRunMovies?.IsPending == true;
@@ -107,7 +111,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private async Task SwitchWorldlineAsync(string treeId, int leafId)
         {
-            if (gridApplying) return;
+            if (gridApplying || sequenceSaving) return;
             SetGridApplying(true);
             try
             {

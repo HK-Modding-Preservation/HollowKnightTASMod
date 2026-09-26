@@ -107,6 +107,7 @@
                     AutomationProperties.AutomationId="HktasStudio.ExportFullVideo" />
             <Button Content="{ui:Text t22}" Command="{Binding CancelVideoExportCommand}"
                     AutomationProperties.AutomationId="HktasStudio.CancelVideoExport" />
+            <TextBlock Text="{ui:TextBinding SequenceBindingStatus}" VerticalAlignment="Center" Margin="8,0" />
           </WrapPanel>
           <controls:InputFrameGrid x:Name="InputGrid" Grid.Row="2" ItemsSource="{Binding InputRows}"
                     IsEnabled="{Binding IsInputGridInteractive}"
@@ -271,6 +272,7 @@
           </WrapPanel>
           <TextBlock Text="{ui:Text sequenceSaveHelp}" TextWrapping="Wrap" Margin="0,8" />
           <TextBlock Text="{Binding SequenceSaveStatus}" TextWrapping="Wrap" />
+          <TextBlock Text="{ui:TextBinding SequenceBindingStatus}" TextWrapping="Wrap" />
         </StackPanel></ScrollViewer>
       </TabItem>
     </TabControl>

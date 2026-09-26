@@ -90,6 +90,8 @@ namespace HollowKnightTAS.Companion.Services
             var originalBytes = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
             foreach (var item in files)
             {
+                if ((File.GetAttributes(item.Path) & FileAttributes.ReparsePoint) != 0)
+                    throw new InvalidDataException("Original save file became a reparse point.");
                 using var input = new FileStream(item.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
                 if (input.Length != item.Length) throw new IOException("Original save changed during preparation.");
                 var bytes = new byte[checked((int)item.Length)];
@@ -119,39 +121,6 @@ namespace HollowKnightTAS.Companion.Services
             }
             File.Move(temporaryDescriptor, session.DescriptorPath);
             return session;
-        }
-
-        private static string CopyReadOnlyAndHash(string sourcePath, string destinationPath, long expectedLength)
-        {
-            if ((File.GetAttributes(sourcePath) & FileAttributes.ReparsePoint) != 0)
-                throw new InvalidDataException("Original save file became a reparse point.");
-            using var input = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-                64 * 1024, FileOptions.SequentialScan);
-            if (input.Length != expectedLength || input.Length > MaximumFileBytes)
-                throw new IOException("Original save file changed during preparation.");
-            using var output = new FileStream(destinationPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
-                64 * 1024, FileOptions.WriteThrough);
-            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            var buffer = new byte[64 * 1024];
-            long copied = 0;
-            int read;
-            while ((read = input.Read(buffer, 0, buffer.Length)) != 0)
-            {
-                if (read > expectedLength - copied)
-                    throw new IOException("Original save file grew during preparation.");
-                hash.AppendData(buffer, 0, read);
-                output.Write(buffer, 0, read);
-                copied += read;
-            }
-            output.Flush(true);
-            if (copied != expectedLength || input.Length != expectedLength)
-                throw new IOException("Original save file changed during preparation.");
-            var digest = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
-            output.Dispose();
-            if (!string.Equals(digest, HollowKnightTAS.Core.Cryptography.Sha256Utility.ComputeFileHex(destinationPath),
-                    StringComparison.Ordinal))
-                throw new IOException("Shadow copy hash does not match the original read.");
-            return digest;
         }
 
         private static bool LooksLikeSlotName(string name)

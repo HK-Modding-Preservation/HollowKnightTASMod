@@ -71,6 +71,8 @@ namespace HollowKnightTAS.Companion.Services
         public void ArmReplay(MovieV2Document movie, long pauseAtFrame = -1)
         {
             if (movie == null) throw new ArgumentNullException(nameof(movie));
+            if (SequenceInitialSaves != null && saves?.InitialSaves.Id != SequenceInitialSaves.Id)
+                throw new InvalidOperationException("Restart the protected game with the sequence's initial saves before replay.");
             var readyGate = RequireFrameZero();
             var validation = new MovieV2Validator().Validate(movie,
                 MovieV2ValidationContext.CreateDefault());

@@ -178,9 +178,15 @@ namespace HollowKnightTAS.Companion.ViewModels
             GridStatus = $"已从当前进度播放到第 {frame} 帧并暂停。";
         }
 
-        private async Task RestartDraftAtAsync(long frame, string? sourceMovie = null, CancellationToken cancellationToken = default, bool pauseWhenInputReadyZero = false)
+        private async Task RestartDraftAtAsync(long frame, string? sourceMovie = null, CancellationToken cancellationToken = default, bool pauseWhenInputReadyZero = false,
+            bool switchSequence = false, InitialSaveSnapshot? sourceSaves = null, bool saveCurrentBranch = true)
         {
-            await SaveCurrentBranchAsync(closing: true);
+            if (saveCurrentBranch) await SaveCurrentBranchAsync(closing: true);
+            if (switchSequence)
+            {
+                SetSequenceInitialSaves(sourceSaves);
+                ResetSequenceSaveTarget(null);
+            }
             SetRestorePresentationFrozen(true);
             var completed = false;
             try
@@ -199,6 +205,12 @@ namespace HollowKnightTAS.Companion.ViewModels
         private async Task RestartDraftCoreAsync(long frame, CancellationToken cancellationToken = default, bool pauseWhenInputReadyZero = false)
         {
             var candidate = GridAny().V2Document ?? throw new InvalidOperationException("需要有效的 v2 Movie。");
+            if (candidate.Header.EnvironmentSha256 == "none" && sequenceInitialSaves != null
+                && sequenceInitialSaves.Id != fullRunMovies?.SessionInitialSaves?.Id)
+            {
+                if (restartProtectedGame == null) throw new InvalidOperationException("受控重启入口不可用。");
+                await restartProtectedGame();
+            }
             if (candidate.Header.EnvironmentSha256 == "none" && startupBoot?.NativeCompletedFrames == 0)
             {
                 if (fullRunMovies!.Mode == "Unarmed") fullRunMovies.ArmRecording(candidate.Header.MouseEnabled, ParseFrameRate(DefaultFrameRate));

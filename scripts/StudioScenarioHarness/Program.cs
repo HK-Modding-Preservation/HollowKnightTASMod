@@ -56,7 +56,8 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (videoExportScenarios) await RunVideoExportAsync(args);
+                if (args.Contains("--sequence-binding")) await RunSequenceBindingAsync();
+                else if (videoExportScenarios) await RunVideoExportAsync(args);
                 else if (args.Contains("--reopen-only")) await Reopen();
                 else await Run();
                 Log("ALL SCENARIOS PASSED");

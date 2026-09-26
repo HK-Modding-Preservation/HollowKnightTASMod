@@ -26,6 +26,7 @@ namespace HollowKnightTAS.Companion.Services
         public string Name { get; set; } = "时间线 " + DateTime.Now.ToString("MM-dd HH:mm:ss");
         public int NextId { get; set; } = 1;
         public Dictionary<string, string> OriginalHashes { get; set; } = new();
+        public string InitialSavesId { get; set; } = "";
         public List<TimelineNode> Nodes { get; set; } = new() { new TimelineNode() };
         [JsonIgnore] public IEnumerable<TimelineNode> Leaves => Nodes.Where(n => !Nodes.Any(c => c.ParentId == n.Id));
         public List<TimelineNode> PathTo(int id)

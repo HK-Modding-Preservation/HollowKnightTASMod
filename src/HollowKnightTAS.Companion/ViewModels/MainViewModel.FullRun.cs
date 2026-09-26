@@ -69,6 +69,10 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 var coordinator = fullRunMovies
                     ?? throw new InvalidOperationException("全流程启动器不可用。");
+                if (coordinator.Mode != "Unarmed" || startupBoot?.IsWaiting != true || startupBoot.NativeCompletedFrames != 0)
+                    throw new InvalidOperationException("请在受控启动第 0 帧新建序列。");
+                SetSequenceInitialSaves(coordinator.SessionInitialSaves
+                    ?? throw new InvalidOperationException("初始存档快照不可用。"));
                 coordinator.ArmRecording(GameMouseEnabled, ParseFrameRate(DefaultFrameRate));
                 ResetSequenceSaveTarget(null);
                 var header = new MovieV2Header("unknown", "unknown", "unknown",
