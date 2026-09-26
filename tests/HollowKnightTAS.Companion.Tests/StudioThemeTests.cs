@@ -81,13 +81,10 @@ namespace HollowKnightTAS.Companion.Tests
                         .Where(tab => tab.Visibility == Visibility.Visible)
                         .Select(tab => tab.Header?.ToString())
                         .ToArray();
-                    CollectionAssert.AreEquivalent(
-                        new[] { "Input Editor", "Timeline 时间线", "Movie Text" }, visibleTabs);
+                    Assert.AreEqual(tabs.Items.Count, visibleTabs.Length, "All remaining pages are directly visible.");
+                    Assert.IsTrue(visibleTabs.Contains("Input Editor") && visibleTabs.Contains("Timeline 时间线"));
+                    Assert.IsFalse(visibleTabs.Contains("Movie Text"));
                     Assert.IsNull(window.FindName("SavesTab"));
-                    Assert.IsTrue(tabs.Items.OfType<TabItem>()
-                        .Where(tab => !visibleTabs.Contains(tab.Header?.ToString()))
-                        .All(tab => tab.Visibility == Visibility.Collapsed),
-                        "Advanced and diagnostic tabs should be collapsed by default.");
 
                     tabs.SelectedIndex = 0;
                     root.Measure(new Size(contentWidth, contentHeight));
@@ -142,7 +139,7 @@ namespace HollowKnightTAS.Companion.Tests
                             $"studio-theme-{(int)(scale * 100)}.png"));
                         scaledEncoder.Save(output);
                     }
-                    foreach (var name in new[] { "MovieTextTab", "WorldlinesTab", "HelpTab" })
+                    foreach (var name in new[] { "WorldlinesTab", "HelpTab" })
                     {
                         var commonTab = (TabItem)window.FindName(name);
                         tabs.SelectedItem = commonTab;
@@ -159,9 +156,6 @@ namespace HollowKnightTAS.Companion.Tests
                         if (name == "WorldlinesTab")
                             Assert.IsTrue(Find<ListBox>(commonTab).Single().ActualHeight >= 40,
                                 "The timeline node list must remain usable at minimum size.");
-                        else if (name == "MovieTextTab")
-                            Assert.IsTrue(Find<TextBox>(commonTab).Single(box => box.AcceptsReturn).ActualHeight >= 50,
-                                "The movie editor must remain usable at minimum size.");
                         else
                         {
                             Assert.IsTrue(Find<ScrollViewer>(commonTab).Single().ActualHeight >= 50,
@@ -186,10 +180,9 @@ namespace HollowKnightTAS.Companion.Tests
                         Assert.AreSame(target, tabs.SelectedItem);
                         Assert.AreEqual(Visibility.Visible, target.Visibility);
                     }
-                    menus.Single(menu => menu.Header.ToString()!.StartsWith("Close Tool Panels"))
-                        .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-                    Assert.AreSame(window.FindName("InputGridTab"), tabs.SelectedItem);
-                    Assert.AreEqual(3, tabs.Items.OfType<TabItem>().Count(item => item.Visibility == Visibility.Visible));
+                    Assert.IsFalse(menus.Any(menu => menu.Header.ToString()!.StartsWith("Close Tool Panels")));
+                    tabs.SelectedItem = window.FindName("InputGridTab");
+                    Assert.AreEqual(tabs.Items.Count, tabs.Items.OfType<TabItem>().Count(item => item.Visibility == Visibility.Visible));
                     vm.GridStart = "0";
                     vm.GridCount = "2";
                     vm.RefreshGridCommand.Execute(null);

@@ -23,15 +23,22 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (closing) while (savingBranch) await Task.Delay(25);
             if (savingBranch || IsRestorePresentationFrozen || (gridApplying && !closing)
                 || activeDraftTree == null || worldlines == null) return;
-            if (closing && fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true
-                && fullRunMovies.IsArmed)
-                await fullRunMovies.PauseAsync(CancellationToken.None);
-            if (fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true) return;
-            var native = startupBoot?.NativeCompletedFrames ?? -1;
-            if (lastSavedBranchMovie == MovieText && lastSavedBranchNative == native) return;
             savingBranch = true;
             try
             {
+                if (closing && fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true
+                    && fullRunMovies.IsArmed)
+                {
+                    var paused = await fullRunMovies.PauseAsync(CancellationToken.None);
+                    if (paused.Mode == "Fault") throw new InvalidOperationException(paused.Error);
+                }
+                if (fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true)
+                {
+                    if (closing) throw new InvalidOperationException("未能暂停到安全帧，序列尚未保存。");
+                    return;
+                }
+                var native = startupBoot?.NativeCompletedFrames ?? -1;
+                if (lastSavedBranchMovie == MovieText && lastSavedBranchNative == native) return;
                 var draft = movieEditor.ValidateAny(MovieText).V2Document;
                 if (draft == null) return;
                 var tree = worldlines.Library.Trees.Single(t => t.Id == activeDraftTree);

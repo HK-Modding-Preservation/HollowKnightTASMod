@@ -17,7 +17,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private readonly Stack<string> gridUndo = new Stack<string>();
         private readonly Stack<string> gridRedo = new Stack<string>();
         private string gridSource = string.Empty;
-        private string gridStart = "0", gridCount = "1", gridStatus = "打开脚本后刷新表格。";
+        private string gridStart = "0", gridCount = "1", gridStatus = "打开序列或播放以开始编辑。";
         private long gridPageStart;
         private long gridTotalFrames;
         private long lastFollowedGridFrame = -1;
@@ -43,8 +43,10 @@ namespace HollowKnightTAS.Companion.ViewModels
             OnPropertyChanged(nameof(FrameCounterText));
             if (!value)
             {
+                var completionStatus = GridStatus;
                 RefreshInputGrid();
                 TrackGridFrame(CurrentGridFrame, true);
+                GridStatus = completionStatus;
             }
         }
         private void SetGridApplying(bool value)
@@ -294,7 +296,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 if (gridApplying) throw new InvalidOperationException("正在提交表格分支，请等待完成。");
                 if (GridAny().V2Document != null)
-                    throw new InvalidOperationException("v2 动作轴请在 Movie Text 编辑对应通道的 values。");
+                    throw new InvalidOperationException("当前序列不支持模拟轴弹框编辑。");
                 EditGrid(InputGridEditor.SetAxes(GridMovie(),
                     ParseCount(start, 0, MovieProtocolV1.DefaultMaxExpandedTicks, "frame"),
                     ParseCount(count, 1, MovieProtocolV1.DefaultMaxExpandedTicks,
@@ -329,7 +331,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             PushGridHistory(gridUndo, MovieText);
             gridRedo.Clear();
             MovieText = gridSource = validated.CanonicalText;
-            RefreshInputGrid("草稿已修改，游戏状态未改变。应用分支后可重放到选中帧。");
+            RefreshInputGrid("草稿已修改，游戏状态未改变。");
         }
 
         private void EditGrid(MovieV2EditResult result)

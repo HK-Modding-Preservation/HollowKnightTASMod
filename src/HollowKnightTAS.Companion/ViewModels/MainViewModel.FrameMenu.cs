@@ -72,7 +72,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     if (action == "seek" ? frame <= snapshot.Frame : frame >= snapshot.Frame)
                         throw new InvalidOperationException(action == "seek"
                             ? "播放到帧只能选择当前帧之后的未来帧。" : "恢复到帧只能选择当前帧之前的过去帧。");
-                    if (action == "seek") await PlayForwardToFrameAsync(frame);
+                    if (action == "seek" && !draftRequiresRestart) await PlayForwardToFrameAsync(frame);
                     else await RestartDraftAtAsync(frame);
                 }
                 else if (action == "save")

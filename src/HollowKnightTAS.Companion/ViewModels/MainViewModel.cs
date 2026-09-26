@@ -488,7 +488,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 {
                     InputRows = new VirtualInputRows();
                     OnPropertyChanged(nameof(InputRows));
-                    GridStatus = "文本已改变；刷新表格后继续编辑。";
+                    GridStatus = "正在更新序列。";
                 }
             }
         }

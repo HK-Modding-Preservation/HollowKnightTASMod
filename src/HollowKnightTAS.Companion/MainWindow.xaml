@@ -169,7 +169,10 @@
               <DataGridTextColumn Header="Axes (X,Y)" Binding="{Binding Axes}" SortMemberPath="Axes" Width="110" />
             </DataGrid.Columns>
           </controls:InputFrameGrid>
-          <TextBlock Grid.Row="3" Text="{Binding GridStatus}" TextWrapping="Wrap" Margin="4,6" />
+          <StackPanel Grid.Row="3" Margin="4,6">
+            <TextBlock Text="{Binding GridStatus}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding VideoExportStatus}" TextTrimming="CharacterEllipsis" ToolTip="{Binding VideoExportStatus}" />
+          </StackPanel>
         </Grid>
       </TabItem>
       <TabItem x:Name="WorldlinesTab" Header="Timeline 时间线" AutomationProperties.AutomationId="HktasStudio.TimelineTab">
@@ -447,15 +450,15 @@
           <StackPanel MaxWidth="940" HorizontalAlignment="Left">
             <TextBlock Text="快速开始" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" />
             <TextBlock Margin="0,8,0,16" TextWrapping="Wrap"
-                       Text="普通启动游戏不会激活 TAS。请在标题的选项 → Modding → HollowKnightTAS 中点击打开 Studio（重启游戏）；局内请先保存退出到标题。也可以先开 Studio，再点 Start 启动受控游戏。停在第 0 帧后，新建或打开全流程 Movie，即可单步或播放。完整说明见 docs/USER-MANUAL.md。" />
+                       Text="普通启动游戏不会激活 TAS。请在标题的选项 → Modding → HollowKnightTAS 中点击打开 Studio（重启游戏）；局内请先保存退出到标题。也可以先开 Studio，再用 File → Start 启动受控游戏。停在第 0 帧后，新建或打开全流程 Movie，即可单步或播放。完整说明见 docs/USER-MANUAL.md。" />
 
             <TextBlock Text="播放已有 TAS" FontSize="17" FontWeight="SemiBold" />
             <TextBlock Margin="0,6,0,16" TextWrapping="Wrap"
-                       Text="1. 在 Movie → Open Movie 打开 .hktas。&#10;2. 到 Timeline 选择所需世界线与节点，点击恢复所选节点，等待恢复完成。&#10;3. 回到 Movie Text，依次点 Validate、Upload、Start Replay。Pause 暂停；V 前进一帧。" />
+                       Text="1. 在 Input Editor 打开 .hktas，直接 Play 或逐帧。&#10;2. 中途打开其他文件后，播放从起点开始；也可选择目标帧后重新计算。&#10;3. 在 Timeline 点击叶子切换完整序列，选择节点后恢复。" />
 
             <TextBlock Text="编辑输入" FontSize="17" FontWeight="SemiBold" />
             <TextBlock Margin="0,6,0,16" TextWrapping="Wrap"
-                       Text="Input Editor 每行是一帧，每列是一个按键。单击格子切换输入；Shift 选择连续多帧。表格修改只是草稿：点“应用分支”提交；修改过去输入后，用“应用并重放到 Frame”回到目标帧。Ctrl+Z/Y 撤销/重做，Insert/Delete 插入/删除。" />
+                       Text="Input Editor 每行是一帧，每列是一个按键。单击格子切换输入；Shift 选择连续多帧。未来帧编辑在播放或逐帧前自动同步；修改过去输入后，用“重新计算到选中帧”回到目标位置。默认帧率用按钮弹框修改，选区帧率在右键菜单修改。Ctrl+Z/Y 撤销/重做，Insert/Delete 插入/删除。" />
 
             <TextBlock Text="存档与回档" FontSize="17" FontWeight="SemiBold" />
             <TextBlock Margin="0,6,0,16" TextWrapping="Wrap"
@@ -463,11 +466,11 @@
 
             <TextBlock Text="导出 MP4" FontSize="17" FontWeight="SemiBold" />
             <TextBlock Margin="0,6,0,16" TextWrapping="Wrap"
-                       Text="先恢复到序列起点并暂停，在 Movie Text 打开并校验序列，然后点“导出 MP4”。首次使用需选择 ffmpeg.exe，再选择一个不存在的新 .mp4 文件名。导出期间不要手动操作游戏。" />
+                       Text="旧版局内序列可先恢复到起点并暂停，在 Input Editor 打开文件后点“导出 MP4”。全流程 v2 尚不支持此旧版导出器。首次使用需选择 ffmpeg.exe，再选择一个不存在的新 .mp4 文件名。导出期间不要手动操作游戏。" />
 
             <TextBlock Text="常用快捷键" FontSize="17" FontWeight="SemiBold" />
             <TextBlock Margin="0,6,0,8" TextWrapping="Wrap"
-                       Text="Pause：播放/暂停　 V：前进一帧　 Ctrl+O：打开序列　 Ctrl+S：保存序列&#10;F1…F10：回档　 Shift+F1…F10：存档&#10;快捷键只在 Studio 窗口获得焦点时生效，可在 Settings → Hotkeys 修改播放和逐帧按键。" />
+                       Text="Pause：播放/暂停　 V：前进一帧　 Ctrl+O：打开序列　 Ctrl+S：保存序列&#10;F1…F10：回档　 Shift+F1…F10：存档&#10;快捷键只在 Studio 窗口获得焦点时生效，可在 Hotkeys 标签页 修改播放和逐帧按键。" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>

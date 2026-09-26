@@ -186,6 +186,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (worldlines == null) throw new InvalidOperationException(TimelineTreeStatus);
             var id = activeDraftTree ?? worldlines.Library.ActiveTreeId;
             int nodeId = 0;
+            int? tipId = activeDraftTip;
             var candidate = movieEditor.ValidateAny(MovieText).V2Document;
             var tipMovie = candidate != null && snapshot.Frame <= InputGridEditor.Count(candidate)
                 && HollowKnightTAS.Core.Movie.MovieV2Prefix.Matches(TimelineTree.Parse(snapshot.Movie), candidate, snapshot.Frame)
@@ -195,8 +196,9 @@ namespace HollowKnightTAS.Companion.ViewModels
                 var tree = library.Trees.FirstOrDefault(t => t.Id == id) ?? library.Trees.Last();
                 id = library.ActiveTreeId = tree.Id;
                 nodeId = tree.Add(snapshot.Frame, snapshot.Movie, snapshot.OriginalHashes).Id;
-                activeDraftTip = tree.UpdateTip(snapshot.Frame, tipMovie, snapshot.OriginalHashes, activeDraftTip).Id;
+                tipId = tree.UpdateTip(snapshot.Frame, tipMovie, snapshot.OriginalHashes, tipId).Id;
             });
+            activeDraftTip = tipId;
             activeDraftTree = id;
             RefreshWorldlines(id, activeDraftTip, nodeId);
             GridStatus = TimelineTreeStatus = $"已保存节点 {nodeId} · Frame {snapshot.Frame}；旧世界线已保留。";

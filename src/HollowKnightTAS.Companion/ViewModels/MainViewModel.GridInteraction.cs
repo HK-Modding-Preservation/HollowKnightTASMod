@@ -155,7 +155,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     var original = movieEditor.ValidateAny(snapshot.Movie).V2Document!;
                     var draft = GridAny().V2Document!;
                     if (!MovieV2Prefix.Matches(original, draft, snapshot.Frame))
-                        throw new InvalidOperationException("已修改过去的帧，请先点击应用并重放到 Frame。");
+                        throw new InvalidOperationException("已修改过去的帧，请先点击重新计算到选中帧。");
                     await RestartDraftAtAsync(snapshot.Frame);
                 }
                 else if (startupBoot!.NativeCompletedFrames == 0)
@@ -173,7 +173,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                         draft = new MovieV2Document(draft.SourceName, original.Header,
                             MovieV2Prefix.Take(original, snapshot.Frame).Runs.Concat(SliceV2(draft, snapshot.Frame, total - snapshot.Frame).Runs));
                     if (!MovieV2Prefix.Matches(original, draft, snapshot.Frame))
-                        throw new InvalidOperationException("已修改过去的帧，请先点击应用并重放到 Frame；未来帧修改会自动生效。");
+                        throw new InvalidOperationException("已修改过去的帧，请先点击重新计算到选中帧；未来帧修改会自动生效。");
                     var text = new MovieV2Codec().WriteCanonical(draft);
                     var directory = System.IO.Path.Combine(fullRunMovies.ShadowRoot, "HollowKnightTAS");
                     System.IO.Directory.CreateDirectory(directory);
