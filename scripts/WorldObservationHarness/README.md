@@ -26,6 +26,8 @@ dotnet run --project scripts/WorldObservationHarness/WorldObservationHarness.csp
 
 `--sample-frames=8250,8350,...,10149` accepts a comma-separated list of movie frames after the boss milestone and before completion. It captures paused world snapshots at every requested frame, plus custom EnviousMarmu details when the population changes and at the last sample. For `fixtures/full-run/envious-marmu-simple-v2.hktas`, use `--boss-frame=8250` and samples 8250 through 10050 in increments of 100, followed by 10149. The report records the actual fixture, Runtime, Core and environment hashes. With `--overlay`, it also verifies hide/show at the boss milestone and saves `boss-overlay-live.png`.
 
+When collecting EnviousMarmu details, the harness also saves the active scene's `BossSceneController` as `<label>-controller.json`. Inspect its `bossLevel` to distinguish Godhome difficulty tiers; scene names and enemy HP alone do not prove Radiant. The Radiant fixture uses `--boss-frame=2253`, and its controller must report `bossLevel=2` in `GG_Ghost_Marmu_V`.
+
 ## Interactive authoring
 
 `--mode=interactive` starts the protected replay and pauses at Movie frame 1, then writes `ready.json` in a **new, dedicated output directory**. `Interact.py` sends one numbered command and waits up to 60 seconds for its result; issue commands sequentially. A timeout means the command may still be pending: inspect the harness/report before sending another command.

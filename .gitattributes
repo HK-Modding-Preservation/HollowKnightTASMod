@@ -1,2 +1,3 @@
 # Preserve the byte hash of the verified delivery Movie on every checkout.
 fixtures/full-run/envious-marmu-kill-v2.hktas -text
+fixtures/full-run/envious-marmu-radiant-v2.hktas -text

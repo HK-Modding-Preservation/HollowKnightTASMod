@@ -495,6 +495,17 @@ internal static class Program
                 .FirstOrDefault(item => item.TryGetProperty("name", out var name) && name.GetString() == "Marmu Template");
             Require(template.ValueKind == JsonValueKind.Object, "inactive Marmu clone template discovered");
             await ObserveDetailsAsync(report, runtime, template, expectedMovieFrame, nativeFrame, label + "-template", token);
+            var activeSceneName = inactive.Snapshot.RootElement.GetProperty("metadata")
+                .GetProperty("activeScene").GetProperty("name").GetString();
+            var controller = inactive.Snapshot.RootElement.GetProperty("objects").EnumerateArray()
+                .FirstOrDefault(item => item.GetProperty("activeInHierarchy").GetBoolean()
+                    && item.GetProperty("scene").GetProperty("name").GetString() == activeSceneName
+                    && item.TryGetProperty("components", out var controllerComponents)
+                    && controllerComponents.ValueKind == JsonValueKind.Array
+                    && controllerComponents.EnumerateArray().Any(component =>
+                        component.TryGetProperty("type", out var type) && type.GetString() == "BossSceneController"));
+            Require(controller.ValueKind == JsonValueKind.Object, label + " active boss scene controller discovered");
+            await ObserveDetailsAsync(report, runtime, controller, expectedMovieFrame, nativeFrame, label + "-controller", token);
         }
         Require(gate.IsWaiting && gate.NativeCompletedFrames == beforeNative,
             label + " all world, collider, and detail queries preserve paused native frame");
