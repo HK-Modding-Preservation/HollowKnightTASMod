@@ -66,10 +66,13 @@ namespace HollowKnightTAS.Companion.Tests
                     keys.Configure(false, Key.Pause, Key.V);
                     Assert.AreEqual(0, platform.Registered.Count);
                     keys.Configure(true, Key.Pause, Key.V);
-                    Assert.AreEqual(22, platform.Registered.Count);
+                    SendMessage(source.Handle, 0x0312, (IntPtr)0x5A02, IntPtr.Zero);
+                    Assert.AreEqual((Key.P, ModifierKeys.None), received[0]);
+                    received.Clear();
+                    Assert.AreEqual(23, platform.Registered.Count);
                     SendMessage(source.Handle, 0x0312, (IntPtr)0x5A01, IntPtr.Zero);
                     Assert.AreEqual((Key.V, ModifierKeys.None), received[0]);
-                    SendMessage(source.Handle, 0x0312, (IntPtr)0x5A03, IntPtr.Zero);
+                    SendMessage(source.Handle, 0x0312, (IntPtr)0x5A04, IntPtr.Zero);
                     Assert.AreEqual((Key.F1, ModifierKeys.Shift), received[1]);
                     platform.ForegroundProcessId = Environment.ProcessId;
                     SendMessage(source.Handle, 0x0312, (IntPtr)0x5A00, IntPtr.Zero);
@@ -83,7 +86,7 @@ namespace HollowKnightTAS.Companion.Tests
                     Assert.AreEqual(0, platform.Registered.Count);
                     platform.Reject = false;
                     keys.Configure(true, Key.Space, Key.B);
-                    Assert.AreEqual(22, platform.Registered.Count);
+                    Assert.AreEqual(23, platform.Registered.Count);
                     SendMessage(source.Handle, 0x0312, (IntPtr)0x5A01, IntPtr.Zero);
                     Assert.AreEqual((Key.B, ModifierKeys.None), received[2]);
                     keys.Configure(false, Key.Space, Key.B);

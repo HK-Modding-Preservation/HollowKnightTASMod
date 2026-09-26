@@ -19,7 +19,7 @@ namespace HollowKnightTAS.Companion.Services
         private readonly Dictionary<int, (Key Key, ModifierKeys Modifiers)> registered = new();
         private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(40) };
         private readonly HeldStepRepeat repeat = new();
-        private Key pause, step;
+        private Key pause, step, play;
         private bool enabled, attempted, disposed;
 
         public GlobalStudioHotkeys(IntPtr handle, Func<bool> canUse,
@@ -32,11 +32,11 @@ namespace HollowKnightTAS.Companion.Services
             timer.Tick += (_, _) => Tick();
         }
 
-        public void Configure(bool enabled, Key pause, Key step)
+        public void Configure(bool enabled, Key pause, Key step, Key play = Key.P)
         {
             var wasEnabled = this.enabled;
             Release();
-            this.enabled = enabled; this.pause = pause; this.step = step;
+            this.enabled = enabled; this.pause = pause; this.step = step; this.play = play;
             if (enabled || wasEnabled) report("");
             if (enabled) { timer.Start(); Tick(); } else timer.Stop();
         }
@@ -58,7 +58,7 @@ namespace HollowKnightTAS.Companion.Services
         private void Register()
         {
             attempted = true;
-            var keys = new List<(Key, ModifierKeys)> { (pause, ModifierKeys.None), (step, ModifierKeys.None) };
+            var keys = new List<(Key, ModifierKeys)> { (pause, ModifierKeys.None), (step, ModifierKeys.None), (play, ModifierKeys.None) };
             for (var i = 0; i < 10; i++)
             {
                 keys.Add((Key.F1 + i, ModifierKeys.None));

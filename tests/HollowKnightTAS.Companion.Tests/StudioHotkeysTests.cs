@@ -19,6 +19,15 @@ namespace HollowKnightTAS.Companion.Tests
         }
 
         [TestMethod]
+        public void ContinuePlaybackHasIndependentKeyAndRespectsTextFocus()
+        {
+            Assert.AreEqual(StudioShortcut.Play, StudioHotkeys.Resolve(Key.P, ModifierKeys.None, false));
+            Assert.AreEqual(StudioShortcut.None, StudioHotkeys.Resolve(Key.P, ModifierKeys.None, true));
+            Assert.AreEqual(StudioShortcut.None, StudioHotkeys.Resolve(Key.P, ModifierKeys.Shift, false));
+            Assert.AreEqual(StudioShortcut.Play, StudioHotkeys.Resolve(Key.B, ModifierKeys.None, false, Key.Pause, Key.V, Key.B));
+        }
+
+        [TestMethod]
         public void QuickSlotsUseOnlyF1ToF10WithOptionalShift()
         {
             for (var i = 0; i < 10; i++)

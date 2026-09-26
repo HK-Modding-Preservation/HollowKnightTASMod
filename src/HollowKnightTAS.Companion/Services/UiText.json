@@ -2248,5 +2248,47 @@
     "Source": "时间线父链存在循环。",
     "Zh": "时间线父链存在循环。",
     "En": "The timeline parent chain contains a cycle."
-  }
+  },
+{
+  "Key": "saveSequence",
+  "Source": "保存序列",
+  "Zh": "保存序列",
+  "En": "Save sequence"
+},
+{
+  "Key": "playShortcut",
+  "Source": "继续播放：",
+  "Zh": "继续播放：",
+  "En": "Continue playback:"
+},
+{
+  "Key": "sequenceSettings",
+  "Source": "序列保存",
+  "Zh": "序列保存",
+  "En": "Sequence saving"
+},
+{
+  "Key": "sequenceDirectory",
+  "Source": "默认保存文件夹",
+  "Zh": "默认保存文件夹",
+  "En": "Default save folder"
+},
+{
+  "Key": "browseDirectory",
+  "Source": "浏览…",
+  "Zh": "浏览…",
+  "En": "Browse…"
+},
+{
+  "Key": "sequenceInterval",
+  "Source": "自动保存间隔（秒，0 关闭）：",
+  "Zh": "自动保存间隔（秒，0 关闭）：",
+  "En": "Autosave interval (seconds, 0 disables):"
+},
+{
+  "Key": "sequenceSaveHelp",
+  "Source": "自动保存将完整草稿写入默认文件夹下的 Autosave 独立副本，不覆盖手动保存文件。Ctrl+S 保存当前序列。",
+  "Zh": "自动保存将完整草稿写入默认文件夹下的 Autosave 独立副本，不覆盖手动保存文件。Ctrl+S 保存当前序列。",
+  "En": "Autosave writes the full draft to a separate copy in the Autosave subfolder. Ctrl+S saves the current sequence."
+}
 ]

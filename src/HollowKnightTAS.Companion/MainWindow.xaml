@@ -96,7 +96,8 @@
           </WrapPanel>
           <WrapPanel Grid.Row="1" Margin="0,0,0,6">
             <Button Content="{ui:Text t15}" Command="{Binding OpenMovieCommand}" IsEnabled="{Binding IsInputGridInteractive}" />
-            <Button Content="{ui:Text t16}" Command="{Binding SaveMovieCommand}" IsEnabled="{Binding IsInputGridInteractive}" />
+            <Button Content="{ui:Text saveSequence}" Command="{Binding SaveMovieCommand}" AutomationProperties.AutomationId="HktasStudio.SaveSequence" />
+            <Button Content="{ui:Text t16}" Command="{Binding SaveMovieAsCommand}" IsEnabled="{Binding IsInputGridInteractive}" />
             <Button Content="{ui:Text t17}" Command="{Binding ApplyGridAndSeekCommand}" ToolTip="{ui:Text t18}" IsEnabled="{Binding IsInputGridInteractive}" />
             <CheckBox Content="{ui:Text t19}" IsChecked="{Binding AutoFollowGrid, Mode=TwoWay}"
                       IsEnabled="{Binding IsInputGridInteractive}"
@@ -249,6 +250,8 @@
           <WrapPanel>
             <TextBlock Text="{ui:Text t70}" VerticalAlignment="Center" />
             <ComboBox Width="120" ItemsSource="{Binding ShortcutKeys}" SelectedItem="{Binding PauseShortcut}" />
+            <TextBlock Text="{ui:Text playShortcut}" VerticalAlignment="Center" />
+            <ComboBox Width="120" ItemsSource="{Binding ShortcutKeys}" SelectedItem="{Binding PlayShortcut}" />
             <TextBlock Text="{ui:Text t71}" VerticalAlignment="Center" />
             <ComboBox Width="120" ItemsSource="{Binding ShortcutKeys}" SelectedItem="{Binding AdvanceShortcut}" />
             <Button Content="{ui:Text t72}" Command="{Binding SaveShortcutSettingsCommand}" />
@@ -256,6 +259,18 @@
           </WrapPanel>
           <TextBlock Text="{ui:TextBinding ShortcutSettingsStatus}" TextWrapping="Wrap" Margin="0,12" />
           <TextBlock Text="{ui:Text t74}" TextWrapping="Wrap" />
+          <TextBlock Text="{ui:Text sequenceSettings}" FontSize="18" Margin="0,20,0,12" />
+          <TextBlock Text="{ui:Text sequenceDirectory}" />
+          <DockPanel Margin="0,6,0,12">
+            <Button DockPanel.Dock="Right" Content="{ui:Text browseDirectory}" Command="{Binding BrowseSequenceDirectoryCommand}" />
+            <TextBox Text="{Binding SequenceDirectory, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.AutomationId="HktasStudio.SequenceDirectory" />
+          </DockPanel>
+          <WrapPanel><TextBlock Text="{ui:Text sequenceInterval}" VerticalAlignment="Center" />
+            <TextBox Width="90" Text="{Binding SequenceAutoSaveSeconds, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.AutomationId="HktasStudio.SequenceAutoSaveSeconds" />
+            <Button Content="{ui:Text t72}" Command="{Binding SaveSequenceSettingsCommand}" />
+          </WrapPanel>
+          <TextBlock Text="{ui:Text sequenceSaveHelp}" TextWrapping="Wrap" Margin="0,8" />
+          <TextBlock Text="{Binding SequenceSaveStatus}" TextWrapping="Wrap" />
         </StackPanel></ScrollViewer>
       </TabItem>
     </TabControl>

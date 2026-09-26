@@ -44,7 +44,10 @@ namespace HollowKnightTAS.Companion
             gridFollowTimer.Tick += async (_, _) =>
             {
                 if (DataContext is MainViewModel vm)
+                {
                     await vm.PollInputGridProgressAsync();
+                    await vm.AutoSaveSequenceAsync();
+                }
             };
             Loaded += (_, _) => gridFollowTimer.Start();
             Closing += async (_, e) =>
@@ -52,7 +55,7 @@ namespace HollowKnightTAS.Companion
                 if (closeSaved || DataContext is not MainViewModel vm) return;
                 e.Cancel = true;
                 gridFollowTimer.Stop();
-                globalHotkeys?.Configure(false, vm.ConfiguredPause, vm.ConfiguredAdvance);
+                globalHotkeys?.Configure(false, vm.ConfiguredPause, vm.ConfiguredAdvance, vm.ConfiguredPlay);
                 try
                 {
                     await vm.CancelVideoExportAndWaitAsync();
@@ -252,7 +255,7 @@ namespace HollowKnightTAS.Companion
 
         private void OnInputBindingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName is nameof(MainViewModel.GlobalHotkeysEnabled) or nameof(MainViewModel.ConfiguredPause) or nameof(MainViewModel.ConfiguredAdvance))
+            if (e.PropertyName is nameof(MainViewModel.GlobalHotkeysEnabled) or nameof(MainViewModel.ConfiguredPause) or nameof(MainViewModel.ConfiguredAdvance) or nameof(MainViewModel.ConfiguredPlay))
                 ConfigureGlobalHotkeys();
             if (e.PropertyName == nameof(MainViewModel.IsRestorePresentationFrozen)
                 && sender is MainViewModel { IsRestorePresentationFrozen: true })
@@ -383,7 +386,7 @@ namespace HollowKnightTAS.Companion
         private void ConfigureGlobalHotkeys()
         {
             if (DataContext is MainViewModel vm)
-                globalHotkeys?.Configure(vm.GlobalHotkeysEnabled, vm.ConfiguredPause, vm.ConfiguredAdvance);
+                globalHotkeys?.Configure(vm.GlobalHotkeysEnabled, vm.ConfiguredPause, vm.ConfiguredAdvance, vm.ConfiguredPlay);
         }
 
         private void ExecuteGlobalHotkey(Key key, ModifierKeys modifiers)
@@ -397,7 +400,7 @@ namespace HollowKnightTAS.Companion
                 if (command.CanExecute(null)) command.Execute(null);
                 return;
             }
-            var transport = key == vm.ConfiguredAdvance ? vm.StepCommand : vm.TogglePauseCommand;
+            var transport = key == vm.ConfiguredAdvance ? vm.StepCommand : key == vm.ConfiguredPlay ? vm.PlayCommand : vm.TogglePauseCommand;
             if (transport.CanExecute(null)) transport.Execute(null);
         }
 
@@ -427,10 +430,11 @@ namespace HollowKnightTAS.Companion
             var editingText = Keyboard.FocusedElement is TextBoxBase or PasswordBox
                 || Keyboard.FocusedElement is ComboBox;
             ICommand? command = StudioHotkeys.Resolve(key, Keyboard.Modifiers, editingText,
-                viewModel.ConfiguredPause, viewModel.ConfiguredAdvance) switch
+                viewModel.ConfiguredPause, viewModel.ConfiguredAdvance, viewModel.ConfiguredPlay) switch
             {
                 StudioShortcut.OpenMovie => viewModel.OpenMovieCommand,
                 StudioShortcut.SaveMovie => viewModel.SaveMovieCommand,
+                StudioShortcut.Play => viewModel.PlayCommand,
                 StudioShortcut.PlayPause => viewModel.TogglePauseCommand,
                 StudioShortcut.FrameAdvance => viewModel.StepCommand,
                 _ => null

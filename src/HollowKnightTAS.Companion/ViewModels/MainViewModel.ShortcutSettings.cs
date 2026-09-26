@@ -35,6 +35,10 @@ namespace HollowKnightTAS.Companion.ViewModels
             }
         }
 
+        private Key playShortcut = Key.P;
+        private Key configuredPlay = Key.P;
+        public Key PlayShortcut { get => playShortcut; set => Set(ref playShortcut, value); }
+        public Key ConfiguredPlay => configuredPlay;
         private Key pauseShortcut = Key.Pause;
         private Key advanceShortcut = Key.V;
         private Key configuredPause = Key.Pause;
@@ -73,10 +77,11 @@ namespace HollowKnightTAS.Companion.ViewModels
                 {
                     if (new FileInfo(ShortcutSettingsPath).Length > 4096) throw new InvalidDataException("配置过大");
                     var keys = JsonSerializer.Deserialize<Key[]>(File.ReadAllText(ShortcutSettingsPath));
-                    if (keys == null || keys.Length != 2 || keys[0] == keys[1] || keys.Any(k => !ShortcutKeys.Contains(k)))
+                    if (keys == null || (keys.Length != 2 && keys.Length != 3) || keys.Distinct().Count() != keys.Length || keys.Any(k => !ShortcutKeys.Contains(k)))
                         throw new InvalidDataException("快捷键配置无效");
                     configuredPause = PauseShortcut = keys[0];
                     configuredAdvance = AdvanceShortcut = keys[1];
+                    configuredPlay = PlayShortcut = keys.Length == 3 ? keys[2] : (keys.Contains(Key.P) ? ShortcutKeys.First(k => !keys.Contains(k)) : Key.P);
                 }
             }
             catch (Exception e)
@@ -89,16 +94,18 @@ namespace HollowKnightTAS.Companion.ViewModels
                 try
                 {
                     if (!shortcutSettingsValid) throw new InvalidOperationException("原配置无法读取，拒绝覆盖：" + ShortcutSettingsPath);
-                    if (PauseShortcut == AdvanceShortcut || !ShortcutKeys.Contains(PauseShortcut) || !ShortcutKeys.Contains(AdvanceShortcut))
-                        throw new InvalidOperationException("播放/暂停与逐帧必须选择不同按键。");
+                    if (new[] { PauseShortcut, AdvanceShortcut, PlayShortcut }.Distinct().Count() != 3 || !ShortcutKeys.Contains(PlayShortcut) || !ShortcutKeys.Contains(PauseShortcut) || !ShortcutKeys.Contains(AdvanceShortcut))
+                        throw new InvalidOperationException("播放/暂停、继续播放与逐帧必须选择不同按键。");
                     Directory.CreateDirectory(Path.GetDirectoryName(ShortcutSettingsPath)!);
                     var temp = ShortcutSettingsPath + ".tmp";
                     try
                     {
-                        File.WriteAllText(temp, JsonSerializer.Serialize(new[] { PauseShortcut, AdvanceShortcut }));
+                        File.WriteAllText(temp, JsonSerializer.Serialize(new[] { PauseShortcut, AdvanceShortcut, PlayShortcut }));
                         File.Move(temp, ShortcutSettingsPath, true);
                     }
                     finally { if (File.Exists(temp)) File.Delete(temp); }
+                    configuredPlay = PlayShortcut;
+                    OnPropertyChanged(nameof(ConfiguredPlay));
                     configuredPause = PauseShortcut;
                     configuredAdvance = AdvanceShortcut;
                     OnPropertyChanged(nameof(ConfiguredPause));
@@ -109,6 +116,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             });
             ResetShortcutSettingsCommand = new RelayCommand(() =>
             {
+                PlayShortcut = Key.P;
                 PauseShortcut = Key.Pause;
                 AdvanceShortcut = Key.V;
                 SaveShortcutSettingsCommand.Execute(null);

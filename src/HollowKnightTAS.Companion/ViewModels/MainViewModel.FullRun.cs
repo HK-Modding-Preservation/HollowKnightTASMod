@@ -70,6 +70,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 var coordinator = fullRunMovies
                     ?? throw new InvalidOperationException("全流程启动器不可用。");
                 coordinator.ArmRecording(GameMouseEnabled, ParseFrameRate(DefaultFrameRate));
+                ResetSequenceSaveTarget(null);
                 var header = new MovieV2Header("unknown", "unknown", "unknown",
                     MovieProtocolV2.NativeProfileId, MovieProtocolV2.ActionSchemaId,
                     GameMouseEnabled, "none", 0, 0);

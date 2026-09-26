@@ -172,12 +172,14 @@ namespace HollowKnightTAS.Companion.ViewModels
             InitializeInputGrid();
             InitializeQuickSlots();
             InitializeShortcutSettings();
+            InitializeSequenceSettings();
             InitializeFullRunSettings();
             InitializeColliderOverlay();
             LaunchGameCommand = new AsyncRelayCommand(LaunchGameAsync, () => this.launchGame != null);
             NewFullRunMovieCommand = new RelayCommand(NewFullRunMovie);
             OpenMovieCommand = new AsyncRelayCommand(OpenMovieAsync);
-            SaveMovieCommand = new AsyncRelayCommand(SaveMovieAsync);
+            SaveMovieCommand = new AsyncRelayCommand(() => SaveSequenceAsync(false));
+            SaveMovieAsCommand = new AsyncRelayCommand(() => SaveSequenceAsync(true));
             ValidateMovieCommand =
                 new RelayCommand(() => ValidateMovie(false));
             FormatMovieCommand =
@@ -282,6 +284,10 @@ namespace HollowKnightTAS.Companion.ViewModels
                 await ExecuteHumanAsync(currentControlMode == "Paused"
                     ? AutomationCommandIds.Resume : AutomationCommandIds.Pause, AutomationScope.ControlPlayback);
             }, allowStartupContinue: true, allowCompletedReplay: true, allowDuringVideoExport: true);
+            PlayCommand = new RelayCommand(() =>
+            {
+                if (CanContinuePlayback && TogglePauseCommand.CanExecute(null)) TogglePauseCommand.Execute(null);
+            });
             StepCommand =
                 Command(
                     async () =>
@@ -739,6 +745,9 @@ namespace HollowKnightTAS.Companion.ViewModels
         public ICommand NewFullRunMovieCommand { get; }
         public ICommand LaunchGameCommand { get; }
         public ICommand SaveMovieCommand { get; }
+        public ICommand SaveMovieAsCommand { get; }
+        public ICommand PlayCommand { get; }
+        private bool CanContinuePlayback => startupBoot?.IsPending == true ? startupBoot.IsWaiting : currentControlMode == "Paused";
         public ICommand ValidateMovieCommand { get; }
         public ICommand FormatMovieCommand { get; }
         public ICommand UploadMovieCommand { get; }
@@ -1050,6 +1059,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 if (fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true)
                     await fullRunMovies.PauseAsync(CancellationToken.None);
                 await SaveCurrentBranchAsync(closing: true);
+                ResetSequenceSaveTarget(path);
                 MovieText = gridSource = text;
                 gridHasUserEdits = false; earliestGridEdit = long.MaxValue;
                 recordingGridNativeFrame = -1;
@@ -1066,26 +1076,6 @@ namespace HollowKnightTAS.Companion.ViewModels
                 Status = draftRequiresRestart ? "序列已切换；播放将从起点开始，也可右键恢复到指定帧。" : "序列已打开。";
             }
             finally { SetGridApplying(false); }
-        }
-
-        private async Task SaveMovieAsync()
-        {
-            var dialog = new SaveFileDialog
-            {
-                Filter = UiText.T("HK-TAS Movie (*.hktas)|*.hktas"),
-                AddExtension = true,
-                DefaultExt = ".hktas"
-            };
-            if (dialog.ShowDialog() != true)
-            {
-                return;
-            }
-
-            await File.WriteAllTextAsync(
-                dialog.FileName,
-                MovieText,
-                new UTF8Encoding(false, true));
-            Status = "Movie saved.";
         }
 
         private void ValidateMovie(bool applyFormat)
