@@ -22,6 +22,7 @@ function Read-RequiredReport([string] $Path) {
         throw "Report not found: $Path"
     }
     $report = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    if ($report.success -ne $true) { throw "Acceptance run did not succeed: $Path" }
     foreach ($name in @('runId', 'shadowRoot', 'runtimeAssemblySha256', 'coreAssemblySha256')) {
         if ([string]::IsNullOrWhiteSpace([string] $report.$name)) {
             throw "Report $Path is missing $name."

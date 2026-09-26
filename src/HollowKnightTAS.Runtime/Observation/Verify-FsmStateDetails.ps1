@@ -1,3 +1,5 @@
+#requires -PSEdition Desktop
+# Use powershell.exe: the synthetic action derives from the game's .NET Framework PlayMaker assembly.
 param(
     [string]$RuntimePath = (Join-Path $PSScriptRoot '..\bin\Release\HollowKnightTAS.dll'),
     [string]$ManagedPath = 'D:\SteamLibrary\steamapps\common\Hollow Knight\hollow_knight_Data\Managed',

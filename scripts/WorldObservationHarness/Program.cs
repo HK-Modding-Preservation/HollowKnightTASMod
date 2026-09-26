@@ -1,8 +1,14 @@
 using System.Diagnostics;
+using System.IO;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Windows.Threading;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Reflection;
 using HollowKnightTAS.Companion.Services;
 using HollowKnightTAS.Core.Ipc;
 using HollowKnightTAS.Core.Movie;
@@ -22,7 +28,22 @@ internal static class Program
     private const string WorldSnapshot = "worldSnapshot";
     private const string ObjectDetails = "objectDetails";
 
-    public static async Task<int> Main(string[] args)
+    [STAThread]
+    public static int Main(string[] args)
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
+        int code = 3;
+        dispatcher.BeginInvoke(new Action(async () =>
+        {
+            try { code = await RunAsync(args); }
+            finally { dispatcher.BeginInvokeShutdown(DispatcherPriority.Background); }
+        }));
+        Dispatcher.Run();
+        return code;
+    }
+
+    private static async Task<int> RunAsync(string[] args)
     {
         var options = Options.Parse(args);
         Directory.CreateDirectory(options.Output);
@@ -49,6 +70,7 @@ internal static class Program
         SingleInstanceCoordinator? instance = null;
         SessionRegistry? sessions = null;
         ControlPipeServer? control = null;
+        ColliderOverlayController? overlay = null;
         currentReport = report;
         try
         {
@@ -70,6 +92,8 @@ internal static class Program
             boot = new StartupBootController();
             movies = new FullRunMovieCoordinator(boot);
             var gate = movies.PrepareLaunch();
+            report["runId"] = movies.RunId;
+            report["shadowRoot"] = movies.ShadowRoot;
             var launcher = new VerifiedGameLauncher(profile);
             handle = await launcher.LaunchInteractiveAsync(
                 "world-observe-" + Guid.NewGuid().ToString("N"),
@@ -78,6 +102,7 @@ internal static class Program
             await WaitForGateAsync(gate, handle, linked.Token);
 
             var movie = LoadMovie(options.Fixture);
+            boot.Refresh();
             movies.ArmReplay(movie, 1);
             var first = await movies.StepAsync(0, linked.Token);
             Require(first.Mode != "Fault" && gate.IsWaiting, "startup frame 1 reached");
@@ -101,23 +126,34 @@ internal static class Program
             report["runtimeAssemblySha256"] = runtime.RuntimeAssemblySha256;
             report["coreAssemblySha256"] = runtime.CoreAssemblySha256;
 
+            if (options.Overlay)
+            {
+                overlay = new ColliderOverlayController(() => runtime,
+                    async (session, fields, token) => await RuntimeCommandAsync(session, GetWorldSnapshot, WorldSnapshot,
+                        fields.ToDictionary(pair => pair.Key, pair => pair.Value), token),
+                    status => report["overlayStatus"] = status);
+                overlay.SetEnabled(true);
+                report["overlayEnabled"] = true;
+            }
+
             await RecordStatusAsync(report, runtime, "frame-1", linked.Token);
-            if (options.Mode == "observe")
+            if (options.Mode != "baseline")
             {
                 await ObserveFrameAsync(report, runtime, movies, gate, 1, "title", true, linked.Token);
                 await MoveToFrameAsync(runtime, movies, gate, 1500, linked.Token);
                 await RecordStatusAsync(report, runtime, "frame-1500", linked.Token);
                 await ObserveFrameAsync(report, runtime, movies, gate, 1500, "sanctum", true, linked.Token);
-                await MoveToFrameAsync(runtime, movies, gate, 8500, linked.Token);
-                await RecordStatusAsync(report, runtime, "frame-8500", linked.Token);
-                await ObserveFrameAsync(report, runtime, movies, gate, 8500, "boss", true, linked.Token);
+                if (overlay != null) await VerifyOverlayAsync(overlay, gate, report, linked.Token);
+                await MoveToFrameAsync(runtime, movies, gate, options.BossFrame, linked.Token);
+                await RecordStatusAsync(report, runtime, "boss-frame", linked.Token);
+                await ObserveFrameAsync(report, runtime, movies, gate, options.BossFrame, options.Mode == "probe" ? "probe" : "boss", true, linked.Token);
             }
             else
             {
                 await MoveToFrameAsync(runtime, movies, gate, 1500, linked.Token);
                 await RecordStatusAsync(report, runtime, "frame-1500", linked.Token);
-                await MoveToFrameAsync(runtime, movies, gate, 8500, linked.Token);
-                await RecordStatusAsync(report, runtime, "frame-8500", linked.Token);
+                await MoveToFrameAsync(runtime, movies, gate, options.BossFrame, linked.Token);
+                await RecordStatusAsync(report, runtime, "boss-frame", linked.Token);
             }
 
             await MoveToFrameAsync(runtime, movies, gate, movie.Runs.Sum(run => (long)run.RepeatCount), linked.Token);
@@ -148,6 +184,8 @@ internal static class Program
         }
         finally
         {
+            linked.Cancel();
+            overlay?.Dispose();
             try { if (movies != null) movies.VerifyOriginalSavesUnchanged(); } catch { }
             runtime?.Dispose();
             control?.Dispose();
@@ -177,6 +215,29 @@ internal static class Program
 
         throw new TimeoutException(
             "No connected Runtime session was registered through the formal Companion control pipe.");
+    }
+
+    private static async Task VerifyOverlayAsync(ColliderOverlayController overlay, StartupBootGate gate,
+        Dictionary<string, object?> report, CancellationToken token)
+    {
+        Window? Window() => (Window?)typeof(ColliderOverlayController).GetField("window", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(overlay);
+        long frame = gate.NativeCompletedFrames;
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while (Window()?.IsVisible != true && DateTime.UtcNow < deadline) await Task.Delay(50, token);
+        Require(Window()?.IsVisible == true, "overlay is visible with live collider data");
+        var surface = (FrameworkElement)Window()!.Content;
+        surface.UpdateLayout();
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(surface.ActualWidth), (int)Math.Ceiling(surface.ActualHeight), 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(surface);
+        var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var file = File.Create(Path.Combine((string)report["output"]!, "sanctum-overlay-live.png"))) png.Save(file);
+        overlay.SetEnabled(false); await Task.Delay(200, token);
+        Require(Window()?.IsVisible == false && gate.NativeCompletedFrames == frame, "hide overlay preserves paused native frame");
+        overlay.SetEnabled(true);
+        deadline = DateTime.UtcNow.AddSeconds(5);
+        while (Window()?.IsVisible != true && DateTime.UtcNow < deadline) await Task.Delay(50, token);
+        Require(Window()?.IsVisible == true && gate.NativeCompletedFrames == frame, "show overlay preserves paused native frame");
+        AddCheck(report, "live overlay visible, hide/show while paused, native frame unchanged, PNG rendered");
     }
 
     private static MovieV2Document LoadMovie(string path)
@@ -225,6 +286,8 @@ internal static class Program
                 ["expectedNativeFrame"] = expectedNative.ToString(CultureInfo.InvariantCulture)
             }, token);
         var boundary = await movies.RunAsync(gate.NativeCompletedFrames, token);
+        while (!gate.IsWaiting && !gate.IsFullRunFinished && gate.FullRunFaultCode == 0)
+            await Task.Delay(20, token);
         Require(boundary.Mode != "Fault" && gate.FullRunFaultCode == 0,
             "target frame " + target + " reached without native fault");
         var completed = await RuntimeCommandAsync(runtime, IpcMessageTypes.FullRunStatus,
@@ -238,6 +301,8 @@ internal static class Program
         RuntimeSessionClient runtime, FullRunMovieCoordinator movies, StartupBootGate gate,
         long expectedMovieFrame, string label, bool includeDetails, CancellationToken token)
     {
+        long beforeNative = gate.NativeCompletedFrames;
+        Require(gate.IsWaiting, label + " query begins at paused boundary");
         var world = await ReadSnapshotAsync(report, runtime, expectedMovieFrame,
             label + "-world", "world", token);
         RecordScene(report, label, world.Snapshot.RootElement);
@@ -249,7 +314,12 @@ internal static class Program
         // while Unity finishes loading the player object. Keep that observed
         // state in the report; later in-world milestones require the hero.
         if (!string.Equals(label, "title", StringComparison.OrdinalIgnoreCase))
-            Require(FindObject(objects, "hero") != null, label + " hero object");
+        {
+            var heroOverview = FindObject(objects, "hero");
+            Require(heroOverview != null, label + " hero object");
+            Require(heroOverview!.Value.TryGetProperty("transform", out var transform) && transform.TryGetProperty("position", out _),
+                label + " hero position retained in overview");
+        }
         Require(FindObject(objects, "enemy") != null || label != "boss",
             label + " enemy/boss object");
         if (label == "sanctum")
@@ -275,17 +345,33 @@ internal static class Program
         if (enemy != null)
             await ObserveDetailsAsync(report, runtime, enemy.Value, expectedMovieFrame,
                 nativeFrame, label + "-enemy", token);
+        int customIndex = 0;
+        foreach (var item in objects.EnumerateArray())
+            if (item.TryGetProperty("components", out var components) && components.ValueKind == JsonValueKind.Array
+                && components.EnumerateArray().Any(c => c.TryGetProperty("assembly", out var assembly) && assembly.GetString() == "EnviousMarmu"))
+                await ObserveDetailsAsync(report, runtime, item, expectedMovieFrame, nativeFrame,
+                    label + "-custom-" + customIndex++, token);
+        if (customIndex > 0)
+        {
+            var inactive = await ReadSnapshotAsync(report, runtime, expectedMovieFrame, label + "-all", "all", token, true);
+            var template = inactive.Snapshot.RootElement.GetProperty("objects").EnumerateArray()
+                .FirstOrDefault(item => item.TryGetProperty("name", out var name) && name.GetString() == "Marmu Template");
+            Require(template.ValueKind == JsonValueKind.Object, "inactive Marmu clone template discovered");
+            await ObserveDetailsAsync(report, runtime, template, expectedMovieFrame, nativeFrame, label + "-template", token);
+        }
+        Require(gate.IsWaiting && gate.NativeCompletedFrames == beforeNative,
+            label + " all world, collider, and detail queries preserve paused native frame");
     }
 
     private static async Task<SnapshotRead> ReadSnapshotAsync(
         Dictionary<string, object?> report, RuntimeSessionClient runtime,
-        long expectedMovieFrame, string label, string view, CancellationToken token)
+        long expectedMovieFrame, string label, string view, CancellationToken token, bool includeInactive = false)
     {
         var first = await QueryAsync(runtime, GetWorldSnapshot, WorldSnapshot,
             new Dictionary<string, string>
             {
                 ["requestId"] = RequestId(), ["snapshotId"] = string.Empty,
-                ["view"] = view, ["includeInactive"] = "false",
+                ["view"] = view, ["includeInactive"] = includeInactive ? "true" : "false",
                 ["offset"] = "0", ["limit"] = "64"
             }, label + "-page-0", token);
         AssertFrame(first, expectedMovieFrame, label);
@@ -309,10 +395,11 @@ internal static class Program
                 new Dictionary<string, string>
                 {
                     ["requestId"] = RequestId(), ["snapshotId"] = snapshotId,
-                    ["view"] = view, ["includeInactive"] = "false",
+                    ["view"] = view, ["includeInactive"] = includeInactive ? "true" : "false",
                     ["offset"] = offset.ToString(CultureInfo.InvariantCulture), ["limit"] = "64"
                 }, label + "-page-" + page, token);
             AssertFrame(fields, expectedMovieFrame, label + " page " + page);
+            Require(ReadInt64(fields, "nativeFrame", -1) == ReadInt64(first, "nativeFrame", -2), label + " page native frame unchanged");
             Require(ReadField(fields, "snapshotId") == snapshotId, label + " snapshot id changed");
             var pageJson = ReadField(fields, "snapshotJson");
             SaveField(report, label + "-page-" + page, fields, "snapshotJson");
@@ -475,6 +562,7 @@ internal static class Program
         ((List<object>)report["status"]!).Add(fields.ToDictionary(
             pair => pair.Key, pair => (object?)pair.Value,
             StringComparer.Ordinal));
+        Console.WriteLine(label + " movie=" + ReadField(fields, "movieFrame") + " scene=" + ReadField(fields, "sceneName") + " mode=" + ReadField(fields, "mode"));
         ((List<object>)report["status"]!).Add(new Dictionary<string, object?>
         {
             ["label"] = label, ["nativeFrame"] = ReadInt64(fields, "nativeFrame", -1),
@@ -531,6 +619,7 @@ internal static class Program
     private static void Require(bool value, string detail)
     {
         if (!value) throw new InvalidDataException(detail);
+        if (currentReport != null) AddCheck(currentReport, detail);
     }
 
     private static void AddCheck(Dictionary<string, object?> report, string detail)
@@ -549,7 +638,7 @@ internal static class Program
 
     private static void WriteReport(string output, Dictionary<string, object?> report)
     {
-        File.WriteAllText(Path.Combine(output, "report.json"), JsonSerializer.Serialize(report, JsonOptions));
+        lock (report) File.WriteAllText(Path.Combine(output, "report.json"), JsonSerializer.Serialize(report, JsonOptions));
     }
 
     private static async Task WaitForExitAsync(VerifiedGameLaunchHandle handle, CancellationToken token)
@@ -574,20 +663,35 @@ internal static class Program
         public void Stop() { try { task?.Wait(TimeSpan.FromSeconds(1)); } catch { } }
         private async Task RunAsync()
         {
+            var watchdog = Stopwatch.StartNew();
             while (!token.IsCancellationRequested)
             {
                 using var process = Process.GetCurrentProcess();
                 process.Refresh();
                 long gameBytes = 0;
                 try { using var game = Process.GetProcessById(handle!.ProcessId); game.Refresh(); gameBytes = game.PrivateMemorySize64; } catch { }
-                ((List<object>)report["resources"]!).Add(new Dictionary<string, object?>
+                var row = new Dictionary<string, object?>
                 {
                     ["utc"] = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture),
                     ["hostPrivateBytes"] = process.PrivateMemorySize64,
                     ["gamePrivateBytes"] = gameBytes
-                });
-                if (process.PrivateMemorySize64 > 1024L * 1024 * 1024 || gameBytes > 3L * 1024 * 1024 * 1024)
-                    throw new InvalidOperationException("Resource limit exceeded.");
+                };
+                lock (report) ((List<object>)report["resources"]!).Add(row);
+                if (watchdog.Elapsed.TotalMinutes > 4 || process.PrivateMemorySize64 > 1024L * 1024 * 1024 || gameBytes > 3L * 1024 * 1024 * 1024)
+                {
+                    // Independent of the UI dispatcher: terminate only the test-owned game,
+                    // then this harness, even if a managed await or native message pump is stuck.
+                    try
+                    {
+                        File.WriteAllText(Path.Combine((string)report["output"]!, "watchdog-failure.json"),
+                            JsonSerializer.Serialize(new { success = false, reason = "resourceOrTimeBudget", seconds = watchdog.Elapsed.TotalSeconds,
+                                hostBytes = process.PrivateMemorySize64, gameBytes }));
+                        using var game = Process.GetProcessById(handle!.ProcessId);
+                        if (game.StartTime.ToUniversalTime().Ticks == handle.ProcessStartedAtUtc.UtcTicks) game.Kill();
+                    }
+                    catch { }
+                    Environment.Exit(72);
+                }
                 try { await Task.Delay(1000, token); } catch (OperationCanceledException) { }
             }
         }
@@ -600,6 +704,8 @@ internal static class Program
         public string Fixture = Path.Combine("fixtures", "full-run", "false-knight-startup-v2.hktas");
         public string Game = DefaultGame;
         public string Bundle = DefaultBundle;
+        public bool Overlay;
+        public long BossFrame = 8500;
         public static Options Parse(string[] args)
         {
             var result = new Options();
@@ -610,8 +716,10 @@ internal static class Program
                 else if (arg.StartsWith("--fixture=", StringComparison.Ordinal)) result.Fixture = Path.GetFullPath(arg.Substring(10));
                 else if (arg.StartsWith("--game=", StringComparison.Ordinal)) result.Game = Path.GetFullPath(arg.Substring(7));
                 else if (arg.StartsWith("--bundle=", StringComparison.Ordinal)) result.Bundle = Path.GetFullPath(arg.Substring(9));
+                else if (arg == "--overlay") result.Overlay = true;
+                else if (arg.StartsWith("--boss-frame=", StringComparison.Ordinal)) result.BossFrame = long.Parse(arg.Substring(13), CultureInfo.InvariantCulture);
             }
-            if (result.Mode != "baseline" && result.Mode != "observe") throw new ArgumentException("--mode must be baseline or observe.");
+            if (result.Mode != "baseline" && result.Mode != "observe" && result.Mode != "probe") throw new ArgumentException("--mode must be baseline, observe, or probe.");
             return result;
         }
     }
