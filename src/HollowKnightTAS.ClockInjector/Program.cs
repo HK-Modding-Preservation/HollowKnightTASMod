@@ -356,7 +356,10 @@ namespace HollowKnightTAS.ClockInjector
                 BuildStartupEnvironmentBlock(runId));
             var startup = new StartupInfo
             {
-                Size = Marshal.SizeOf<StartupInfo>()
+                Size = Marshal.SizeOf<StartupInfo>(),
+                // Restore presentation owns the visible still image until the target is ready.
+                Flags = Environment.GetEnvironmentVariable("HKTAS_RESTORE_HIDDEN_WINDOW") == "1" ? 1 : 0,
+                ShowWindow = 0
             };
             ProcessInformation created = default;
             var createdProcess = false;

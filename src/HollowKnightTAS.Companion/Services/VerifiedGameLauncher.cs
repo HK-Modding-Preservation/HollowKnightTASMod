@@ -495,7 +495,7 @@ namespace HollowKnightTAS.Companion.Services
             string runId,
             TimeSpan timeout,
             CancellationToken cancellationToken,
-            StartupBootGate? bootGate = null)
+            StartupBootGate? bootGate = null, bool hideWindow = false)
         {
             if (bootGate?.IsFrameBased == true) profile.RequireStartupFrameGate();
             if (!IpcIdentifier.IsValid(runId, 96))
@@ -509,14 +509,14 @@ namespace HollowKnightTAS.Companion.Services
                 throw new ArgumentOutOfRangeException(nameof(timeout));
             }
 
-            return await LaunchRunAsync(runId, timeout, cancellationToken, bootGate);
+            return await LaunchRunAsync(runId, timeout, cancellationToken, bootGate, hideWindow);
         }
 
         private async Task<VerifiedGameLaunchHandle> LaunchRunAsync(
             string runId,
             TimeSpan timeout,
             CancellationToken cancellationToken,
-            StartupBootGate? bootGate = null)
+            StartupBootGate? bootGate = null, bool hideWindow = false)
         {
             cancellationToken.ThrowIfCancellationRequested();
             using var launchGate = GameLaunchGate.Acquire();
@@ -556,6 +556,8 @@ namespace HollowKnightTAS.Companion.Services
             start.Environment.Remove("HKTAS_BOOT_GATE_OWNER");
             start.Environment.Remove("HKTAS_BOOT_FRAME_GATE");
             bootGate?.ConfigureInjector(start);
+            start.Environment.Remove(RestorePresentation.HiddenLaunchVariable);
+            if (hideWindow) start.Environment[RestorePresentation.HiddenLaunchVariable] = "1";
             if (bootGate?.IsFullRun == true)
                 start.Environment["HKTAS_FULL_RUN_BOSS_TRACE"] = "1";
 

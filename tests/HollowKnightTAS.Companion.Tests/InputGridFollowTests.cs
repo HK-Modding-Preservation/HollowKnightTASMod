@@ -91,6 +91,93 @@ namespace HollowKnightTAS.Companion.Tests
             Assert.AreEqual(1199L, scrolledTo);
         }
 
+        [TestMethod]
+        public void CoreAudioEnumerationAcceptsInstalledWindowsInterfaces()
+        {
+            var type = typeof(RestorePresentation).Assembly.GetType("HollowKnightTAS.Companion.Services.ProcessAudioMute")!;
+            using var mute = (IDisposable)Activator.CreateInstance(type, new object[] { int.MaxValue })!;
+            type.GetMethod("MuteNewSessions")!.Invoke(mute, null);
+        }
+
+        [TestMethod]
+        public async System.Threading.Tasks.Task FailedRestartAlwaysReleasesDisplayAndGrid()
+        {
+            using var sessions = new SessionRegistry("restore-failure-test");
+            using var broker = new AutomationBroker(sessions);
+            var released = false;
+            var vm = new MainViewModel(sessions, new MovieEditorService(), new CapabilityBroker(),
+                new NativeHostLauncher(AppContext.BaseDirectory), broker,
+                restartProtectedGame: () => throw new InvalidOperationException("injected launch failure"),
+                finishRestorePresentation: success =>
+                {
+                    Assert.IsFalse(success);
+                    released = true;
+                    return System.Threading.Tasks.Task.CompletedTask;
+                });
+            var header = new MovieV2Header("game", "api", "mod", "profile",
+                MovieProtocolV2.ActionSchemaId, false, new string('a', 64), 800, 450);
+            vm.MovieText = new MovieV2Codec().WriteCanonical(new MovieV2Document("failure.hktas", header,
+                new[] { new NativeFrameRun(100, Array.Empty<GameInputSample>(), new MovieSourceSpan("failure.hktas", 1, 1, 1)) }));
+            vm.RefreshGridCommand.Execute(null);
+            var method = typeof(MainViewModel).GetMethod("RestartDraftAtAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            try
+            {
+                await (System.Threading.Tasks.Task)method.Invoke(vm, new object?[] { 10L, null })!;
+                Assert.Fail("Expected launch failure.");
+            }
+            catch (InvalidOperationException e) { Assert.AreEqual("injected launch failure", e.Message); }
+            Assert.IsTrue(released);
+            Assert.IsTrue(vm.IsInputGridInteractive);
+            Assert.AreEqual(100, vm.InputRows.Count);
+        }
+
+        [TestMethod]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void RestoreRetainsRowsSelectionAndMarkerThenPublishesOnlyTarget(bool follow)
+        {
+            using var sessions = new SessionRegistry("restore-freeze-test");
+            using var broker = new AutomationBroker(sessions);
+            using var boot = new StartupBootController();
+            var vm = new MainViewModel(sessions, new MovieEditorService(), new CapabilityBroker(),
+                new NativeHostLauncher(AppContext.BaseDirectory), broker, startupBoot: boot);
+            boot.BeginV2();
+            var header = new MovieV2Header("game", "api", "mod", "profile",
+                MovieProtocolV2.ActionSchemaId, false, new string('a', 64), 800, 450);
+            string Movie(int frames) => new MovieV2Codec().WriteCanonical(new MovieV2Document(
+                "freeze.hktas", header, new[] { new NativeFrameRun(frames, Array.Empty<GameInputSample>(),
+                    new MovieSourceSpan("freeze.hktas", 1, 1, 1)) }));
+            vm.MovieText = Movie(1200);
+            vm.RefreshGridCommand.Execute(null);
+            ReceiveFrame(vm, 900, 1100);
+            vm.GridStart = "710";
+            vm.GridCount = "3";
+            vm.AutoFollowGrid = follow;
+            var rows = vm.InputRows;
+            var scrolls = new List<long>();
+            vm.InputGridPositionChanged += scrolls.Add;
+            var freeze = typeof(MainViewModel).GetMethod("SetRestorePresentationFrozen", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            freeze.Invoke(vm, new object[] { true });
+            vm.MovieText = Movie(1500); // Loading a different world's Movie must not clear the display.
+            vm.RefreshGridCommand.Execute(null);
+            ReceiveFrame(vm, 0, 0);
+            ReceiveFrame(vm, 300, 500);
+            vm.ShowCurrentGridFrame();
+            Assert.AreSame(rows, vm.InputRows);
+            Assert.AreEqual("▶", vm.InputRows[900].Current);
+            Assert.AreEqual(0, scrolls.Count);
+            Assert.IsFalse(vm.IsInputGridInteractive);
+            ReceiveFrame(vm, 600, 800);
+            freeze.Invoke(vm, new object[] { false });
+            Assert.AreEqual(1500, vm.InputRows.Count);
+            Assert.AreEqual("▶", vm.InputRows[600].Current);
+            Assert.AreEqual(follow, vm.AutoFollowGrid);
+            Assert.AreEqual("710", vm.GridStart);
+            Assert.AreEqual("3", vm.GridCount);
+            Assert.IsTrue(vm.IsInputGridInteractive);
+            CollectionAssert.AreEqual(follow ? new long[] { 600 } : Array.Empty<long>(), scrolls.ToArray());
+        }
+
         private static void ReceiveFrame(MainViewModel vm, long movieFrame, long nativeFrame)
         {
             var handle = typeof(MainViewModel).GetMethod("HandleTypedEvent",

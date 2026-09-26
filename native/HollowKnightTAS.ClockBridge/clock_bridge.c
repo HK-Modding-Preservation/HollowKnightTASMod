@@ -5,6 +5,7 @@
 #include <limits.h>
 #include "startup_gate.h"
 #include "save_write_guard.h"
+#include "restore_window.h"
 
 #define HKTAS_CLOCK_BRIDGE_ABI 10u
 #define HKTAS_CLOCK_WAIT_ATTEMPTS 600u
@@ -1149,6 +1150,14 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
         {
             InterlockedExchange(&g_status, -14);
             return FALSE;
+        }
+        if (!install_restore_window_hooks())
+        {
+            /* Imports may already point into this DLL, so unloading is unsafe.
+             * Abort this newly launched process before any game loop can run. */
+            InterlockedExchange(&g_status, -15);
+            TerminateProcess(GetCurrentProcess(), ERROR_INVALID_FUNCTION);
+            return TRUE;
         }
         if (!install_boot_frame_hook())
         {

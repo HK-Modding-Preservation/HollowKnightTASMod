@@ -167,7 +167,24 @@ namespace HollowKnightTAS.Companion.ViewModels
             GridStatus = $"已从当前进度播放到第 {frame} 帧并暂停。";
         }
 
-        private async Task RestartDraftAtAsync(long frame)
+        private async Task RestartDraftAtAsync(long frame, string? sourceMovie = null)
+        {
+            SetRestorePresentationFrozen(true);
+            var completed = false;
+            try
+            {
+                if (sourceMovie != null) MovieText = sourceMovie;
+                await RestartDraftCoreAsync(frame);
+                completed = true;
+            }
+            finally
+            {
+                try { if (finishRestorePresentation != null) await finishRestorePresentation(completed); }
+                finally { SetRestorePresentationFrozen(false); }
+            }
+        }
+
+        private async Task RestartDraftCoreAsync(long frame)
         {
             var candidate = GridAny().V2Document ?? throw new InvalidOperationException("需要有效的 v2 Movie。");
             if (candidate.Header.EnvironmentSha256 == "none" && startupBoot?.NativeCompletedFrames == 0)

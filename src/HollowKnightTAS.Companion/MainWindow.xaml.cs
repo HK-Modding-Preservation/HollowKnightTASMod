@@ -17,6 +17,7 @@ namespace HollowKnightTAS.Companion
     public partial class MainWindow : Window
     {
         private bool restoringGridSelection;
+        private double? restoreScrollOffset;
         private readonly DispatcherTimer gridFollowTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(200)
@@ -108,6 +109,23 @@ namespace HollowKnightTAS.Companion
                     InputGrid.SelectedItems.Add(vm.InputRows[(int)i]);
             }
             finally { restoringGridSelection = false; }
+            if (restoreScrollOffset is double offset && !vm.IsRestorePresentationFrozen)
+            {
+                restoreScrollOffset = null;
+                if (!vm.AutoFollowGrid)
+                {
+                    InputGrid.UpdateLayout();
+                    FindGridScroll(InputGrid)?.ScrollToVerticalOffset(offset);
+                }
+            }
+        }
+
+        private static ScrollViewer? FindGridScroll(DependencyObject parent)
+        {
+            if (parent is ScrollViewer scroll) return scroll;
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+                if (FindGridScroll(VisualTreeHelper.GetChild(parent, i)) is { } child) return child;
+            return null;
         }
 
         private void OnNavigate(object sender, RoutedEventArgs e)
@@ -213,6 +231,9 @@ namespace HollowKnightTAS.Companion
 
         private void OnInputBindingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
+            if (e.PropertyName == nameof(MainViewModel.IsRestorePresentationFrozen)
+                && sender is MainViewModel { IsRestorePresentationFrozen: true })
+                restoreScrollOffset = FindGridScroll(InputGrid)?.VerticalOffset;
             if (e.PropertyName == nameof(MainViewModel.InputBindingLabels) && sender is MainViewModel vm)
                 RefreshInputBindingHeaders(vm);
         }

@@ -50,6 +50,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private readonly Func<string, Task>? launchGame;
         private readonly Action? exitProtectedGameProcess;
         private readonly Func<Task>? restartProtectedGame;
+        private readonly Func<bool, Task>? finishRestorePresentation;
         private readonly StartupBootController? startupBoot;
         private readonly FullRunMovieCoordinator? fullRunMovies;
         private readonly HashSet<string> warmedSessions =
@@ -118,7 +119,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             Func<string, Task>? launchGame = null,
             StartupBootController? startupBoot = null,
             FullRunMovieCoordinator? fullRunMovies = null,
-            Action? exitProtectedGameProcess = null, Func<Task>? restartProtectedGame = null)
+            Action? exitProtectedGameProcess = null, Func<Task>? restartProtectedGame = null,
+            Func<bool, Task>? finishRestorePresentation = null)
         {
             this.registry = registry;
             this.movieEditor = movieEditor;
@@ -127,6 +129,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             this.automationBroker = automationBroker;
             this.exitProtectedGameProcess = exitProtectedGameProcess;
             this.restartProtectedGame = restartProtectedGame;
+            this.finishRestorePresentation = finishRestorePresentation;
             automationBroker.ColdRestoreChanged += (_, args) => Dispatch(() =>
             {
                 var record = args.Snapshot.Latest;
@@ -465,7 +468,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 currentSceneEpoch = -1;
                 quickSlotCatalog = "[]";
                 RenderQuickSlots();
-                foreach (var row in InputRows) row.UpdateCurrent(-1);
+                if (!IsRestorePresentationFrozen) InputRows.UpdateCurrent(-1);
                 OnPropertyChanged(nameof(FrameCounterText));
                 OnPropertyChanged(nameof(PlaybackStateText));
                 OnPropertyChanged(nameof(PlayPauseLabel));
@@ -481,7 +484,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 if (movieText == value) return;
                 Set(ref movieText, value);
-                if (gridSource != value)
+                if (gridSource != value && !IsRestorePresentationFrozen)
                 {
                     InputRows = new VirtualInputRows();
                     OnPropertyChanged(nameof(InputRows));
@@ -539,7 +542,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             private set => Set(ref runtimeSummary, value);
         }
 
-        public string FrameCounterText => startupBoot?.IsPending == true
+        public string FrameCounterText => IsRestorePresentationFrozen ? frozenFrameCounter : startupBoot?.IsPending == true
             ? "Movie frame: " + (currentFullRunMovieFrame < 0 ? "—"
                 : currentFullRunMovieFrame.ToString(CultureInfo.InvariantCulture))
                 + " · Native frame: " + (startupBoot.NativeCompletedFrames < 0 ? "—"

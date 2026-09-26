@@ -25,6 +25,7 @@ namespace HollowKnightTAS.Companion
         private FullRunMovieCoordinator? fullRunMovies;
         private System.Windows.Threading.DispatcherTimer? startupBootTimer;
         private System.Diagnostics.Process? startupGame;
+        private readonly RestorePresentation restorePresentation = new();
         private AutomaticStartupHandoff? automaticStartup;
 
         protected override async void OnStartup(StartupEventArgs e)
@@ -176,7 +177,7 @@ namespace HollowKnightTAS.Companion
                         {
                             using var handle = await launcher.LaunchInteractiveAsync(
                                 "interactive-" + Guid.NewGuid().ToString("N"),
-                                TimeSpan.FromSeconds(60), shutdown.Token, gate);
+                                TimeSpan.FromSeconds(60), shutdown.Token, gate, restorePresentation.IsActive);
                             if (gate != null)
                             {
                                 var deadline = DateTime.UtcNow.AddSeconds(10);
@@ -189,6 +190,8 @@ namespace HollowKnightTAS.Companion
                                     ReadExternalAutomationMode());
                                 if (startupBoot!.IsPending)
                                     startupGame = System.Diagnostics.Process.GetProcessById(handle.ProcessId);
+                                if (startupGame != null && restorePresentation.IsActive)
+                                    restorePresentation.AttachTarget(startupGame);
                                 startupBoot!.Refresh();
                             }
                             handle.ReleaseSupervision();
@@ -218,6 +221,7 @@ namespace HollowKnightTAS.Companion
                         fullRunMovies.VerifyOriginalSavesUnchanged();
                         var process = startupGame;
                         var path = process.MainModule?.FileName ?? throw new InvalidOperationException("游戏路径不可用。");
+                        await restorePresentation.BeginAsync(process);
                         startupGame = null;
                         try
                         {
@@ -230,6 +234,10 @@ namespace HollowKnightTAS.Companion
                         fullRunMovies.ClearAfterExit();
                         automationBroker.EndFullRunEndpoint();
                         await launchGameAsync(path);
+                    }, async success =>
+                    {
+                        try { if (success) await restorePresentation.CompleteAsync(); }
+                        finally { restorePresentation.Dispose(); }
                     });
                 automaticStartup = new AutomaticStartupHandoff(sessions, Dispatcher,
                     gamePath => Task.Run(() => VerifiedStartupProfile.Load(
@@ -276,6 +284,7 @@ namespace HollowKnightTAS.Companion
         protected override void OnExit(ExitEventArgs e)
         {
             shutdown.Cancel();
+            restorePresentation.Dispose();
             automaticStartup?.Dispose();
             startupBootTimer?.Stop();
             // Close the exact process owned by this Studio before releasing its gate.

@@ -224,8 +224,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 throw new InvalidOperationException("原始存档已改变，无法恢复此时间线。");
             if (startupBoot?.IsWaiting != true) await fullRunMovies.PauseAsync(CancellationToken.None);
             // Keep the chosen world's future inputs even when restoring an ancestor.
-            MovieText = leaf.Movie;
-            await RestartDraftAtAsync(node.Frame);
+            await RestartDraftAtAsync(node.Frame, leaf.Movie);
             worldlines!.Update(library => library.ActiveTreeId = tree.Id);
             freshTimeline = null;
             RefreshWorldlines(tree.Id, leaf.Id, node.Id);

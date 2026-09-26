@@ -120,7 +120,7 @@
     <TabControl x:Name="MainTabs" AutomationProperties.AutomationId="HktasStudio.MainTabs"
                 SelectionChanged="OnMainTabsSelectionChanged">
       <TabItem x:Name="InputGridTab" Header="Input Editor" AutomationProperties.AutomationId="HktasStudio.InputGridTab">
-        <Grid Margin="6">
+        <Grid Margin="6" IsEnabled="{Binding IsInputGridInteractive}">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
             <RowDefinition Height="*" /><RowDefinition Height="Auto" />

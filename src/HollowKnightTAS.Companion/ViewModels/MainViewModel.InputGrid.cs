@@ -27,6 +27,24 @@ namespace HollowKnightTAS.Companion.ViewModels
         private DateTime gridProgressRequestedUtc;
         private TasAction gridAction = TasAction.Attack;
         private bool gridApplying;
+        private bool isRestorePresentationFrozen;
+        private string frozenFrameCounter = string.Empty;
+        public bool IsRestorePresentationFrozen => isRestorePresentationFrozen;
+        public bool IsInputGridInteractive => !isRestorePresentationFrozen;
+        private void SetRestorePresentationFrozen(bool value)
+        {
+            if (isRestorePresentationFrozen == value) return;
+            if (value) frozenFrameCounter = FrameCounterText;
+            isRestorePresentationFrozen = value;
+            OnPropertyChanged(nameof(IsRestorePresentationFrozen));
+            OnPropertyChanged(nameof(IsInputGridInteractive));
+            OnPropertyChanged(nameof(FrameCounterText));
+            if (!value)
+            {
+                RefreshInputGrid();
+                TrackGridFrame(CurrentGridFrame, true);
+            }
+        }
         private void SetGridApplying(bool value)
         {
             gridApplying = value;
@@ -212,7 +230,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (session?.IsConnected != true
                 || (startupBoot?.IsPending != true && InputRows.Count == 0))
                 return;
-            await SyncRecordingGridAsync();
+            if (!IsRestorePresentationFrozen) await SyncRecordingGridAsync();
             var now = DateTime.UtcNow;
             var interval = startupBoot?.IsWaiting == true || currentControlMode == "Paused"
                 ? TimeSpan.FromSeconds(1) : TimeSpan.FromMilliseconds(200);
@@ -242,6 +260,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private void TrackGridFrame(long frame, bool forceScroll = false)
         {
+            if (IsRestorePresentationFrozen) return;
             if (frame >= gridTotalFrames && fullRunMovies?.Mode == "Recording" && !gridApplying && !recordingGridSync)
                 AppendGridBlankFrames(frame + 500);
             if (frame < 0 || InputRows.Count == 0 || gridTotalFrames == 0) return;
@@ -255,6 +274,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private void ScrollGridToFrame(long frame)
         {
+            if (IsRestorePresentationFrozen) return;
             if (gridTotalFrames == 0) return;
             var visibleFrame = Math.Min(Math.Max(frame, 0), gridTotalFrames - 1);
             InputGridPositionChanged?.Invoke(visibleFrame);
@@ -278,6 +298,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private void RefreshInputGrid(string? message = null)
         {
+            if (IsRestorePresentationFrozen) return;
             var source = GridAny();
             var total = source.V2Document != null ? InputGridEditor.Count(source.V2Document)
                 : InputGridEditor.Count(source.V1Document!);
