@@ -21,6 +21,22 @@ static void advance_boot_frame_clock(void) { }
 static int failed;
 static volatile LONG before_count;
 static volatile LONG completed_count;
+static volatile LONG observed_count;
+static volatile LONG observed_wrong_boundary;
+static DWORD game_thread_id;
+static void __cdecl observe_frame(uint64_t completed)
+{
+    if (GetCurrentThreadId() != game_thread_id || completed != (uint64_t)g_v2_state->completed_frames
+        || before_count != completed_count) InterlockedIncrement(&observed_wrong_boundary);
+    InterlockedIncrement(&observed_count);
+}
+static BOOL observe_and_wait(void)
+{
+    LONG expected = observed_count + 1;
+    if (!hktas_v2_request_observation()) return FALSE;
+    for (int i = 0; i < 3000 && observed_count < expected; i++) Sleep(1);
+    return observed_count == expected;
+}
 static volatile LONG loading_frames_to_skip;
 static volatile LONG timer_callbacks;
 static volatile LONG nested_main_loops;
@@ -78,6 +94,7 @@ static void send_command(LONGLONG sequence, LONG mode, LONGLONG expected)
 static DWORD WINAPI game_loop(LPVOID ignored)
 {
     (void)ignored;
+    game_thread_id = GetCurrentThreadId();
     UINT_PTR timer = SetTimer(NULL, 0, 10, title_bar_timer);
     for (int i = 0; i < 1000; i++)
     {
@@ -96,12 +113,15 @@ int main(void)
     g_boot_ready = CreateEventW(NULL, TRUE, FALSE, NULL);
     g_boot_owner = OpenProcess(SYNCHRONIZE, FALSE, GetCurrentProcessId());
     g_v2_command_event = CreateEventW(NULL, FALSE, FALSE, NULL);
+    g_v2_observation_event = CreateEventW(NULL, FALSE, FALSE, NULL);
     hktas_v2_state state = {0};
     state.magic = HKTAS_V2_MAGIC;
     state.version = HKTAS_V2_VERSION;
     memcpy(state.token, "0123456789abcdef0123456789abcdef", 32);
     state.mode = HKTAS_V2_MODE_PAUSED;
     g_v2_state = &state;
+    check(!hktas_v2_request_observation(), "observation_requires_registered_callback");
+    g_v2_observation_callback = observe_frame;
     g_v2_before_callback = before_frame;
     g_v2_completed_callback = completed_frame;
     g_boot_original_player_loop = fake_player_loop;
@@ -116,6 +136,10 @@ int main(void)
     check(state.completed_frames == 0, "unarmed_does_not_advance");
     check(timer_callbacks > 0, "paused_window_pump_dispatches_title_bar_timers");
     check(nested_main_loops == 0, "paused_timer_never_enters_presentation_wait");
+    check(observe_and_wait() && observe_and_wait(), "paused_frame_zero_observations_complete");
+    check(state.completed_frames == 0 && before_count == 0 && completed_count == 0
+        && state.callback_sequence == 0 && state.command_sequence == 0,
+        "observation_does_not_advance_input_frame_or_command");
     state.descriptor_sha256[0] = 0x5a;
     state.bootstrap_armed = 1;
     send_command(1, HKTAS_V2_MODE_STEP, 0);
@@ -134,6 +158,7 @@ int main(void)
         "callbacks_include_skipped_loading_loops");
     send_command(4, HKTAS_V2_MODE_RUN, 6);
     check(wait_for(8, HKTAS_V2_MODE_RUN, 4), "run_advances_frames");
+    check(observe_and_wait(), "running_observation_completes");
     LONGLONG pause_request_frame = state.completed_frames;
     send_command(5, HKTAS_V2_MODE_PAUSED, pause_request_frame);
     check(wait_for(pause_request_frame, HKTAS_V2_MODE_PAUSED, 5),
@@ -142,12 +167,22 @@ int main(void)
     Sleep(30);
     check(state.completed_frames == paused_frame, "paused_frame_does_not_advance");
     check(before_count == completed_count, "callbacks_match_at_paused_boundary");
+    LONGLONG callback_sequence = state.callback_sequence;
+    check(observe_and_wait() && state.completed_frames == paused_frame
+        && state.callback_sequence == callback_sequence && state.ack_sequence == 5,
+        "paused_observation_preserves_all_counters");
+    InterlockedExchange(&state.mode, HKTAS_V2_MODE_FINISHED);
+    check(observe_and_wait() && state.completed_frames == paused_frame
+        && state.mode == HKTAS_V2_MODE_FINISHED, "finished_observation_remains_finished");
+    check(observed_wrong_boundary == 0, "observations_run_on_game_thread_between_loops");
+    InterlockedExchange(&state.mode, HKTAS_V2_MODE_PAUSED);
     state.descriptor_sha256[0] ^= 1;
     send_command(6, HKTAS_V2_MODE_RUN, paused_frame);
     for (int i = 0; i < 3000 && state.fault_code == 0; i++) Sleep(1);
     check(state.fault_code == 2 && state.mode == HKTAS_V2_MODE_FAULT,
         "descriptor_mutation_faults");
     check(WaitForSingleObject(game, 3000) == WAIT_OBJECT_0, "fault_stops_loop");
+    check(!hktas_v2_request_observation(), "faulted_observation_is_rejected");
     CloseHandle(game);
 
     hktas_v2_state missing_guard = {0};
@@ -161,6 +196,7 @@ int main(void)
         "guard_install_failure_stops_frame_zero");
     check(missing_guard.completed_frames == 0, "guard_failure_has_no_completed_frame");
     CloseHandle(g_v2_command_event);
+    CloseHandle(g_v2_observation_event);
     CloseHandle(g_boot_ready);
     CloseHandle(g_boot_owner);
     return failed == 0 ? 0 : 5;

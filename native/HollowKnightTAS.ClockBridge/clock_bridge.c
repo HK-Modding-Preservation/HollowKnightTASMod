@@ -1122,6 +1122,20 @@ __declspec(dllexport) LONG __cdecl HktasClockBridge_ReportMovieFrameCompleted(vo
     return 1;
 }
 
+__declspec(dllexport) LONG __cdecl HktasClockBridge_SetObservationCallback(
+    void (__cdecl *callback)(uint64_t completed))
+{
+    if (!g_v2_gate_enabled || g_v2_state == NULL || callback == NULL
+        || g_v2_observation_callback != NULL) return 0;
+    g_v2_observation_callback = callback;
+    return 1;
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_RequestObservation(void)
+{
+    return hktas_v2_request_observation();
+}
+
 __declspec(dllexport) LONG __cdecl HktasClockBridge_FaultFullRun(LONG code)
 {
     if (!g_v2_gate_enabled || code <= 0) return 0;

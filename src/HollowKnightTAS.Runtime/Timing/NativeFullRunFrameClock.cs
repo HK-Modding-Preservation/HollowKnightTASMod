@@ -40,6 +40,9 @@ namespace HollowKnightTAS.Runtime.Timing
         private readonly NativeCopyHash copyHash;
         private NativeCompleted? nativeCallback;
         private NativeCompleted? nativeBeforeCallback;
+        private NativeCompleted? nativeObservationCallback;
+        private NativeSetCallback setObservationCallback = null!;
+        private NativeInt requestObservation = null!;
         private Action<long>? completedCallback;
         private Action<long>? beforeCallback;
 
@@ -101,6 +104,8 @@ namespace HollowKnightTAS.Runtime.Timing
                 Load<NativeFault>("HktasClockBridge_FaultFullRun"),
                 Load<NativeCopyHash>("HktasClockBridge_CopyFullRunDescriptorHash"));
             clock.setFrameRate = Load<NativeFault>("HktasClockBridge_SetFullRunFrameRate");
+            clock.setObservationCallback = Load<NativeSetCallback>("HktasClockBridge_SetObservationCallback");
+            clock.requestObservation = Load<NativeInt>("HktasClockBridge_RequestObservation");
             clock.stepTicks = Load<NativeFrame>("HktasClockBridge_GetDeterministicClockStepTicks");
             clock.frequency = Load<NativeFrame>("HktasClockBridge_GetDeterministicClockFrequency");
             if (clock.CurrentFrameIndex < 0)
@@ -194,6 +199,24 @@ namespace HollowKnightTAS.Runtime.Timing
             if (requestPause() != 1)
                 throw new InvalidOperationException("Native frame pause request was rejected.");
         }
+
+        public void RegisterObservation(Action<long> callback)
+        {
+            if (callback == null) throw new ArgumentNullException(nameof(callback));
+            if (nativeObservationCallback != null)
+                throw new InvalidOperationException("Observation callback is already installed.");
+            // The queue converts collector errors into request failures. Never fault the game
+            // for an inspector failure; keep this delegate rooted for the process lifetime.
+            nativeObservationCallback = frame =>
+            {
+                try { callback(checked((long)frame)); }
+                catch { /* Request timeout reports unexpected observer failures. */ }
+            };
+            if (setObservationCallback(Marshal.GetFunctionPointerForDelegate(nativeObservationCallback)) != 1)
+                throw new InvalidOperationException("Native observation callback registration failed.");
+        }
+
+        public bool RequestObservation() => requestObservation() == 1;
 
         public void ReportMovieFrameCompleted()
         {

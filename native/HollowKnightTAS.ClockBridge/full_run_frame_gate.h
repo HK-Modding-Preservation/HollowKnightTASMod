@@ -36,6 +36,9 @@ typedef char hktas_v2_descriptor_offset_check[(offsetof(hktas_v2_state, descript
 
 static HANDLE g_v2_state_mapping;
 static HANDLE g_v2_command_event;
+static HANDLE g_v2_observation_event;
+static volatile LONG g_v2_observation_requested;
+static void (__cdecl *g_v2_observation_callback)(uint64_t completed);
 static hktas_v2_state *g_v2_state;
 static BYTE g_v2_armed_hash[32];
 static BOOL g_v2_hash_latched;
@@ -55,6 +58,16 @@ static void hktas_v2_fault(LONG code)
     InterlockedCompareExchange(&g_v2_state->fault_code, code, 0);
     InterlockedExchange(&g_v2_state->mode, HKTAS_V2_MODE_FAULT);
     if (g_boot_ready != NULL) ResetEvent(g_boot_ready);
+}
+
+static LONG hktas_v2_request_observation(void)
+{
+    if (!g_v2_gate_enabled || g_v2_state == NULL || g_v2_observation_event == NULL
+        || g_v2_observation_callback == NULL
+        || InterlockedCompareExchange(&g_v2_state->mode, 0, 0) == HKTAS_V2_MODE_FAULT)
+        return 0;
+    InterlockedExchange(&g_v2_observation_requested, 1);
+    return SetEvent(g_v2_observation_event) ? 1 : 0;
 }
 
 static BOOL hktas_v2_identity_valid(void)
@@ -122,18 +135,18 @@ static void hktas_v2_apply_command(void)
 
 static void hktas_v2_wait_command(void)
 {
-    HANDLE handles[2] = {g_v2_command_event, g_boot_owner};
+    HANDLE handles[3] = {g_v2_command_event, g_boot_owner, g_v2_observation_event};
     for (;;)
     {
-        DWORD result = MsgWaitForMultipleObjectsEx(2, handles, INFINITE,
+        DWORD result = MsgWaitForMultipleObjectsEx(3, handles, INFINITE,
             QS_ALLINPUT, MWMO_INPUTAVAILABLE);
-        if (result == WAIT_OBJECT_0 || result == WAIT_FAILED) return;
+        if (result == WAIT_OBJECT_0 || result == WAIT_OBJECT_0 + 2 || result == WAIT_FAILED) return;
         if (result == WAIT_OBJECT_0 + 1)
         {
             hktas_v2_fault(5);
             ExitProcess(74u);
         }
-        if (result != WAIT_OBJECT_0 + 2) return;
+        if (result != WAIT_OBJECT_0 + 3) return;
         MSG message;
         for (int i = 0; i < 128 && PeekMessageW(&message, NULL, 0, 0, PM_REMOVE); ++i)
         {
@@ -168,6 +181,11 @@ static BOOL hktas_v2_before_frame(void)
         hktas_v2_apply_command();
         LONG mode = InterlockedCompareExchange(&g_v2_state->mode, 0, 0);
         if (mode == HKTAS_V2_MODE_FAULT) return FALSE;
+        /* Read-only work runs on the Unity thread at a completed-frame boundary.
+           It does not consume input, acknowledge a command, or execute PlayerLoop. */
+        if (InterlockedExchange(&g_v2_observation_requested, 0) != 0
+            && g_v2_observation_callback != NULL)
+            g_v2_observation_callback(hktas_get_completed_player_loops());
         if (mode == HKTAS_V2_MODE_RUN || mode == HKTAS_V2_MODE_STEP)
         {
             if (!hktas_v2_bootstrap_valid())
@@ -217,7 +235,9 @@ static BOOL install_full_run_frame_gate(void)
     g_v2_state_mapping = OpenFileMappingW(FILE_MAP_READ | FILE_MAP_WRITE, FALSE, name);
     wsprintfW(name, L"Local\\HKTAS.Boot.%s.V2Command", token);
     g_v2_command_event = OpenEventW(SYNCHRONIZE, FALSE, name);
-    if (g_v2_state_mapping == NULL || g_v2_command_event == NULL) return FALSE;
+    g_v2_observation_event = CreateEventW(NULL, FALSE, FALSE, NULL);
+    if (g_v2_state_mapping == NULL || g_v2_command_event == NULL
+        || g_v2_observation_event == NULL) return FALSE;
     g_v2_state = (hktas_v2_state *)MapViewOfFile(g_v2_state_mapping,
         FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, sizeof(hktas_v2_state));
     if (g_v2_state == NULL || !hktas_v2_identity_valid()
