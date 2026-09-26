@@ -180,28 +180,41 @@ namespace HollowKnightTAS.Companion.ViewModels
             activeDraftTree = id; activeDraftTip = null;
             lastSavedBranchMovie = null; lastSavedBranchNative = -1;
         }
-        private void SaveTimelineSnapshot(FrameSave snapshot)
+        private void SaveTimelineSnapshot(FrameSave snapshot, FrameSave observed)
         {
             InitializeWorldlines();
             if (worldlines == null) throw new InvalidOperationException(TimelineTreeStatus);
             var id = activeDraftTree ?? worldlines.Library.ActiveTreeId;
             int nodeId = 0;
             int? tipId = activeDraftTip;
-            var candidate = movieEditor.ValidateAny(MovieText).V2Document;
-            var tipMovie = candidate != null && snapshot.Frame <= InputGridEditor.Count(candidate)
-                && HollowKnightTAS.Core.Movie.MovieV2Prefix.Matches(TimelineTree.Parse(snapshot.Movie), candidate, snapshot.Frame)
-                ? MovieText : snapshot.Movie;
+            var candidate = TimelineTree.Parse(snapshot.Movie);
+            var actual = TimelineTree.Parse(observed.Movie);
+            var verified = !draftRequiresRestart && snapshot.Frame <= observed.Frame
+                && HollowKnightTAS.Core.Movie.MovieV2Prefix.Matches(actual, candidate, snapshot.Frame);
             worldlines.Update(library =>
             {
                 var tree = library.Trees.FirstOrDefault(t => t.Id == id) ?? library.Trees.Last();
                 id = library.ActiveTreeId = tree.Id;
-                nodeId = tree.Add(snapshot.Frame, snapshot.Movie, snapshot.OriginalHashes).Id;
-                tipId = tree.UpdateTip(snapshot.Frame, tipMovie, snapshot.OriginalHashes, tipId).Id;
+                // Only an observed run can advance the mutable tip. A selected future
+                // frame is a bookmark, not evidence that the game reached that frame.
+                if (!draftRequiresRestart)
+                {
+                    var tipMovie = observed.Frame <= InputGridEditor.Count(candidate)
+                        && HollowKnightTAS.Core.Movie.MovieV2Prefix.Matches(actual, candidate, observed.Frame)
+                        ? snapshot.Movie : observed.Movie;
+                    tipId = tree.UpdateTip(observed.Frame, tipMovie, snapshot.OriginalHashes, tipId).Id;
+                }
+                nodeId = tree.Add(snapshot.Frame, snapshot.Movie, snapshot.OriginalHashes, !verified).Id;
+                var tip = tree.Nodes.FirstOrDefault(n => n.Id == tipId && n.IsBranchTip);
+                if (tip != null) tree.UpdateTip(tip.Frame, tip.Movie, snapshot.OriginalHashes, tip.Id);
             });
             activeDraftTip = tipId;
             activeDraftTree = id;
-            RefreshWorldlines(id, activeDraftTip, nodeId);
-            GridStatus = TimelineTreeStatus = $"已保存节点 {nodeId} · Frame {snapshot.Frame}；旧世界线已保留。";
+            var savedTree = worldlines.Library.Trees.Single(t => t.Id == id);
+            var visibleLeaf = tipId.HasValue && savedTree.PathTo(tipId.Value).Any(n => n.Id == nodeId)
+                ? tipId.Value : savedTree.Leaves.Last(n => savedTree.PathTo(n.Id).Any(p => p.Id == nodeId)).Id;
+            RefreshWorldlines(id, visibleLeaf, nodeId);
+            GridStatus = TimelineTreeStatus = $"已保存第 {snapshot.Frame} 帧的恢复节点；游戏位置未改变。";
         }
         public void SelectTimelineNode(int id)
         {

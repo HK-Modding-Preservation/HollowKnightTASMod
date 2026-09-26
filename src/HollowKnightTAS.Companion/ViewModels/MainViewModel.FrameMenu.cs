@@ -77,17 +77,30 @@ namespace HollowKnightTAS.Companion.ViewModels
                 }
                 else if (action == "save")
                 {
-                    // Query the actual paused frame, never label a stale UI selection as a save.
-                    var snapshot = await ReadFrameSnapshotAsync();
-                    if (frame == -1) frame = snapshot.Frame;
-                    if (snapshot.Frame != frame)
+                    // Saving records a replay target. It never navigates the game to that target.
+                    var observed = await ReadReadyFrameSnapshotAsync();
+                    if (frame == -1) frame = observed.Frame;
+                    var draft = movieEditor.ValidateAny(MovieText).V2Document
+                        ?? throw new InvalidOperationException("序列无效，请打开有效的 .hktas 文件。");
+                    var actual = TimelineTree.Parse(observed.Movie);
+                    if (!draftRequiresRestart && startupBoot?.NativeCompletedFrames > 0
+                        && fullRunMovies.Mode == "Recording" && !gridHasUserEdits)
                     {
-                        await SeekFrameAsync(frame);
-                        snapshot = await ReadFrameSnapshotAsync();
+                        var total = InputGridEditor.Count(draft);
+                        draft = new MovieV2Document(draft.SourceName, actual.Header,
+                            actual.Runs.Concat(total > observed.Frame
+                                ? SliceV2(draft, observed.Frame, total - observed.Frame).Runs
+                                : Array.Empty<NativeFrameRun>()));
                     }
-                    if (snapshot.Frame != frame) throw new InvalidOperationException("游戏没有停在所选帧，未创建存档。");
-                    snapshot.OriginalHashes = new Dictionary<string, string>(fullRunMovies.OriginalHashes);
-                    SaveTimelineSnapshot(snapshot);
+                    else if (!draftRequiresRestart && draft.Header.EnvironmentSha256 == "none")
+                        draft = new MovieV2Document(draft.SourceName, actual.Header, draft.Runs);
+                    if (frame < 0 || frame > InputGridEditor.Count(draft))
+                        throw new InvalidOperationException("目标帧超出序列。");
+                    var snapshot = new FrameSave { Frame = frame,
+                        Movie = new MovieV2Codec().WriteCanonical(draft),
+                        OriginalHashes = new Dictionary<string, string>(fullRunMovies.OriginalHashes) };
+                    SaveTimelineSnapshot(snapshot, observed);
+
                 }
             }
             catch (Exception ex) { GridStatus = Status = ex.Message; }
@@ -118,14 +131,6 @@ namespace HollowKnightTAS.Companion.ViewModels
                 try { return await ReadFrameSnapshotAsync(); }
                 catch (InvalidOperationException) when (DateTime.UtcNow < deadline) { await Task.Delay(200); }
             }
-        }
-
-        private async Task SeekFrameAsync(long frame)
-        {
-            if (frame < 0 || frame > gridTotalFrames) throw new InvalidOperationException("目标帧超出序列。");
-            var current = (await ReadReadyFrameSnapshotAsync()).Frame;
-            if (frame > current) await PlayForwardToFrameAsync(frame);
-            else if (frame < current) await RestartDraftAtAsync(frame);
         }
 
         private async Task PlayForwardToFrameAsync(long frame)

@@ -1912,5 +1912,17 @@
     "Source": "全局热键设置读取失败：{0}",
     "Zh": "全局热键设置读取失败：{0}",
     "En": "Could not read global hotkeys: {0}"
+  },
+  {
+    "Key": "unverifiedSave",
+    "Source": "未验证存档 {0} · Frame {1}",
+    "En": "Unverified save {0} · Frame {1}",
+    "Zh": "未验证存档 {0} · 帧 {1}"
+  },
+  {
+    "Key": "savedWithoutSeek",
+    "Source": "已保存第 {0} 帧的恢复节点；游戏位置未改变。",
+    "En": "Saved a restore node for frame {0}. Game position unchanged.",
+    "Zh": "已保存第 {0} 帧的恢复节点；游戏位置未改变。"
   }
 ]
