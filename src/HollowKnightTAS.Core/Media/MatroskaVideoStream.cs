@@ -4,7 +4,7 @@ using System.Text;
 
 namespace HollowKnightTAS.Core.Media
 {
-    /// <summary>Streaming RGB Matroska, one timestamped BlockGroup per game frame.
+    /// <summary>Streaming RGB/float PCM Matroska, one timestamped BlockGroup per game frame.
     /// TimestampScale=1000 ns. BlockDuration also preserves the final frame duration.
     /// Specification: https://www.matroska.org/technical/elements.html
     /// </summary>
@@ -30,11 +30,16 @@ namespace HollowKnightTAS.Core.Media
         {
             if (startMicroseconds < 0 || durationMicroseconds <= 0) throw new ArgumentOutOfRangeException();
             var offset = checked((short)(audioStartMicroseconds - startMicroseconds));
-            return E(0x1F43B675, Join(U(0xE7, (ulong)startMicroseconds),
-                E(0xA0, Join(E(0xA1, Join(new byte[] { 0x81, 0, 0, 0 }, rgb)),
-                    U(0x9B, (ulong)durationMicroseconds))),
-                pcm.Length == 0 ? Array.Empty<byte>() : E(0xA3,
-                    Join(new byte[] { 0x82, (byte)(offset >> 8), (byte)offset, 0x80 }, pcm))));
+            var timestamp = U(0xE7, (ulong)startMicroseconds);
+            var block = Join(ElementHeader(0xA1, checked(rgb.Length + 4)), new byte[] { 0x81, 0, 0, 0 });
+            var duration = U(0x9B, (ulong)durationMicroseconds);
+            var group = ElementHeader(0xA0, checked(block.Length + rgb.Length + duration.Length));
+            var audio = pcm.Length == 0 ? Array.Empty<byte>() : Join(ElementHeader(0xA3, checked(pcm.Length + 4)),
+                new byte[] { 0x82, (byte)(offset >> 8), (byte)offset, 0x80 });
+            var cluster = ElementHeader(0x1F43B675, checked(timestamp.Length + group.Length + block.Length
+                + rgb.Length + duration.Length + audio.Length + pcm.Length));
+            // Copy the large image only once; metadata composition must not multiply frame allocations.
+            return Join(cluster, timestamp, group, block, rgb, duration, audio, pcm);
         }
 
         private static byte[] F(uint id, double value)
@@ -53,27 +58,30 @@ namespace HollowKnightTAS.Core.Media
             return E(id, bytes);
         }
         private static byte[] E(uint id, byte[] data)
+            => Join(ElementHeader(id, data.Length), data);
+
+        private static byte[] ElementHeader(uint id, int length)
         {
             using (var stream = new MemoryStream())
             {
                 var n = id > 0xffffff ? 4 : id > 0xffff ? 3 : id > 0xff ? 2 : 1;
                 for (var i = n - 1; i >= 0; i--) stream.WriteByte((byte)(id >> (8 * i)));
-                var size = (ulong)data.Length;
+                var size = (ulong)length;
                 n = 1;
                 while (size >= ((1UL << (7 * n)) - 1)) n++;
                 size |= 1UL << (7 * n);
                 for (var i = n - 1; i >= 0; i--) stream.WriteByte((byte)(size >> (8 * i)));
-                stream.Write(data, 0, data.Length);
                 return stream.ToArray();
             }
         }
         private static byte[] Join(params byte[][] parts)
         {
-            using (var stream = new MemoryStream())
-            {
-                foreach (var part in parts) stream.Write(part, 0, part.Length);
-                return stream.ToArray();
-            }
+            var length = 0;
+            foreach (var part in parts) length = checked(length + part.Length);
+            var result = new byte[length];
+            var offset = 0;
+            foreach (var part in parts) { Buffer.BlockCopy(part, 0, result, offset, part.Length); offset += part.Length; }
+            return result;
         }
     }
 }
