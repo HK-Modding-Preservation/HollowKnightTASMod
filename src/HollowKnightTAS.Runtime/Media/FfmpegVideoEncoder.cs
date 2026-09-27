@@ -16,6 +16,7 @@ namespace HollowKnightTAS.Runtime.Media
     public sealed class FfmpegVideoEncoder : IDisposable
     {
         private readonly VideoExportTimeline timeline;
+        private readonly VariableVideoTimeline variableTimeline = new VariableVideoTimeline();
         private readonly BlockingCollection<byte[]> video = new BlockingCollection<byte[]>(2);
         private readonly BlockingCollection<byte[]> audio = new BlockingCollection<byte[]>(2);
         private readonly CancellationTokenSource stopped = new CancellationTokenSource();
@@ -58,19 +59,18 @@ namespace HollowKnightTAS.Runtime.Media
             try
             {
                 Directory.CreateDirectory(temporaryDirectory);
-                var fps = format.FpsNumerator.ToString(CultureInfo.InvariantCulture) + "/" + format.FpsDenominator.ToString(CultureInfo.InvariantCulture);
                 process.StartInfo = new ProcessStartInfo
                 {
                     FileName = ffmpegPath,
                     // Inputs are generated pipe names; only output needs quoting. No shell is involved.
-                    // Both raw formats are fully specified: probing can deadlock bounded dual-input
+                    // Both input formats are fully specified: probing can deadlock bounded dual-input
                     // producers before FFmpeg opens/consumes the other stream.
                     Arguments = "-hide_banner -loglevel warning -nostdin -n -thread_queue_size 4 -nofind_stream_info"
-                        + " -f rawvideo -pixel_format rgb24 -video_size " + format.Width + "x" + format.Height
-                        + " -framerate " + fps + " -i \\\\.\\pipe\\" + videoName
+                        + " -f matroska -i \\\\.\\pipe\\" + videoName
                         + " -thread_queue_size 4 -nofind_stream_info -f f32le -ar " + format.SampleRate
                         + " -ac " + format.Channels + " -i \\\\.\\pipe\\" + audioName
-                        + " -map 0:v:0 -map 1:a:0 -vf vflip -c:v libx264 -preset veryfast -tune zerolatency -crf 18"
+                        + " -map 0:v:0 -map 1:a:0 -vf vflip,pad=ceil(iw/2)*2:ceil(ih/2)*2 -c:v libx264 -preset veryfast -tune zerolatency -crf 18"
+                        + " -fps_mode:v passthrough -enc_time_base:v 1:1000000 -video_track_timescale 1000000"
                         + " -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart -f mp4 " + Quote(temporaryOutput),
                     UseShellExecute = false,
                     CreateNoWindow = true,
@@ -87,7 +87,7 @@ namespace HollowKnightTAS.Runtime.Media
                 };
                 if (!process.Start()) throw new IOException("FFmpeg did not start.");
                 process.BeginErrorReadLine();
-                videoWriter = Pump(videoPipe, video);
+                videoWriter = Pump(videoPipe, video, MatroskaVideoStream.Header(format));
                 audioWriter = Pump(audioPipe, audio);
             }
             catch
@@ -104,21 +104,27 @@ namespace HollowKnightTAS.Runtime.Media
 
         public string OutputPath { get; }
         public long FrameCount { get; private set; }
+        public double DurationSeconds => variableTimeline.Microseconds / 1000000d;
 
         /// <summary>Takes ownership of RGB24 (Unity bottom-up) and interleaved little-endian float PCM arrays.</summary>
         public void WriteFrame(byte[] rgb, byte[] pcm)
+            => WriteFrame(rgb, pcm, (double)timeline.Format.FpsDenominator / timeline.Format.FpsNumerator);
+
+        public void WriteFrame(byte[] rgb, byte[] pcm, double durationSeconds)
         {
             ThrowIfUnavailable();
             if (rgb == null || rgb.Length != timeline.Format.VideoFrameBytes)
                 throw new ArgumentException("RGB frame length does not match the export format.", nameof(rgb));
-            if (pcm == null || pcm.Length != checked(timeline.AudioValueCountForFrame(FrameCount) * sizeof(float)))
+            var start = variableTimeline.Microseconds;
+            var values = variableTimeline.Advance(durationSeconds, timeline.Format.SampleRate, timeline.Format.Channels);
+            if (pcm == null || pcm.Length != checked(values * sizeof(float)))
                 throw new ArgumentException("PCM length does not match this frame's media time.", nameof(pcm));
             using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(stopped.Token))
             {
                 deadline.CancelAfter(TimeSpan.FromSeconds(15));
                 try
                 {
-                    video.Add(rgb, deadline.Token);
+                    video.Add(MatroskaVideoStream.Frame(rgb, start, variableTimeline.Microseconds - start), deadline.Token);
                     audio.Add(pcm, deadline.Token);
                     FrameCount++;
                 }
@@ -191,13 +197,14 @@ namespace HollowKnightTAS.Runtime.Media
             }
         }
 
-        private Task Pump(NativeNamedPipeServer pipe, BlockingCollection<byte[]> queue)
+        private Task Pump(NativeNamedPipeServer pipe, BlockingCollection<byte[]> queue, byte[]? header = null)
         {
             return Task.Run(async () =>
             {
                 try
                 {
                     pipe.WaitForConnection();
+                    if (header != null) await pipe.WriteStream.WriteAsync(header, 0, header.Length, stopped.Token).ConfigureAwait(false);
                     foreach (var bytes in queue.GetConsumingEnumerable(stopped.Token))
                         await pipe.WriteStream.WriteAsync(bytes, 0, bytes.Length, stopped.Token).ConfigureAwait(false);
                 }

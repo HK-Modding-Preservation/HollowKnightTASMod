@@ -73,7 +73,7 @@ Opening another file validates it first, then pauses and records the current bra
 
 ## Export MP4
 
-Choose a `.mp4` output path that does not already exist. Studio uses its bundled encoder. Video export currently requires a sequence fixed at 50 fps throughout.
+Choose a `.mp4` output path that does not already exist. Studio uses its bundled encoder. Video preserves the actual duration of each game frame, including changes in frame rate.
 
 - The Input Editor MP4 button exports the entire current sequence, including future draft input.
 - Set a start and end node in Timeline to export `(start frame,end frame]` on one ancestor path. Reverse selections are reordered automatically; sibling branches cannot form a range.

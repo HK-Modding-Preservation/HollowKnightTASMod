@@ -95,8 +95,6 @@ namespace HollowKnightTAS.Companion.Services
         private static void RequireExportable(MovieV2Document movie, long frames)
         {
             if (frames < 1) throw new InvalidDataException("空序列无法导出视频。");
-            if (movie.Runs.Any(run => run.FramesPerSecond != 50))
-                throw new InvalidDataException("当前 MP4 导出仅支持全程 50 fps 的序列。");
         }
 
         private static Dictionary<int, TimelineNode> ValidateTree(TimelineTree tree)

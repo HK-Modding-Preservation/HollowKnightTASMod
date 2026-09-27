@@ -48,13 +48,13 @@ namespace HollowKnightTAS.Companion.Tests
         }
 
         [TestMethod]
-        public void VariableFrameRateIsRejectedEvenInFutureDraft()
+        public void VariableFrameRateIsAcceptedIncludingFutureDraft()
         {
             var changed = Text(MovieV2RangeEditor.SetFrameRate(Movie(), 60, 1, 100));
-            Assert.ThrowsExactly<InvalidDataException>(() => StudioVideoExportPlan.ForMovie(changed));
+            Assert.AreEqual(changed, StudioVideoExportPlan.ForMovie(changed).Movie);
             var tree = Tree();
             tree.Nodes.Single(node => node.Id == 2).Movie = changed;
-            Assert.ThrowsExactly<InvalidDataException>(() => StudioVideoExportPlan.ForTimeline(tree, 1, 2));
+            Assert.AreEqual(changed, StudioVideoExportPlan.ForTimeline(tree, 1, 2).Movie);
         }
 
         [TestMethod]

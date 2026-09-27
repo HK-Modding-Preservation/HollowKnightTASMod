@@ -29,7 +29,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             get
             {
                 if (VideoStartNodeId == null || VideoEndNodeId == null)
-                    return "选择节点并设为起点、终点；两点必须有祖先关系。当前支持固定 50 fps。";
+                    return "选择节点并设为起点、终点；两点必须有祖先关系。";
                 try
                 {
                     var plan = SelectedVideoRange();
@@ -153,7 +153,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 if (snapshot.Frame != plan.StartMovieFrame)
                     throw new InvalidOperationException($"导出起点不一致：需要 {plan.StartMovieFrame}，实际 {snapshot.Frame}。");
                 token.ThrowIfCancellationRequested();
-                var maximumFrames = checked((int)Math.Min(int.MaxValue, (plan.EndMovieFrame - plan.StartMovieFrame) * 4L + 10000L));
+                var maximumFrames = int.MaxValue;
                 startRequested = true;
                 var result = await automationBroker.ExecuteHumanAsync(AutomationCommandIds.StartVideoExport,
                     AutomationScope.ControlPlayback, new Dictionary<string, string>

@@ -8,14 +8,12 @@ namespace HollowKnightTAS.Core.Media
         public VideoExportFormat(int width, int height, int fpsNumerator = 60,
             int fpsDenominator = 1, int sampleRate = 48000, int channels = 2)
         {
-            if (width < 2 || width > 8192 || width % 2 != 0)
-                throw new ArgumentOutOfRangeException(nameof(width), "MP4 width must be even and between 2 and 8192.");
-            if (height < 2 || height > 8192 || height % 2 != 0)
-                throw new ArgumentOutOfRangeException(nameof(height), "MP4 height must be even and between 2 and 8192.");
+            if (width < 1) throw new ArgumentOutOfRangeException(nameof(width));
+            if (height < 1) throw new ArgumentOutOfRangeException(nameof(height));
             if (fpsNumerator <= 0) throw new ArgumentOutOfRangeException(nameof(fpsNumerator));
             if (fpsDenominator <= 0) throw new ArgumentOutOfRangeException(nameof(fpsDenominator));
-            if ((long)fpsNumerator < fpsDenominator || (long)fpsNumerator > 240L * fpsDenominator)
-                throw new ArgumentOutOfRangeException(nameof(fpsNumerator), "Frame rate must be between 1 and 240 fps.");
+            if ((long)fpsNumerator < fpsDenominator || (long)fpsNumerator > 1000L * fpsDenominator)
+                throw new ArgumentOutOfRangeException(nameof(fpsNumerator), "Frame rate must be between 1 and 1000 fps.");
             if (sampleRate < 8000 || sampleRate > 192000)
                 throw new ArgumentOutOfRangeException(nameof(sampleRate));
             if (channels != 1 && channels != 2) throw new ArgumentOutOfRangeException(nameof(channels));

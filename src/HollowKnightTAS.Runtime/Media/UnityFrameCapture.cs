@@ -9,13 +9,14 @@ namespace HollowKnightTAS.Runtime.Media
     public sealed class UnityFrameCapture : IDisposable
     {
         private readonly VideoExportFormat format;
-        private readonly VideoExportTimeline timeline;
+        private readonly VariableVideoTimeline timeline = new VariableVideoTimeline();
         private readonly AudioBlockReframer audioBlocks;
         private readonly Func<double> frameDuration;
         private bool recordingAudio;
         public int LastAudioSampleFrames { get; private set; }
         public float MaximumAudioPeak { get; private set; }
         public int DspBlockSampleFrames { get; }
+        public double LastFrameDuration { get; private set; }
 
         public UnityFrameCapture(VideoExportFormat format, Func<double>? frameDuration = null)
         {
@@ -23,7 +24,6 @@ namespace HollowKnightTAS.Runtime.Media
             // v2 advances the native clock without changing Unity captureDeltaTime.
             // Both paths only observe their clock; video export never sets it.
             this.frameDuration = frameDuration ?? (() => Time.captureDeltaTime);
-            timeline = new VideoExportTimeline(format);
             ValidateConfiguration();
             AudioSettings.GetDSPBufferSize(out var blockSize, out _);
             DspBlockSampleFrames = blockSize;
@@ -37,7 +37,8 @@ namespace HollowKnightTAS.Runtime.Media
             if (!recordingAudio) throw new ObjectDisposedException(nameof(UnityFrameCapture));
             ValidateConfiguration();
             LastAudioSampleFrames = AudioRenderer.GetSampleCountForCaptureFrame();
-            var expectedValues = timeline.AudioValueCountForFrame(frameIndex);
+            LastFrameDuration = frameDuration();
+            var expectedValues = timeline.Advance(LastFrameDuration, format.SampleRate, format.Channels);
             // Unity renders only complete DSP blocks, not arbitrary video-frame-sized buffers.
             // GetSampleCountForCaptureFrame rounds its accumulator down to whole blocks and
             // can legitimately return zero. Prefetch at most one block, retain the remainder,
@@ -85,12 +86,10 @@ namespace HollowKnightTAS.Runtime.Media
                 || (format.Channels == 2 ? AudioSettings.speakerMode != AudioSpeakerMode.Stereo
                     : AudioSettings.speakerMode != AudioSpeakerMode.Mono))
                 throw new InvalidOperationException("Export audio format must match Unity's output configuration.");
-            var duration = (double)format.FpsDenominator / format.FpsNumerator;
             var observedDuration = frameDuration();
             if (double.IsNaN(observedDuration) || double.IsInfinity(observedDuration)
-                || Math.Abs(observedDuration - duration) > 0.000001)
-                throw new InvalidOperationException("Export frame duration mismatch: observed=" + observedDuration
-                    + ", requested=" + duration + ". Capture does not change the clock.");
+                || observedDuration <= 0)
+                throw new InvalidOperationException("Game clock reported an invalid frame duration: " + observedDuration);
         }
     }
 }

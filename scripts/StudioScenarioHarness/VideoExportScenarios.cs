@@ -291,8 +291,13 @@ internal static partial class StudioScenarioHarness
             Require(header.EnvironmentSha256 != "none", "neutral fixture uses the installed Runtime environment header");
             async Task OpenNeutral(int frames, string name)
             {
+                var variableRate = args.Contains("--variable-video");
+                int Rate(int i) => i % 120 == 119 ? 1 : i % 120 < 24 ? 50
+                    : i % 120 < 48 ? 60 : i % 120 < 72 ? 120 : i % 120 < 96 ? 1000 : 59;
                 var movie = new MovieV2Codec().WriteCanonical(new MovieV2Document("<video-scenario>", header,
-                    new[] { new NativeFrameRun(frames, Array.Empty<GameInputSample>(),
+                    variableRate ? Enumerable.Range(0, frames).Select(i => new NativeFrameRun(1,
+                        Array.Empty<GameInputSample>(), new MovieSourceSpan("<video-scenario>", 1, 1, 1), Rate(i), true))
+                    : new[] { new NativeFrameRun(frames, Array.Empty<GameInputSample>(),
                         new MovieSourceSpan("<video-scenario>", 1, 1, 1), 50, true) }));
                 var path = Path.Combine(output, name + ".hktas");
                 await File.WriteAllTextAsync(path, movie);
@@ -309,7 +314,8 @@ internal static partial class StudioScenarioHarness
             Require(full.GetValueOrDefault("videoExport.state") == "Completed" && File.Exists(target), "full export publishes MP4");
             Require(Number(full, "videoExport.startMovieFrame") == 0 && Number(full, "videoExport.endMovieFrame") == 120
                 && Number(full, "movieFrame") == 120 && Number(full, "videoExport.frames") >= 120
-                && Number(full, "videoExport.fps") == 50, "full export reaches the complete 0 to 120 interval at 50 fps");
+                && full.GetValueOrDefault("videoExport.timing") == "per-frame-game-clock",
+                "full export reaches the complete 0 to 120 interval using the game clock");
             Require(vm.MovieText == fullDraft && !vm.IsVideoExportBusy, "full export retains the editor draft and unlocks editing");
             VideoEvidence("complete-movie", new { state = full, output = target, movieSha256 = VideoHash(fullDraft) });
 

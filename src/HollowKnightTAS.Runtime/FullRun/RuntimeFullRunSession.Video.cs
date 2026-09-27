@@ -24,10 +24,7 @@ namespace HollowKnightTAS.Runtime.FullRun
                 if (!replayLoadedMovie)
                     throw new InvalidOperationException("v2 export requires replayLoadedMovie=true.");
                 if (IsVideoExportActive) throw new InvalidOperationException("A video export is already active.");
-                // Native loading frames run at 50 fps. Resampling variable-rate Movies
-                // requires a separate media timeline; fail explicitly instead of changing speed.
-                if (replayMovie.Runs.Any(run => run.FramesPerSecond != 50))
-                    throw new InvalidOperationException("v2 video export currently requires a constant 50 fps Movie.");
+                // Each completed frame carries its actual clock duration, including loading frames.
                 var range = new FullRunVideoExportRange(frame, movieFrame, replayLength,
                     endMovieFrame, maximumFrames);
                 videoCapture?.Dispose();

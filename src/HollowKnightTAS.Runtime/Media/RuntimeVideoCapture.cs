@@ -40,7 +40,7 @@ namespace HollowKnightTAS.Runtime.Media
             this.afterFrame = afterFrame;
             OperationId = "video-" + Guid.NewGuid().ToString("N");
             var delta = frameDuration?.Invoke() ?? Time.captureDeltaTime;
-            if (double.IsNaN(delta) || double.IsInfinity(delta) || delta <= 0 || delta < 1d / 240d)
+            if (double.IsNaN(delta) || double.IsInfinity(delta) || delta <= 0)
                 throw new InvalidOperationException("No supported stable TAS frame duration: " + delta.ToString("R", CultureInfo.InvariantCulture));
             framesPerSecond = checked((int)Math.Round(1d / delta));
             var format = new VideoExportFormat(Screen.width, Screen.height, framesPerSecond, 1, AudioSettings.outputSampleRate,
@@ -67,7 +67,9 @@ namespace HollowKnightTAS.Runtime.Media
             fields["videoExport.detail"] = detail;
             fields["videoExport.outputPath"] = encoder.OutputPath;
             fields["videoExport.frames"] = encoder.FrameCount.ToString(CultureInfo.InvariantCulture);
-            fields["videoExport.fps"] = framesPerSecond.ToString(CultureInfo.InvariantCulture);
+            fields["videoExport.fps"] = (capture.LastFrameDuration > 0 ? 1d / capture.LastFrameDuration : framesPerSecond).ToString("R", CultureInfo.InvariantCulture);
+            fields["videoExport.timing"] = "per-frame-game-clock";
+            fields["videoExport.durationSeconds"] = encoder.DurationSeconds.ToString("R", CultureInfo.InvariantCulture);
             fields["videoExport.lastAudioSampleFrames"] = capture.LastAudioSampleFrames.ToString(CultureInfo.InvariantCulture);
             fields["videoExport.maximumAudioPeak"] = capture.MaximumAudioPeak.ToString("R", CultureInfo.InvariantCulture);
             fields["videoExport.dspBlockSampleFrames"] = capture.DspBlockSampleFrames.ToString(CultureInfo.InvariantCulture);
@@ -144,7 +146,7 @@ namespace HollowKnightTAS.Runtime.Media
                     throw new InvalidOperationException("Video native frame boundary was not sequential.");
                 lastCompletedFrame = completedFrame;
                 capture.Capture(encoder.FrameCount, out var rgb, out var pcm);
-                encoder.WriteFrame(rgb, pcm);
+                encoder.WriteFrame(rgb, pcm, capture.LastFrameDuration);
                 afterFrame?.Invoke();
                 if (encoder.FrameCount >= maximumFrames)
                 {

@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using HollowKnightTAS.Core.Media;
@@ -12,6 +14,55 @@ namespace HollowKnightTAS.Core.Tests.Media
     [TestClass]
     public sealed class FfmpegVideoEncoderTests
     {
+        [TestMethod]
+        public void MixedRatesPreserveEveryFrameTimestampAndFinalDurationWithOddResolution()
+        {
+            WithEncoderTools((ffmpeg, ffprobe, directory) =>
+            {
+                var durations = new[] { (50, 5), (60, 6), (120, 12), (1000, 100), (59, 59), (1, 1) }
+                    .SelectMany(pair => Enumerable.Repeat(1d / pair.Item1, pair.Item2)).ToArray();
+                var output = Path.Combine(directory, "mixed.mp4");
+                var format = new VideoExportFormat(65, 33, 50);
+                var time = new VariableVideoTimeline();
+                using (var encoder = new FfmpegVideoEncoder(ffmpeg, output, format))
+                {
+                    foreach (var duration in durations)
+                    {
+                        var values = time.Advance(duration, format.SampleRate, format.Channels);
+                        encoder.WriteFrame(new byte[format.VideoFrameBytes], new byte[values * 4], duration);
+                    }
+                    encoder.Complete();
+                    Assert.AreEqual((long)durations.Length, encoder.FrameCount);
+                }
+                using var process = Process.Start(new ProcessStartInfo(ffprobe)
+                {
+                    UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true,
+                    Arguments = "-v error -show_streams -show_packets -of json \"" + output + "\""
+                })!;
+                var json = process.StandardOutput.ReadToEnd();
+                Assert.IsTrue(process.WaitForExit(10000));
+                Assert.AreEqual(0, process.ExitCode);
+                using var doc = JsonDocument.Parse(json);
+                var packets = doc.RootElement.GetProperty("packets").EnumerateArray()
+                    .Where(p => p.GetProperty("codec_type").GetString() == "video").ToArray();
+                Assert.AreEqual(durations.Length, packets.Length, "No game frame may be dropped or duplicated.");
+                double elapsed = 0;
+                for (var i = 0; i < packets.Length; i++)
+                {
+                    var pts = double.Parse(packets[i].GetProperty("pts_time").GetString()!, CultureInfo.InvariantCulture);
+                    var duration = double.Parse(packets[i].GetProperty("duration_time").GetString()!, CultureInfo.InvariantCulture);
+                    Assert.AreEqual(elapsed, pts, 0.000002, "timestamp " + i);
+                    Assert.AreEqual(durations[i], duration, 0.000002, "duration " + i);
+                    elapsed += durations[i];
+                }
+                var streams = doc.RootElement.GetProperty("streams");
+                Assert.AreEqual(66, streams[0].GetProperty("width").GetInt32());
+                Assert.AreEqual(34, streams[0].GetProperty("height").GetInt32());
+                foreach (var stream in streams.EnumerateArray())
+                    Assert.AreEqual(elapsed, double.Parse(stream.GetProperty("duration").GetString()!, CultureInfo.InvariantCulture), 0.001);
+            });
+        }
+
         [TestMethod]
         [DataRow(50)]
         [DataRow(60)]

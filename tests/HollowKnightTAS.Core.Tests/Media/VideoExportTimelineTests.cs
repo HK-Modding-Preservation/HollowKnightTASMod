@@ -45,10 +45,10 @@ namespace HollowKnightTAS.Core.Tests.Media
         [TestMethod]
         public void RejectsInvalidFormatsAndUnrepresentableCounts()
         {
-            Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new VideoExportFormat(3, 2));
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new VideoExportFormat(0, 2));
             Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new VideoExportFormat(2, 0));
             Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new VideoExportFormat(2, 2, 0));
-            Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new VideoExportFormat(2, 2, 241));
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new VideoExportFormat(2, 2, 1001));
             Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new VideoExportFormat(2, 2, fpsDenominator: 0));
             Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => new VideoExportFormat(2, 2, channels: 6));
             var timeline = new VideoExportTimeline(new VideoExportFormat(2, 2));
