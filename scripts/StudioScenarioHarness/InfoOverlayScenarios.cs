@@ -126,8 +126,10 @@ internal static partial class StudioScenarioHarness
             await Task.Delay(2300); // longer than the observation timeout
             for (var i = 0; i < 4; i++)
             {
-                PostInfoMessage(hwnd, 0x0100, new IntPtr(0x27), IntPtr.Zero);
-                PostInfoMessage(hwnd, 0x0101, new IntPtr(0x27), IntPtr.Zero);
+                // Posted keyboard messages enter the system move loop but do not reliably
+                // move Unity's window. Change its geometry while that real loop stays open.
+                Require(SetInfoWindowPos(hwnd, IntPtr.Zero, before.Left + (i + 1) * 19,
+                    before.Top + (i + 1) * 11, 0, 0, 0x4015), "request game geometry during modal move");
                 await Task.Delay(100);
                 GetInfoClientRect(hwnd, out var client); var origin = new InfoPoint(); InfoClientToScreen(hwnd, ref origin);
                 GetInfoWindowRect(overlayHandle, out var shown);
@@ -146,6 +148,7 @@ internal static partial class StudioScenarioHarness
     [StructLayout(LayoutKind.Sequential)] struct InfoPoint { public int X, Y; }
     [DllImport("user32.dll", EntryPoint = "PostMessageW")] static extern bool PostInfoMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll", EntryPoint = "GetWindowRect")] static extern bool GetInfoWindowRect(IntPtr window, out InfoRect bounds);
+    [DllImport("user32.dll", EntryPoint = "SetWindowPos")] static extern bool SetInfoWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll", EntryPoint = "GetClientRect")] static extern bool GetInfoClientRect(IntPtr window, out InfoRect bounds);
     [DllImport("user32.dll", EntryPoint = "ClientToScreen")] static extern bool InfoClientToScreen(IntPtr window, ref InfoPoint point);
 }
