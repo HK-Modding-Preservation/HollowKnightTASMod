@@ -13,3 +13,36 @@ packaging/publish/
 *.suo
 __pycache__/
 *.py[cod]
+
+# Local development notes, task history and evidence (keep on disk).
+/AGENTS.md
+/CURRENT.md
+/README.history.md
+/mydocs/
+/memory/
+/docs/*
+!/docs/USER-MANUAL.md
+!/docs/AI-CONTROL.md
+!/docs/BUILD.md
+/packaging/*.md
+/scripts/*/README.md
+
+# Machine-specific recordings and one-off delivery scripts.
+/fixtures/t16/
+/fixtures/t17/
+/fixtures/full-run/envious-marmu-*
+/fixtures/movie/generated/
+/scripts/Package-TasDelivery.ps1
+/scripts/Package-VideoDelivery.ps1
+
+# Temporary files and generated distributions.
+*.tmp
+*.bak
+*.log
+*.zip
+*.7z
+*.mp4
+*.dmp
+*.hktaspack
+*.hktas-save
+*.private.json
