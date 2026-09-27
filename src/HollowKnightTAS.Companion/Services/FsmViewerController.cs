@@ -68,7 +68,7 @@ namespace HollowKnightTAS.Companion.Services
                             if (!obj.TryGetProperty("fsms", out var fsms) || fsms.ValueKind != JsonValueKind.Array)
                                 throw new InvalidOperationException("FSM catalog entry omitted; object is too large.");
                             var id = FsmGraph.Text(obj, "id"); var path = FsmGraph.Text(obj, "path"); var sceneName = FsmGraph.Text(obj.GetProperty("scene"), "name");
-                            objects.Add(new(id, path, sceneName, FsmGraph.Text(obj, "kind") == "enemy"));
+                            objects.Add(new(id, path, sceneName, FsmGraph.Text(obj, "kind") == "enemy", FsmGraph.Flag(obj, "activeInHierarchy")));
                             var ancestors = obj.GetProperty("ancestors").EnumerateArray().Select(a => a.GetString()!).ToArray();
                             foreach (var fsm in fsms.EnumerateArray()) targets.Add(new() { Id = FsmGraph.Text(fsm, "id"), ObjectId = id,
                                 Path = path, Scene = sceneName, Name = FsmGraph.Text(fsm, "name"), Ancestors = ancestors });
@@ -108,7 +108,6 @@ namespace HollowKnightTAS.Companion.Services
         public void ApplyCatalog(IEnumerable<FsmObject> objects, IEnumerable<FsmSelection> targets)
         {
             var incoming = targets.ToArray();
-            var chosen = Targets.Where(t => t.Selected).ToArray();
             var old = Targets.ToDictionary(t => t.Id);
             // Only uniquely matching paths/names may be rebound across a cold reconstruction.
             var unique = incoming.GroupBy(t => t.StableKey).Where(g => g.Count() == 1).Select(g => g.Key).ToHashSet();
@@ -121,7 +120,7 @@ namespace HollowKnightTAS.Companion.Services
                 Targets.Clear();
                 foreach (var target in merged) { target.PropertyChanged += SelectionChanged; Targets.Add(target); }
             }
-            var list = objects.OrderByDescending(o => o.Enemy).ThenBy(o => o.Path).ToArray();
+            var list = objects.OrderByDescending(o => o.Enemy && o.Active).ThenByDescending(o => o.Active).ThenByDescending(o => o.Enemy).ThenBy(o => o.Path).ToArray();
             if (!Objects.SequenceEqual(list)) { Objects.Clear(); foreach (var obj in list) Objects.Add(obj); }
         }
         public void SelectObject(FsmObject obj)

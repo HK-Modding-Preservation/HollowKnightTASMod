@@ -14,11 +14,12 @@ namespace HollowKnightTAS.Companion.Controls
     {
         private readonly GraphCanvas canvas = new();
         private readonly ScrollViewer scroll = new() { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Height = 340 };
-        private readonly TextBlock status = new(), detail = new() { TextWrapping = TextWrapping.Wrap, MaxHeight = 100 };
+        private readonly TextBlock status = new(), detail = new() { TextWrapping = TextWrapping.Wrap };
         private readonly TextBox search = new() { Width = 140 };
         private readonly ScaleTransform scale = new(1, 1);
         private Point? drag;
         private double startX, startY;
+        private bool fitPending;
         public FsmGraphView()
         {
             var root = new StackPanel(); var bar = new WrapPanel { Margin = new Thickness(4) };
@@ -29,10 +30,12 @@ namespace HollowKnightTAS.Companion.Controls
             search.ToolTip = UiText.T("搜索状态"); bar.Children.Add(search);
             Button("搜索状态", () => Locate(canvas.Positions.Keys.FirstOrDefault(n => n.Contains(search.Text, StringComparison.OrdinalIgnoreCase)) ?? ""));
             root.Children.Add(bar); root.Children.Add(status);
-            canvas.LayoutTransform = scale; scroll.Content = canvas; root.Children.Add(scroll); root.Children.Add(detail);
+            canvas.LayoutTransform = scale; scroll.Content = canvas; root.Children.Add(scroll);
+            root.Children.Add(new ScrollViewer { Content = detail, MaxHeight = 130, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
             Content = root;
-            canvas.NodeClicked += node => detail.Text = node.Name + "\n" + (node.ActionsLoaded
+            canvas.NodeClicked += node => detail.Text = node.Name + "\n" + string.Join("\n", node.Edges.Select(edge => edge.Event + " → " + edge.Target)) + "\n" + (node.ActionsLoaded
                 ? string.Join("\n", node.Actions.Select((a, i) => $"{i}: {a}")) : UiText.T("动作尚未加载，观察不会触发初始化。"));
+            scroll.SizeChanged += (_, _) => { if (fitPending) Fit(); };
             scroll.PreviewMouseWheel += (_, e) => { Zoom(scale.ScaleX * (e.Delta > 0 ? 1.15 : 1 / 1.15)); e.Handled = true; };
             canvas.MouseLeftButtonDown += (_, e) => { drag = e.GetPosition(scroll); startX = scroll.HorizontalOffset; startY = scroll.VerticalOffset; canvas.CaptureMouse(); };
             canvas.MouseMove += (_, e) => { if (drag is Point point && e.LeftButton == MouseButtonState.Pressed) { var now = e.GetPosition(scroll); scroll.ScrollToHorizontalOffset(startX + point.X - now.X); scroll.ScrollToVerticalOffset(startY + point.Y - now.Y); } };
@@ -41,12 +44,18 @@ namespace HollowKnightTAS.Companion.Controls
         }
         public void Update(FsmCard card)
         {
-            bool changed = !ReferenceEquals(canvas.Card?.Graph, card.Graph) || canvas.GraphVersion != card.Version;
+            var layoutVersion = canvas.LayoutVersion;
             canvas.Update(card); status.Text = card.Status;
-            if (changed) Dispatcher.BeginInvoke(new Action(Fit));
+            bool changed = layoutVersion != canvas.LayoutVersion;
+            if (changed) { fitPending = true; Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(Fit)); }
         }
         private void Zoom(double zoom) { scale.ScaleX = scale.ScaleY = Math.Clamp(zoom, .15, 2.5); }
-        private void Fit() { if (canvas.Width > 0 && scroll.ViewportWidth > 0) Zoom(Math.Min(1, Math.Min(scroll.ViewportWidth / canvas.Width, scroll.ViewportHeight / canvas.Height))); }
+        private void Fit()
+        {
+            double width = scroll.ViewportWidth > 0 ? scroll.ViewportWidth : scroll.ActualWidth - 20;
+            double height = scroll.ViewportHeight > 0 ? scroll.ViewportHeight : scroll.ActualHeight - 20;
+            if (canvas.Width > 0 && width > 0 && height > 0) { fitPending = false; Zoom(Math.Min(1, Math.Min(width / canvas.Width, height / canvas.Height))); }
+        }
         private void Locate(string name)
         {
             if (!canvas.Positions.TryGetValue(name, out var rect)) return;
@@ -58,6 +67,7 @@ namespace HollowKnightTAS.Companion.Controls
         {
             public FsmCard? Card { get; private set; }
             public string GraphVersion { get; private set; } = "";
+            public string LayoutVersion { get; private set; } = "";
             public Dictionary<string, Rect> Positions { get; } = new();
             public event Action<FsmNode>? NodeClicked;
             private const string Global = "\0global";
@@ -73,7 +83,13 @@ namespace HollowKnightTAS.Companion.Controls
             }
             public void Update(FsmCard card)
             {
-                if (GraphVersion != card.Version) { GraphVersion = card.Version; LayoutGraph(card.Graph); }
+                if (GraphVersion != card.Version)
+                {
+                    GraphVersion = card.Version;
+                    var topology = card.Graph == null ? "" : System.Text.Json.JsonSerializer.Serialize(new {
+                        card.Graph.Start, card.Graph.Globals, Nodes = card.Graph.Nodes.Select(n => new { n.Name, n.Edges }) });
+                    if (topology != LayoutVersion) { LayoutVersion = topology; LayoutGraph(card.Graph); }
+                }
                 Card = card; InvalidateVisual();
             }
             private void LayoutGraph(FsmGraph? graph)

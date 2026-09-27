@@ -61,6 +61,26 @@ namespace HollowKnightTAS.Companion.Tests
             Assert.AreEqual(32, c.Targets.Count(t => t.Selected));
         });
         [TestMethod]
+        public void InFlightCatalogIsDiscardedAfterSessionChangeOrRestore() => Sta(() =>
+        {
+            foreach (bool restoring in new[] { false, true })
+            {
+                var client = new RuntimeSessionClient(null!, "fsm-test");
+                typeof(RuntimeSessionClient).GetProperty(nameof(RuntimeSessionClient.IsConnected))!.SetValue(client, true);
+                RuntimeSessionClient? current = client;
+                bool suspended = false;
+                var reply = new TaskCompletionSource<IReadOnlyDictionary<string, string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var c = new FsmViewerController(() => current, () => suspended, (_, _, _) => reply.Task);
+                var pending = c.PollAsync();
+                if (restoring) suspended = true; else current = null;
+                c.PollAsync().GetAwaiter().GetResult();
+                reply.SetResult(new Dictionary<string, string> { ["snapshotJson"] = "{\"snapshotId\":\"old\",\"objects\":[],\"nextOffset\":-1}" });
+                pending.GetAwaiter().GetResult();
+                Assert.AreEqual(0, c.Targets.Count);
+                Assert.IsFalse(c.Status.StartsWith("Movie "));
+            }
+        });
+        [TestMethod]
         public void GraphPreservesCyclesGlobalsAndUnloadedActions()
         {
             using var doc = JsonDocument.Parse("""
@@ -72,6 +92,24 @@ namespace HollowKnightTAS.Companion.Tests
             Assert.AreEqual("Idle", graph.Nodes[0].Edges[0].Target); Assert.AreEqual("HIT", graph.Globals[0].Event);
             Assert.IsFalse(graph.Nodes[0].ActionsLoaded); Assert.AreEqual("Wait", graph.Nodes[1].Actions[0]);
         }
+        [TestMethod]
+        public void RealGraphControlFitsAfterLayoutAndLocatesTheCurrentNode() => Sta(() =>
+        {
+            var nodes = Enumerable.Range(0, 12).Select(i => new FsmNode("State " + i,
+                i < 11 ? new[] { new FsmEdge("NEXT", "State " + (i + 1)) } : Array.Empty<FsmEdge>(), Array.Empty<string>(), false)).ToArray();
+            var card = new FsmCard { Graph = new("State 0", nodes, Array.Empty<FsmEdge>()), Version = "1", Current = "State 11", Live = true };
+            var view = new FsmGraphView(); view.Update(card);
+            view.Measure(new Size(900, 520)); view.Arrange(new Rect(0, 0, 900, 520)); view.UpdateLayout();
+            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+            var scale = (ScaleTransform)typeof(FsmGraphView).GetField("scale", flags)!.GetValue(view)!;
+            Assert.IsTrue(scale.ScaleX < 1, "Initial fit must wait for a usable viewport.");
+            typeof(FsmGraphView).GetMethod("Locate", flags)!.Invoke(view, new object[] { card.Current }); view.UpdateLayout();
+            var scroll = (System.Windows.Controls.ScrollViewer)typeof(FsmGraphView).GetField("scroll", flags)!.GetValue(view)!;
+            Assert.IsTrue(scale.ScaleX >= .8 && scroll.HorizontalOffset > 0, "Locate must zoom and pan to the remote current state.");
+            var zoom = scale.ScaleX;
+            card.Graph = card.Graph with { Nodes = nodes.Select(n => n with { ActionsLoaded = true }).ToArray() }; card.Version = "2";
+            view.Update(card); view.UpdateLayout(); Assert.AreEqual(zoom, scale.ScaleX);
+        });
         [TestMethod]
         public void GraphRendersCurrentStateAndClearsHighlightForStaleDataWithoutRelayout() => Sta(() =>
         {
@@ -94,6 +132,10 @@ namespace HollowKnightTAS.Companion.Tests
             var live = Render("fsm-active"); card.Live = false; canvas.Update(card); var stale = Render("fsm-stale");
             Assert.IsFalse(live.SequenceEqual(stale));
             foreach (var pair in positions) Assert.AreEqual(pair.Value, canvas.Positions[pair.Key]);
+            var layout = canvas.LayoutVersion;
+            card.Graph = graph with { Nodes = graph.Nodes.Select(n => n with { ActionsLoaded = true, Actions = new[] { "NewlyLoadedAction" } }).ToArray() };
+            card.Version = "2"; canvas.Update(card);
+            Assert.AreEqual(layout, canvas.LayoutVersion, "Lazy action loading must preserve zoom and layout.");
         });
     }
 }

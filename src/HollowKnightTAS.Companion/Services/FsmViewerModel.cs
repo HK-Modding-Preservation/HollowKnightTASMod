@@ -37,9 +37,10 @@ namespace HollowKnightTAS.Companion.Services
         public bool Selected { get => selected; set { if (selected == value) return; selected = value; PropertyChanged?.Invoke(this, new(nameof(Selected))); } }
         public event PropertyChangedEventHandler? PropertyChanged;
     }
-    public sealed record FsmObject(string Id, string Path, string Scene, bool Enemy)
+    public sealed record FsmObject(string Id, string Path, string Scene, bool Enemy, bool Active = true)
     {
-        public override string ToString() => (Enemy ? "◆ " : "") + Scene + " / " + Path + " [" + Id.Split(':').Last() + "]";
+        public override string ToString() => (Enemy ? "◆ " : "") + Scene + " / " + Path + " [" + Id.Split(':').Last() + "]"
+            + (Active ? "" : " · " + UiText.T("对象未激活"));
     }
     public sealed class FsmCard
     {

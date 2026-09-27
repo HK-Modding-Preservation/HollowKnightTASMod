@@ -21,6 +21,7 @@ namespace HollowKnightTAS.Runtime.Observation
             var scenes = Scenes(Existing<HeroController>(), Existing<GameManager>(), Existing<UIManager>(),
                 Existing<GameCameras>(), Camera.allCameras, errors);
             UpdateEpoch(scenes);
+            PruneObjects();
             foreach (var key in fsmTargets.Where(p => p.Value == null).Select(p => p.Key).ToArray()) fsmTargets.Remove(key);
             var items = new List<ObservedObject>();
             foreach (var scene in scenes)
@@ -31,6 +32,7 @@ namespace HollowKnightTAS.Runtime.Observation
                 var components = go.GetComponents<PlayMakerFSM>();
                 bool enemy = go.GetComponent<HealthManager>() != null;
                 if (components.Length == 0 && !enemy) continue;
+                objects[Id(go)] = go;
                 var record = BaseObject(go, enemy ? "enemy" : "fsm");
                 var ancestors = new List<string>();
                 for (var parent = transform.parent; parent != null; parent = parent.parent) ancestors.Add(Id(parent.gameObject));

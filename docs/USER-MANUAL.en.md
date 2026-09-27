@@ -2,7 +2,7 @@
 
 [中文](USER-MANUAL.md)
 
-HollowKnightTAS Studio records, edits and replays frame-by-frame input for Hollow Knight. Its five tabs are Input Editor, Timeline, Manual, Information overlay and Setting. The interface supports Chinese and English.
+HollowKnightTAS Studio records, edits and replays frame-by-frame input for Hollow Knight. Its six tabs are Input Editor, Timeline, Manual, Information overlay, Boss FSMs and Setting. The interface supports Chinese and English.
 
 ## Install and start
 
@@ -42,6 +42,14 @@ Select Add custom field and edit a sample in Read-only field query. Names are ca
 Component queries support instance fields in the game and other Mods. Use a full namespace if needed. Object paths must begin with `/` and identify an active object by its full hierarchy path; ambiguous components report an error. FSM/variable names must match exactly. Paths support nested fields and zero-based array/List indices.
 
 Queries read public/private fields and automatic property backing fields, returning numbers, booleans, strings or enums. They do not execute methods, property getters, assignments or arbitrary C# scripts. Raw timers retain their actual values, including negatives; only preset cooldown rows show Ready. Missing targets show `—` with details below the settings; other rows continue updating. Limits: 32 rows, 512 characters per query and 16 field segments.
+
+## Boss FSMs
+
+Open Boss FSMs, select the boss in the current scene, then choose Add object and children. Each PlayMaker FSM gets its own graph with the current state highlighted. Search the list to add FSMs on other objects, including independent scene controllers. Instance numbers distinguish objects with the same name; inactive templates are labeled.
+
+Use the wheel to zoom and drag with the left mouse button to pan. Fit shows the whole graph; Locate current state centers the active node. You can search states, collapse cards or expand a graph. Click a node to inspect the types of its loaded actions. Local and global transitions retain the game's event names.
+
+Select up to 32 FSMs. Observation does not advance a paused game; highlighting updates after stepping and during playback, with the sampled frame shown below. Brief intermediate states may be missed. After a reconstruction, only targets with unique paths and names rebind automatically; ambiguous instances need a new selection. Leaving the tab stops polling. Behaviors written in C# or coroutines need a separate adapter.
 
 ## Record or replay
 
