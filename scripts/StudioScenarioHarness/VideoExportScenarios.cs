@@ -431,10 +431,13 @@ internal static partial class StudioScenarioHarness
             var capturePid = Field<Process>(app, "startupGame").Id;
             await Command(vm.TogglePauseCommand);
             var resumed = await WaitForVideoState(vm, s => s.GetValueOrDefault("videoExport.state") == "Capturing"
-                && Number(s, "videoExport.frames") >= Number(stillPaused, "videoExport.frames") + 3,
+                && Number(s, "videoExport.frames") >= Number(stillPaused, "videoExport.frames") + 3
+                && Number(s, "movieFrame") > Number(stillPaused, "movieFrame"),
                 "Continue advances the same video capture");
             await Command(vm.TogglePauseCommand);
             var pausedAgain = await VideoRuntimeState(vm);
+            VideoEvidence("capture-resume-boundary", new { paused, stillPaused, resumed, pausedAgain,
+                capturePid, currentPid = Field<Process>(app, "startupGame").Id, waiting = boot.IsWaiting });
             Require(Field<Process>(app, "startupGame").Id == capturePid && boot.IsWaiting
                 && pausedAgain.GetValueOrDefault("videoExport.state") == "Capturing"
                 && Number(pausedAgain, "movieFrame") > Number(stillPaused, "movieFrame")

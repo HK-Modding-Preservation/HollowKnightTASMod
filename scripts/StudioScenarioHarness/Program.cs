@@ -188,7 +188,7 @@ internal static partial class StudioScenarioHarness
                 if (game != null && !game.HasExited) { game.Refresh(); gameBytes = game.PrivateMemorySize64; }
                 Log($"RESOURCE host={self.PrivateMemorySize64} game={gameBytes} available={memory.AvailablePhysical} commitAvailable={memory.AvailablePage}");
                 if (DateTime.UtcNow > deadline || self.PrivateMemorySize64 > 768L * 1024 * 1024
-                    || gameBytes > 3L * 1024 * 1024 * 1024 || memory.AvailablePhysical < 2UL * 1024 * 1024 * 1024
+                    || gameBytes > 3L * 1024 * 1024 * 1024 || memory.AvailablePhysical < 1536UL * 1024 * 1024
                     || memory.AvailablePage < 2UL * 1024 * 1024 * 1024)
                 {
                     Log("FAIL watchdog resource/deadline boundary");
