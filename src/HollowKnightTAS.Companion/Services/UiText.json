@@ -307,9 +307,9 @@
   },
   {
     "Key": "t51",
-    "Source": "从游戏标题的 Modding 菜单打开 Studio，等待第 0 帧。打开序列后播放或逐帧；没有序列时会自动开始录制。",
-    "Zh": "从游戏标题的 Modding 菜单打开 Studio，等待第 0 帧。打开序列后播放或步进；没有序列时会自动开始录制。",
-    "En": "Open Studio from the game's title-screen Modding menu and wait at frame 0. Open a sequence, then play or advance a frame. With no sequence loaded, playback starts a new recording."
+    "Source": "从标题画面的「选项 → Modding → HollowKnightTAS」打开 Studio，或在 Studio 点击「启动游戏…」，等待启动第 0 帧。打开 .hktaspack 后播放或步进；没有序列时开始新录制。加载期间原生帧仍推进，表格输入帧不消耗。Pause 播放/暂停，P 只继续播放，V 步进；按住 V 连续步进。",
+    "Zh": "从标题画面的「选项 → Modding → HollowKnightTAS」打开 Studio，或在 Studio 点击「启动游戏…」，等待启动第 0 帧。打开 .hktaspack 后播放或步进；没有序列时开始新录制。加载期间原生帧仍推进，表格输入帧不消耗。Pause 播放/暂停，P 只继续播放，V 步进；按住 V 连续步进。",
+    "En": "Open Studio from Options → Modding → HollowKnightTAS on the title screen, or use Launch game in Studio. Wait at startup frame 0. Open a .hktaspack and play or step; with no sequence, this starts recording. Loading advances native frames without consuming input rows. Pause toggles playback, P resumes, and V steps. Hold V for repeated steps."
   },
   {
     "Key": "t52",
@@ -319,9 +319,9 @@
   },
   {
     "Key": "t53",
-    "Source": "单击按键格或上下拖动编辑。Shift 选择连续帧，Ctrl 选择不连续帧。右键可修改选区帧率。未来帧编辑在播放前自动同步；修改过去帧后，选择目标行并重新计算。",
-    "Zh": "单击按键格或上下拖动编辑。Shift 选择连续帧，Ctrl 选择不连续帧。右键可修改选区帧率。未来帧编辑在播放前自动同步；修改过去帧后，选择目标行并重新计算。",
-    "En": "Click an input cell or drag vertically to edit. Shift selects a range; Ctrl selects separate frames. Change selection FPS in the context menu. Future edits sync before playback; after editing past frames, select a target and recompute."
+    "Source": "每行是一帧，Frame N 表示已执行 [0,N)，下一步执行第 N 行。单击按键格或上下拖动编辑，Shift 选择连续帧，Ctrl 选择不连续帧；右键可复制、粘贴、插入、删除和修改选区帧率。未来输入在播放前同步；修改过去输入后，选中目标行并重新计算。勾选「播放时跟随」让表格跟随执行位置。",
+    "Zh": "每行是一帧，Frame N 表示已执行 [0,N)，下一步执行第 N 行。单击按键格或上下拖动编辑，Shift 选择连续帧，Ctrl 选择不连续帧；右键可复制、粘贴、插入、删除和修改选区帧率。未来输入在播放前同步；修改过去输入后，选中目标行并重新计算。勾选「播放时跟随」让表格跟随执行位置。",
+    "En": "Each row is one input frame. Frame N means [0,N) has executed; row N is next. Click cells or drag vertically to edit. Shift selects a range; Ctrl selects separate rows. The context menu provides copy, paste, insert, delete and selection FPS. Future edits sync before playback. After editing past input, select a target and recompute. Enable Follow playback to track execution."
   },
   {
     "Key": "t54",
@@ -331,9 +331,9 @@
   },
   {
     "Key": "t55",
-    "Source": "时间线叶子保存分支实际运行到的最远帧和完整序列。点击叶子切换分支，选择节点后恢复。回档期间画面和表格保持静止，进度条结束后显示结果。",
-    "Zh": "时间线叶子保存分支实际运行到的最远帧和完整序列。点击叶子切换分支，选择节点后恢复。回档期间画面和表格保持静止，进度条结束后显示结果。",
-    "En": "A timeline leaf stores the furthest frame actually reached and the complete sequence. Select a leaf to switch branches, then select a node to restore. The game and table stay still during restore; results appear when the progress bar finishes."
+    "Source": "时间线叶子保留实际最远进度及完整未来输入。点击叶子加载分支，恢复所选节点才改变游戏位置。保存节点只记录恢复目标，不播放或回档；运行中会先暂停，未来或未验证的目标显示「未验证存档」。Shift+F1–F10 保存，F1–F10 恢复。回档通过重启重放完成，画面和表格暂时冻结，进度条显示已重放帧数的比例，完成后显示目标结果。",
+    "Zh": "时间线叶子保留实际最远进度及完整未来输入。点击叶子加载分支，恢复所选节点才改变游戏位置。保存节点只记录恢复目标，不播放或回档；运行中会先暂停，未来或未验证的目标显示「未验证存档」。Shift+F1–F10 保存，F1–F10 恢复。回档通过重启重放完成，画面和表格暂时冻结，进度条显示已重放帧数的比例，完成后显示目标结果。",
+    "En": "Timeline leaves retain the furthest executed frame and all future input. Select a leaf to load its branch; restore a selected node to change game position. Saving a node records a target without playing or seeking; running playback pauses first. Future or unverified targets are marked unverified. Shift+F1–F10 saves and F1–F10 restores. Restore restarts and replays while the game and table stay frozen; the bar tracks replay progress."
   },
   {
     "Key": "t56",
@@ -343,9 +343,9 @@
   },
   {
     "Key": "t57",
-    "Source": "暂停、切换分支和正常关闭时自动保存到本机时间线。导出 .hktas 请使用保存序列或 Ctrl+S。自动保存不会覆盖导出的文件；强制结束进程不保证保存最后的编辑。",
-    "Zh": "暂停、切换分支和正常关闭时自动保存到本机时间线。导出 .hktas 请使用保存序列或 Ctrl+S。自动保存不会覆盖导出的文件；强制结束进程不保证保存最后的编辑。",
-    "En": "Pausing, switching branches and closing normally save the local timeline. Use Save sequence or Ctrl+S to export .hktas. Automatic saves do not overwrite exported files. Force-closing may lose the latest edits."
+    "Source": "Ctrl+S 首次选择路径，之后保存到当前文件；另存为可选择新路径。.hktaspack 携带完整输入和第 0 帧固定的四槽初始存档，重播使用独立影子副本；未绑定的 .hktas 依赖本机起始存档。默认每 5 分钟将有变化的草稿保存到序列目录的 Autosave，不覆盖手动文件、不推进游戏。暂停、切换分支和正常关闭另会保存本机时间线。强制结束进程可能丢失最后的编辑。",
+    "Zh": "Ctrl+S 首次选择路径，之后保存到当前文件；另存为可选择新路径。.hktaspack 携带完整输入和第 0 帧固定的四槽初始存档，重播使用独立影子副本；未绑定的 .hktas 依赖本机起始存档。默认每 5 分钟将有变化的草稿保存到序列目录的 Autosave，不覆盖手动文件、不推进游戏。暂停、切换分支和正常关闭另会保存本机时间线。强制结束进程可能丢失最后的编辑。",
+    "En": "Ctrl+S chooses a path on first save, then saves to that file. Save as chooses another path. A .hktaspack contains all input and the four-slot snapshot fixed at frame 0; replay uses an independent shadow copy. Unbound .hktas files depend on local starting saves. By default, changed drafts are saved every 5 minutes to Autosave without overwriting manual files or advancing the game. Pausing, switching branches and closing normally also save the local timeline. Force-closing may lose recent edits."
   },
   {
     "Key": "t58",
@@ -355,9 +355,9 @@
   },
   {
     "Key": "t59",
-    "Source": "设置页集中管理语言、默认帧率、游戏鼠标和快捷键。默认帧率只影响新建及追加帧；已有序列的鼠标模式保持不变。",
-    "Zh": "设置页集中管理语言、默认帧率、游戏鼠标和快捷键。默认帧率只影响新建及追加帧；已有序列的鼠标模式保持不变。",
-    "En": "Settings contains language, default FPS, game mouse and hotkeys. Default FPS only affects new or appended frames; existing sequences keep their recorded mouse mode."
+    "Source": "设置页可修改语言、默认帧率（初始 50，范围 1–1000）、游戏鼠标、快捷键、序列目录及自动保存间隔（秒，0 关闭）。默认帧率只影响新建和追加帧；已有序列保留鼠标模式。启用全局热键后，在游戏或其他窗口也可控制播放、继续、步进及快捷槽。显示碰撞箱只画轮廓，不改变碰撞。",
+    "Zh": "设置页可修改语言、默认帧率（初始 50，范围 1–1000）、游戏鼠标、快捷键、序列目录及自动保存间隔（秒，0 关闭）。默认帧率只影响新建和追加帧；已有序列保留鼠标模式。启用全局热键后，在游戏或其他窗口也可控制播放、继续、步进及快捷槽。显示碰撞箱只画轮廓，不改变碰撞。",
+    "En": "Settings controls language, default FPS (initially 50; range 1–1000), game mouse, hotkeys, sequence folder and autosave interval (seconds; 0 disables it). Default FPS affects only new or appended frames; existing sequences retain their mouse mode. Global hotkeys allow playback, resume, step and quick slots while other windows have focus. Collider display draws outlines without changing collisions."
   },
   {
     "Key": "t60",
@@ -367,9 +367,9 @@
   },
   {
     "Key": "t61",
-    "Source": "输入编辑器可导出当前完整序列；时间线可选择有祖先关系的两个节点，导出起点之后至终点的区间。导出会自动恢复并回放，准备过程不录入视频。当前支持固定 50 fps，需要 FFmpeg 和新的 .mp4 文件名。",
-    "Zh": "输入编辑器可导出当前完整序列；时间线可选择有祖先关系的两个节点，导出起点之后至终点的区间。导出会自动恢复并回放，准备过程不录入视频。当前支持固定 50 fps，需要 FFmpeg 和新的 .mp4 文件名。",
-    "En": "Export the entire current sequence from the input editor, or select an ancestor and descendant on the timeline to export the frames after the start node through the end node. Export restores and replays automatically; preparation is not recorded. Fixed 50 fps, FFmpeg and a new .mp4 filename are required."
+    "Source": "输入编辑器导出当前完整序列；时间线可选择同一祖先路径上的起点和终点，导出 (起点帧,终点帧]，兄弟分支不可直接导出。需要固定 50 fps、ffmpeg.exe 和一个不存在的 .mp4 路径。准备重放不录入视频，正式采集包含加载画面。暂停后可继续同一次采集；取消不发布最终 MP4。等待导出状态完成后再使用文件。",
+    "Zh": "输入编辑器导出当前完整序列；时间线可选择同一祖先路径上的起点和终点，导出 (起点帧,终点帧]，兄弟分支不可直接导出。需要固定 50 fps、ffmpeg.exe 和一个不存在的 .mp4 路径。准备重放不录入视频，正式采集包含加载画面。暂停后可继续同一次采集；取消不发布最终 MP4。等待导出状态完成后再使用文件。",
+    "En": "Export the full sequence from Input Editor, or select start and end nodes on one ancestor path in Timeline to export (start,end]. Sibling branches cannot form a range. Fixed 50 fps, ffmpeg.exe and a new .mp4 path are required. Preparation is excluded; capture includes loading frames. Pause and resume continue the same capture. Cancellation does not publish a final MP4. Wait for export completion before using the file."
   },
   {
     "Key": "t62",

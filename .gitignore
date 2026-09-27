@@ -31,7 +31,7 @@ __pycache__/
 /fixtures/t16/
 /fixtures/t17/
 /fixtures/full-run/envious-marmu-*
-/fixtures/movie/generated/
+# fixtures/movie/generated contains required, fixed playback test inputs.
 /scripts/Package-TasDelivery.ps1
 /scripts/Package-VideoDelivery.ps1
 
