@@ -36,6 +36,20 @@ namespace HollowKnightTAS.Companion.Services
         public string RunId => saves?.Descriptor.RunId ?? string.Empty;
         public string ShadowRoot => saves?.Descriptor.ShadowRoot ?? string.Empty;
         public StartupBootGate? Gate => gate;
+        public bool IsTerminal => IsPending && (gate!.FullRunFaultCode != 0 || gate.IsFullRunFinished);
+
+        // Terminal gates cannot accept Pause. A later Play rebuilds the new draft.
+        public async Task PauseForDocumentChangeAsync(CancellationToken cancellationToken)
+        {
+            if (!IsPending || IsTerminal || gate!.IsWaiting) return;
+            try
+            {
+                var boundary = await PauseAsync(cancellationToken);
+                if (boundary.Mode == "Fault" && !IsTerminal)
+                    throw new InvalidOperationException(boundary.Error);
+            }
+            catch (InvalidOperationException) when (IsTerminal) { }
+        }
         public System.Collections.Generic.IReadOnlyDictionary<string, string> OriginalHashes => SequenceInitialSaves?.Hashes ?? saves?.InitialSaves.Hashes
             ?? throw new InvalidOperationException("Protected baseline is unavailable.");
 

@@ -259,17 +259,17 @@ namespace HollowKnightTAS.Companion.ViewModels
             TogglePauseCommand = Command(async () =>
             {
                 if (videoExportBusy) { await ToggleVideoPauseAsync(); return; }
-                if (this.startupBoot?.IsWaiting == true)
+                if (this.startupBoot?.IsWaiting == true || CanRestartSelectedDraft)
                 {
                     if (fullRunMovies?.IsPending == true)
                     {
                         if (fullRunMovies.Mode == "Unarmed" && !draftRequiresRestart) NewFullRunMovie();
                         await ApplyPendingInputsAsync();
                         var boundary = await fullRunMovies.RunAsync(
-                            this.startupBoot.NativeCompletedFrames, CancellationToken.None);
+                            this.startupBoot!.NativeCompletedFrames, CancellationToken.None);
                         if (boundary.Mode == "Fault") throw new InvalidOperationException(boundary.Error);
                     }
-                    else this.startupBoot.Continue();
+                    else this.startupBoot!.Continue();
                     return;
                 }
                 if (fullRunMovies?.IsPending == true)
@@ -576,7 +576,8 @@ namespace HollowKnightTAS.Companion.ViewModels
                 : "Native frame running"
             : string.IsNullOrEmpty(currentControlMode) ? "No runtime" : currentControlMode;
         public string PlayPauseLabel => startupBoot?.IsPending == true
-            ? startupBoot.FullRunFaultCode != 0 ? "已失败 · 需重启"
+            ? CanRestartSelectedDraft ? "Play 从起点开始"
+                : startupBoot.FullRunFaultCode != 0 ? "已失败 · 需重启"
                 : startupBoot.IsCommandPending ? "等待确认…"
                 : startupBoot.IsWaiting ? "Play 继续" : "Pause 暂停"
             : currentControlMode == "Paused" ? "Play 继续" : "Pause 暂停";
@@ -747,7 +748,8 @@ namespace HollowKnightTAS.Companion.ViewModels
         public ICommand SaveMovieCommand { get; }
         public ICommand SaveMovieAsCommand { get; }
         public ICommand PlayCommand { get; }
-        private bool CanContinuePlayback => startupBoot?.IsPending == true ? startupBoot.IsWaiting : currentControlMode == "Paused";
+        private bool CanRestartSelectedDraft => draftRequiresRestart && fullRunMovies?.IsPending == true && restartProtectedGame != null;
+        private bool CanContinuePlayback => CanRestartSelectedDraft || (startupBoot?.IsPending == true ? startupBoot.IsWaiting : currentControlMode == "Paused");
         public ICommand ValidateMovieCommand { get; }
         public ICommand FormatMovieCommand { get; }
         public ICommand UploadMovieCommand { get; }
@@ -892,14 +894,16 @@ namespace HollowKnightTAS.Companion.ViewModels
                         Status = exception.Message;
                     }
                 },
-                () => (!gridApplying || (allowDuringVideoExport && videoCaptureStarted)) && (startupBoot?.FullRunFaultCode ?? 0) == 0 && (startupBoot?.IsPending == true
+                () => (!gridApplying || (allowDuringVideoExport && videoCaptureStarted)) &&
+                    ((CanRestartSelectedDraft && (allowStartupContinue || allowStartupStep)) ||
+                    (startupBoot?.FullRunFaultCode ?? 0) == 0 && (startupBoot?.IsPending == true
                     ? fullRunMovies?.IsPending == true
                         ? (fullRunMovies.IsArmed || fullRunMovies.Mode == "Unarmed"
                             || (allowCompletedReplay && fullRunMovies.Mode == "Completed" && restartProtectedGame != null)) && !startupBoot.IsCommandPending && (allowStartupContinue
                             || (allowStartupStep && startupBoot.CanStep))
                         : (allowStartupContinue && startupBoot.IsWaiting)
                             || (allowStartupStep && startupBoot.CanStep)
-                    : !requireConnected || SelectedSession?.Client.IsConnected == true));
+                    : !requireConnected || SelectedSession?.Client.IsConnected == true)));
             runtimeCommands.Add(command);
             return command;
         }
@@ -1026,8 +1030,8 @@ namespace HollowKnightTAS.Companion.ViewModels
             SetGridApplying(true);
             try
             {
-                if (fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true)
-                    await fullRunMovies.PauseAsync(CancellationToken.None);
+                if (fullRunMovies?.IsPending == true)
+                    await fullRunMovies.PauseForDocumentChangeAsync(CancellationToken.None);
                 await SaveCurrentBranchAsync(closing: true);
                 SetSequenceInitialSaves(sequence.InitialSaves);
                 ResetSequenceSaveTarget(path);
@@ -1045,6 +1049,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 }
                 foreach (var command in runtimeCommands) command.RaiseCanExecuteChanged();
                 Status = draftRequiresRestart ? "序列已切换；播放将从起点开始，也可右键恢复到指定帧。" : "序列已打开。";
+                OnPropertyChanged(nameof(PlayPauseLabel));
             }
             finally { SetGridApplying(false); }
         }

@@ -42,7 +42,7 @@ namespace HollowKnightTAS.Core.Movie
             runs.Add(new NativeFrameRun(1, samples,
                 new MovieSourceSpan(movie.SourceName, 1, 1, 1), Slice(movie, nativeFrame, 1)[0].FramesPerSecond, Slice(movie, nativeFrame, 1)[0].Authored, Slice(movie, nativeFrame, 1)[0].RngSeed));
             runs.AddRange(Slice(movie, nativeFrame + 1, count - nativeFrame - 1));
-            return Commit(movie, runs, baseline);
+            return Commit(movie, runs, baseline, nativeFrame);
         }
 
         public MovieV2EditResult InsertFrames(MovieV2Document movie, long nativeFrame,
@@ -65,7 +65,7 @@ namespace HollowKnightTAS.Core.Movie
                 merged.Add(run);
             }
             merged.AddRange(Slice(movie, nativeFrame, count - nativeFrame));
-            return Commit(movie, merged, baseline);
+            return Commit(movie, merged, baseline, nativeFrame);
         }
 
         public MovieV2EditResult DeleteFrames(MovieV2Document movie, long nativeFrame, long count)
@@ -78,7 +78,7 @@ namespace HollowKnightTAS.Core.Movie
                 return Failure(baseline, nativeFrame, "Deletion range is outside the movie.");
             var runs = Slice(movie, 0, nativeFrame);
             runs.AddRange(Slice(movie, nativeFrame + count, total - nativeFrame - count));
-            return Commit(movie, runs, baseline);
+            return Commit(movie, runs, baseline, nativeFrame);
         }
 
         private MovieV2EditResult Baseline(MovieV2Document movie)
@@ -90,7 +90,7 @@ namespace HollowKnightTAS.Core.Movie
         }
 
         private MovieV2EditResult Commit(MovieV2Document source, IReadOnlyList<NativeFrameRun> runs,
-            MovieV2EditResult baseline)
+            MovieV2EditResult baseline, long editedFrame)
         {
             MovieV2Document candidate;
             try { candidate = new MovieV2Document(source.SourceName, source.Header, runs); }
@@ -98,6 +98,7 @@ namespace HollowKnightTAS.Core.Movie
             var report = validator.Validate(candidate, MovieV2ValidationContext.CreateDefault());
             if (!report.Success)
                 return new MovieV2EditResult(false, source, baseline.CanonicalText, baseline.MovieId, report.Diagnostics);
+            candidate = MovieV2RangeEditor.AuthorFrom(candidate, editedFrame);
             var text = codec.WriteCanonical(candidate);
             var normalized = codec.Parse(new StringReader(text), source.SourceName);
             if (!normalized.Success || normalized.Document == null)

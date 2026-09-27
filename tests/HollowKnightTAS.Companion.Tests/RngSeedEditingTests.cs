@@ -14,7 +14,7 @@ namespace HollowKnightTAS.Companion.Tests
     {
         private static MovieV2Document Movie() => new("rng", new MovieV2Header("game", "api", "mod",
             MovieProtocolV2.NativeProfileId, MovieProtocolV2.ActionSchemaId, false, new string('a', 64), 800, 450),
-            new[] { new NativeFrameRun(20, Array.Empty<GameInputSample>(), new MovieSourceSpan("rng", 1, 1, 1), authored: true) });
+            new[] { new NativeFrameRun(20, Array.Empty<GameInputSample>(), new MovieSourceSpan("rng", 1, 1, 1)) });
         private static string Text(MovieV2Document movie) => new MovieV2Codec().WriteCanonical(movie);
 
         [TestMethod]
@@ -31,6 +31,7 @@ namespace HollowKnightTAS.Companion.Tests
             Assert.IsNull(vm.InputRows[3].RngSeed);
             Assert.IsNull(vm.InputRows[5].RngSeed);
             var seeded = vm.MovieText;
+            Assert.IsTrue(TimelineTree.Parse(seeded).Runs.Skip(1).All(r => r.Authored));
             Assert.IsFalse(vm.TrySetGridRngSeed(4, "2147483648"));
             Assert.IsFalse(vm.TrySetGridRngSeed(4, "1.5"));
             Assert.AreEqual(seeded, vm.MovieText);

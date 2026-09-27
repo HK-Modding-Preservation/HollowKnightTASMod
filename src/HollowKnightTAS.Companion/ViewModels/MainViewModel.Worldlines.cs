@@ -230,7 +230,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             fullRunMovies.VerifyOriginalSavesUnchanged();
             var initialSaves = GetTimelineInitialSaves(tree);
             var changedTree = activeDraftTree != tree.Id;
-            if (startupBoot?.IsWaiting != true) await fullRunMovies.PauseAsync(CancellationToken.None);
+            await fullRunMovies.PauseForDocumentChangeAsync(CancellationToken.None);
             // Keep the chosen world's future inputs even when restoring an ancestor.
             await RestartDraftAtAsync(node.Frame, leaf.Movie, switchSequence: true, sourceSaves: initialSaves);
             if (changedTree) ResetSequenceSaveTarget(null);

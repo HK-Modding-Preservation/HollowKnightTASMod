@@ -101,6 +101,35 @@ public sealed class SequenceBindingTests
         Assert.IsNull(Get<string?>(f.Vm, "sequenceSavePath"));
     }
 
+    [TestMethod]
+    [DataRow(41)]
+    [DataRow(0)]
+    public async Task TerminalSessionCanSaveDraftAndOpenAnotherSequenceWithoutNativeCommand(int fault)
+    {
+        using var f = new Fixture();
+        f.SetFrameZero();
+        var first = Path.Combine(f.Root, "first.hktas");
+        var second = Path.Combine(f.Root, "second.hktaspack");
+        await File.WriteAllTextAsync(first, Movie());
+        await SequencePackage.WriteAsync(second, Movie(), Snapshot(2));
+        await f.Vm.OpenMovieFileAsync(first);
+        var tree = f.Vm.SelectedTimelineTree!;
+        Assert.IsTrue(f.Vm.TrySetGridRngSeed(4, "123"));
+        var draft = f.Vm.MovieText;
+        f.SetTerminal(fault);
+        var commands = f.CommandSequence;
+        await f.Vm.OpenMovieFileAsync(second);
+        Assert.AreEqual(commands, f.CommandSequence, "Document switch must not command a terminal gate.");
+        tree = Get<StudioTimelineStore>(f.Vm, "worldlines").Library.Trees.Single(t => t.Id == tree.Id);
+        Assert.IsTrue(tree.Nodes.Any(n => n.Movie == draft), "Keep the old editable draft.");
+        Assert.IsTrue(tree.Nodes.All(n => n.Frame == 0), "Do not certify the failed/completed native position without a snapshot.");
+        Assert.AreEqual(Snapshot(2).Id, f.Coordinator.SequenceInitialSaves!.Id);
+        Assert.IsTrue(Get<bool>(f.Vm, "draftRequiresRestart"));
+        Assert.IsTrue(f.Vm.TogglePauseCommand.CanExecute(null));
+        Assert.IsTrue(f.Vm.StepCommand.CanExecute(null));
+        Assert.AreEqual("Play 从起点开始", f.Vm.PlayPauseLabel);
+    }
+
     private sealed class Fixture : IDisposable
     {
         public string Root { get; } = Path.Combine(Path.GetTempPath(), "hktas-binding-" + Guid.NewGuid().ToString("N"));
@@ -118,7 +147,8 @@ public sealed class SequenceBindingTests
             Coordinator = new FullRunMovieCoordinator(Boot);
             broker = new AutomationBroker(sessions, fullRunMovies: Coordinator, automationDirectory: Path.Combine(Root, "automation"));
             Vm = new MainViewModel(sessions, new MovieEditorService(), new CapabilityBroker(), new NativeHostLauncher(AppContext.BaseDirectory), broker,
-                startupBoot: Boot, fullRunMovies: Coordinator);
+                startupBoot: Boot, fullRunMovies: Coordinator,
+                restartProtectedGame: () => throw new InvalidOperationException("Tests must not launch a game."));
             Set(Vm, "initialSaveCacheRoot", Path.Combine(Root, "baselines"));
             Set(Vm, "worldlines", new StudioTimelineStore(Path.Combine(Root, "timelines.json")));
         }
@@ -134,6 +164,14 @@ public sealed class SequenceBindingTests
             mapping = MemoryMappedFile.OpenExisting("Local\\HKTAS.Boot." + gate.Token + ".V2State");
             view = mapping.CreateViewAccessor(); ready = EventWaitHandle.OpenExisting("Local\\HKTAS.Boot." + gate.Token + ".Ready");
             view.Write(92, 1); view.Write(76, 0); view.Write(40, 0L); ready.Set(); Boot.Refresh();
+        }
+        public long CommandSequence => view!.ReadInt64(48);
+        public void SetTerminal(int fault)
+        {
+            view!.Write(40, 3563L);
+            view.Write(88, fault);
+            view.Write(76, fault == 0 ? 4 : 3);
+            Boot.Refresh();
         }
         public void Dispose()
         {

@@ -7,8 +7,27 @@ namespace HollowKnightTAS.Core.Movie
     public static class MovieV2RangeEditor
     {
         public static MovieV2Document SetRngSeed(MovieV2Document movie, long frame, int? seed)
-            => Transform(movie, frame, 1, r => new NativeFrameRun(1, r.Samples, r.Span,
+        {
+            long position = 0;
+            foreach (var run in movie.Runs)
+            {
+                if (frame >= position && frame < position + run.RepeatCount && run.RngSeed == seed)
+                    return movie;
+                position += run.RepeatCount;
+            }
+            return Transform(movie, frame, 1, r => new NativeFrameRun(1, r.Samples, r.Span,
                 r.FramesPerSecond, r.Authored, seed));
+        }
+
+        // After a causal edit, the old suffix is input intent, not evidence of
+        // the new world's action-set order or press/release edges.
+        public static MovieV2Document AuthorFrom(MovieV2Document movie, long frame)
+        {
+            var total = movie.Runs.Sum(r => r.RepeatCount);
+            if (frame < 0 || frame > total) throw new ArgumentOutOfRangeException(nameof(frame));
+            if (frame == total) return movie;
+            return Transform(movie, frame, total - frame, r => r);
+        }
 
         public static MovieV2Document SetFrameRate(MovieV2Document movie, long start, long count, int fps)
         {
@@ -82,6 +101,15 @@ namespace HollowKnightTAS.Core.Movie
                     if (b < next) result.Add(Slice(next - b));
                 }
                 position = next;
+            }
+            position = 0;
+            for (var i = 0; i < result.Count; i++)
+            {
+                var run = result[i];
+                if (position >= start)
+                    result[i] = new NativeFrameRun(run.RepeatCount, run.Samples, run.Span,
+                        run.FramesPerSecond, true, run.RngSeed);
+                position += run.RepeatCount;
             }
             return new MovieV2Document(movie.SourceName, movie.Header, result);
         }

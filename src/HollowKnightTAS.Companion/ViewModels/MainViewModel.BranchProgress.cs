@@ -26,13 +26,10 @@ namespace HollowKnightTAS.Companion.ViewModels
             savingBranch = true;
             try
             {
-                if (closing && fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true
-                    && fullRunMovies.IsArmed)
-                {
-                    var paused = await fullRunMovies.PauseAsync(CancellationToken.None);
-                    if (paused.Mode == "Fault") throw new InvalidOperationException(paused.Error);
-                }
-                if (fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true)
+                if (closing && fullRunMovies?.IsPending == true)
+                    await fullRunMovies.PauseForDocumentChangeAsync(CancellationToken.None);
+                var terminal = fullRunMovies?.IsTerminal == true;
+                if (fullRunMovies?.IsPending == true && startupBoot?.IsWaiting != true && !terminal)
                 {
                     if (closing) throw new InvalidOperationException("未能暂停到安全帧，序列尚未保存。");
                     return;
@@ -43,7 +40,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 if (draft == null) return;
                 var tree = worldlines.Library.Trees.Single(t => t.Id == activeDraftTree);
                 var frame = tree.MatchingSavedFrame(MovieText);
-                if (!draftRequiresRestart && fullRunMovies?.IsPending == true && native > 0)
+                if (!terminal && !draftRequiresRestart && fullRunMovies?.IsPending == true && native > 0)
                 {
                     var snapshot = await ReadReadyFrameSnapshotAsync();
                     var actual = TimelineTree.Parse(snapshot.Movie);

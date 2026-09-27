@@ -34,7 +34,8 @@ namespace HollowKnightTAS.Core.Tests.Movie
             var movie = Movie(new NativeFrameRun(2, Array.Empty<GameInputSample>(), Span, rngSeed: 5));
             Assert.IsFalse(new MovieV2Validator().Validate(movie, MovieV2ValidationContext.CreateDefault()).Success);
             Assert.ThrowsExactly<InvalidDataException>(() => Text(movie));
-            var text = Text(MovieV2RangeEditor.SetRngSeed(Movie(), 0, 5)).Replace("\"repeatCount\":1,\"rngSeed\":5", "\"repeatCount\":2,\"rngSeed\":5");
+            var text = Text(Movie(new NativeFrameRun(1, Array.Empty<GameInputSample>(), Span, rngSeed: 5)))
+                .Replace("\"repeatCount\":1", "\"repeatCount\":2");
             Assert.IsFalse(new MovieV2Codec().Parse(new StringReader(text), "test").Success);
         }
 
@@ -47,14 +48,43 @@ namespace HollowKnightTAS.Core.Tests.Movie
         }
 
         [TestMethod]
-        public void PrefixDivergesOnlyAfterSeededFrameAndClearRestoresOriginalIdentity()
+        public void PrefixDivergesOnlyAfterSeededFrameAndClearKeepsSuffixAuthored()
         {
             var original = Movie();
             var edited = MovieV2RangeEditor.SetRngSeed(original, 4, 0);
             Assert.IsTrue(MovieV2Prefix.Matches(original, edited, 4));
             Assert.IsFalse(MovieV2Prefix.Matches(original, edited, 5));
-            Assert.AreEqual(Text(original), Text(MovieV2RangeEditor.SetRngSeed(edited, 4, null)));
+            var cleared = MovieV2RangeEditor.SetRngSeed(edited, 4, null);
+            Assert.AreEqual(Text(MovieV2RangeEditor.AuthorFrom(original, 4)), Text(cleared));
+            Assert.IsTrue(MovieV2Prefix.Take(edited, 4).Runs.All(r => !r.Authored));
+            Assert.IsTrue(edited.Runs.Skip(1).All(r => r.Authored));
+            Assert.AreEqual(Text(original), Text(MovieV2RangeEditor.SetRngSeed(original, 4, null)));
             Assert.IsFalse(Text(original).Contains("rngSeed"));
+        }
+
+        [TestMethod]
+        public void CausalEditsPreservePrefixAndSuffixValuesButRetireOldAssertions()
+        {
+            var values = new short[26]; values[15] = short.MaxValue;
+            var original = Movie(new NativeFrameRun(10,
+                new[] { new GameInputSample(GameInputChannel.Hero, values, null, 1UL << 15, 0) }, Span));
+            var editor = new MovieV2TimelineEditor();
+            var edits = new[] {
+                MovieV2RangeEditor.SetRngSeed(original, 4, 0),
+                MovieV2RangeEditor.SetFrameRate(original, 4, 1, 120),
+                MovieV2RangeEditor.Paint(original, 4, 1, "Jump", true),
+                editor.ReplaceFrame(original, 4, original.Runs[0].Samples).Movie,
+                editor.InsertFrames(original, 4, new[] { new NativeFrameRun(1, Array.Empty<GameInputSample>(), Span) }).Movie,
+                editor.DeleteFrames(original, 4, 1).Movie
+            };
+            foreach (var edited in edits)
+            {
+                Assert.IsTrue(MovieV2Prefix.Matches(original, edited, 4));
+                var roundTrip = new MovieV2Codec().Parse(new StringReader(Text(edited)), "branch").Document!;
+                Assert.IsTrue(roundTrip.Runs.Skip(1).All(r => r.Authored));
+                Assert.AreEqual(short.MaxValue, roundTrip.Runs.Last().Samples.Single().Values[15]);
+            }
+            Assert.IsFalse(original.Runs[0].Authored);
         }
 
         [TestMethod]

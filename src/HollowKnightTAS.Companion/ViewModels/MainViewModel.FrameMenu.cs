@@ -38,7 +38,9 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 if (fullRunMovies?.IsPending != true)
                     throw new InvalidOperationException("帧存档与定位需要从 Studio 启动全流程会话。");
-                if (startupBoot?.IsWaiting != true)
+                if (action == "load" || action == "rebuild")
+                    await fullRunMovies.PauseForDocumentChangeAsync(CancellationToken.None);
+                else if (startupBoot?.IsWaiting != true)
                     await fullRunMovies.PauseAsync(CancellationToken.None);
                 if (action == "load")
                 {
