@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Linq;
 using HollowKnightTAS.Companion.Services;
 using HollowKnightTAS.Companion.ViewModels;
 
@@ -15,6 +16,7 @@ namespace HollowKnightTAS.Companion.Controls
         private MainViewModel? Model => DataContext as MainViewModel;
         private InfoOverlayItem? Selected => ItemsList.SelectedItem as InfoOverlayItem;
         private void OnAdd(object sender, RoutedEventArgs e) { Model?.AddInfoItem(FieldPicker.SelectedItem as InfoField); ItemsList.SelectedIndex = ItemsList.Items.Count - 1; }
+        private void OnAddCustom(object sender, RoutedEventArgs e) { Model?.AddInfoItem(InfoOverlayModel.Fields.Single(f => f.Id == "custom")); ItemsList.SelectedIndex = ItemsList.Items.Count - 1; }
         private void OnRemove(object sender, RoutedEventArgs e) => Model?.RemoveInfoItem(Selected);
         private void OnUp(object sender, RoutedEventArgs e) => Model?.MoveInfoItem(Selected, ItemsList.SelectedIndex - 1);
         private void OnDown(object sender, RoutedEventArgs e) => Model?.MoveInfoItem(Selected, ItemsList.SelectedIndex + 1);

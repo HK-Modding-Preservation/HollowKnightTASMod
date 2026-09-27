@@ -162,7 +162,7 @@ namespace HollowKnightTAS.Runtime.FullRun
 
         public Dictionary<string, string> ObserveWorld(IReadOnlyDictionary<string, string> fields)
         {
-            ValidateObservationFields(fields, "snapshotId", "view", "includeInactive", "offset", "limit");
+            ValidateObservationFields(fields, "snapshotId", "view", "includeInactive", "offset", "limit", "watches");
             string Value(string key, string fallback) => fields.TryGetValue(key, out var value) ? value : fallback;
             var id = Value("snapshotId", "");
             var view = Value("view", "world");
@@ -170,8 +170,15 @@ namespace HollowKnightTAS.Runtime.FullRun
             {
                 if (Value("snapshotId", "").Length != 0 || Value("offset", "0") != "0")
                     throw new ArgumentException("Info observations are single frame captures without pagination.");
-                return observationQueue.Invoke(frame => RuntimeInfoObservation.Capture(frame, movieFrame));
+                var watchJson = Value("watches", "[]");
+                if (watchJson.Length > 20000) throw new ArgumentException("Too many custom watch characters.");
+                var watches = Newtonsoft.Json.JsonConvert.DeserializeObject<string[]>(watchJson)
+                    ?? throw new ArgumentException("watches must be an array of field paths.");
+                if (watches.Length > 32 || watches.Any(w => w == null || w.Length > 512))
+                    throw new ArgumentException("At most 32 custom watches of up to 512 characters are supported.");
+                return observationQueue.Invoke(frame => RuntimeInfoObservation.Capture(frame, movieFrame, watches));
             }
+            if (fields.ContainsKey("watches")) throw new ArgumentException("watches requires the info view.");
             if (view != "world" && view != "all" && view != "colliders") throw new ArgumentException("Unknown observation view.");
             var inactive = Value("includeInactive", "false");
             if (inactive != "true" && inactive != "false") throw new ArgumentException("includeInactive must be true or false.");

@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using HollowKnightTAS.Companion.Services;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -15,6 +16,49 @@ namespace HollowKnightTAS.Companion.Tests
     [TestClass]
     public sealed class InfoOverlayWindowTests
     {
+        [TestMethod]
+        public void GeometryFollowsMovingOwnerWithoutAnyNewDataSnapshot()
+        {
+            Exception? failure = null;
+            var thread = new Thread(() =>
+            {
+                Window? owner = null; InfoOverlayWindow? overlay = null;
+                try
+                {
+                    void Pump()
+                    {
+                        var frame = new DispatcherFrame();
+                        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
+                        timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
+                        timer.Start(); Dispatcher.PushFrame(frame);
+                    }
+                    owner = new Window { Left = 100, Top = 100, Width = 640, Height = 400, ShowActivated = false, ShowInTaskbar = false };
+                    owner.Show(); Pump();
+                    var ownerHandle = new WindowInteropHelper(owner).Handle;
+                    overlay = new InfoOverlayWindow(); overlay.SetOwner(ownerHandle); overlay.ShowOverlay(); Pump();
+                    overlay.Update(InfoOverlaySettings.Defaults(), InfoOverlayModel.Decode("{\"schemaVersion\":1,\"values\":{\"frame\":73}}"));
+                    NotifyWinEvent(0xA, ownerHandle, 0, 0); Pump();
+                    Assert.IsTrue(overlay.IsOwnerMoving);
+                    // No new snapshot or controller poll: dragging must still update every position.
+                    for (var i = 0; i < 5; i++)
+                    {
+                        owner.Left += 31; owner.Top += 13; Pump();
+                        Assert.IsTrue(GetClientRect(ownerHandle, out var client));
+                        var origin = new PointI(); Assert.IsTrue(ClientToScreen(ownerHandle, ref origin));
+                        client.Right += origin.X; client.Bottom += origin.Y; client.Left = origin.X; client.Top = origin.Y;
+                        Assert.IsTrue(GetWindowRect(new WindowInteropHelper(overlay).Handle, out var bounds));
+                        Assert.AreEqual(client.Left, bounds.Left); Assert.AreEqual(client.Top, bounds.Top);
+                        Assert.AreEqual(client.Right, bounds.Right); Assert.AreEqual(client.Bottom, bounds.Bottom);
+                    }
+                    NotifyWinEvent(0xB, ownerHandle, 0, 0); Pump(); Assert.IsFalse(overlay.IsOwnerMoving);
+                }
+                catch (Exception ex) { failure = ex; }
+                finally { overlay?.Close(); owner?.Close(); }
+            });
+            thread.SetApartmentState(ApartmentState.STA); thread.Start();
+            Assert.IsTrue(thread.Join(TimeSpan.FromSeconds(15)));
+            if (failure != null) throw new AssertFailedException("Window following failed: " + failure, failure);
+        }
         [TestMethod]
         public void OverlayRendersClampsAllAnchorsAndOnlyAcceptsMouseWhileAdjusting()
         {
@@ -63,5 +107,11 @@ namespace HollowKnightTAS.Companion.Tests
         }
         [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
         private static extern IntPtr GetWindowLongPtr(IntPtr window, int index);
+        [StructLayout(LayoutKind.Sequential)] private struct RectI { public int Left, Top, Right, Bottom; }
+        [StructLayout(LayoutKind.Sequential)] private struct PointI { public int X, Y; }
+        [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr window, out RectI bounds);
+        [DllImport("user32.dll")] private static extern bool GetClientRect(IntPtr window, out RectI bounds);
+        [DllImport("user32.dll")] private static extern bool ClientToScreen(IntPtr window, ref PointI point);
+        [DllImport("user32.dll")] private static extern void NotifyWinEvent(uint id, IntPtr window, int objectId, int childId);
     }
 }

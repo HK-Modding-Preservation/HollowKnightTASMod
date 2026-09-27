@@ -44,7 +44,7 @@ namespace HollowKnightTAS.Companion.Services
         private void OnTick(object? sender, EventArgs e) => _ = PollAsync();
         internal async Task PollAsync()
         {
-            if (disposed || busy || !settings.Enabled) return;
+            if (disposed || busy || !settings.Enabled || window?.IsOwnerMoving == true) return;
             busy = true;
             var session = sessionProvider(); var epoch = generation;
             try
@@ -57,7 +57,9 @@ namespace HollowKnightTAS.Companion.Services
                 { window?.Hide(); return; }
                 var response = await request(session, new Dictionary<string, string>
                 {
-                    ["requestId"] = "studio-info-" + Guid.NewGuid().ToString("N"), ["view"] = "info"
+                    ["requestId"] = "studio-info-" + Guid.NewGuid().ToString("N"), ["view"] = "info",
+                    ["watches"] = System.Text.Json.JsonSerializer.Serialize(settings.Items.Where(i => i.Enabled && i.IsCustom)
+                        .Select(i => i.Expression).Distinct().ToArray())
                 }, cancellation.Token);
                 if (disposed || epoch != generation || !ReferenceEquals(session, sessionProvider()) || !session.IsConnected || suspended())
                 { window?.Hide(); return; }
@@ -75,9 +77,18 @@ namespace HollowKnightTAS.Companion.Services
                 window.SetAdjusting(adjusting);
                 window.Update(settings, values);
                 if (settings.Items.Any(item => item.Enabled) || adjusting) window.ShowOverlay(); else window.Hide();
-                report(UiText.T("信息显示已启用。"));
+                using var document = System.Text.Json.JsonDocument.Parse(json);
+                var errors = document.RootElement.TryGetProperty("errors", out var errorObject)
+                    ? errorObject.EnumerateObject().Take(3).Select(p => p.Name + ": " + p.Value.GetString()).ToArray()
+                    : Array.Empty<string>();
+                report(errors.Length == 0 ? UiText.T("信息显示已启用。") : UiText.T("自定义字段不可用：") + string.Join("; ", errors));
             }
             catch (OperationCanceledException) when (disposed) { }
+            catch (TimeoutException) when (window?.IsOwnerMoving == true
+                && ReferenceEquals(session, sessionProvider()) && session?.IsConnected == true)
+            {
+                // The native move loop can pause frame observations; keep its last frame visible.
+            }
             catch (Exception error)
             {
                 if (!disposed && epoch == generation)

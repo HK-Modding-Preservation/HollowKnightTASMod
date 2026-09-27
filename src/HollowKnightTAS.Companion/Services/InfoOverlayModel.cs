@@ -9,6 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows.Media;
+using HollowKnightTAS.Core.Inspector;
 
 namespace HollowKnightTAS.Companion.Services
 {
@@ -26,6 +27,9 @@ namespace HollowKnightTAS.Companion.Services
         private string field = "position", label = "", color = "#FFFFFF", unit = "";
         private int precision = 3;
         private bool enabled = true, readyAtZero = true;
+        private string expression = "hero.dashCooldownTimer";
+        [JsonIgnore] public bool IsCustom => Field == "custom";
+        public string Expression { get => expression; set => Change(ref expression, value); }
         [JsonIgnore] public string FieldName => InfoOverlayModel.Fields.FirstOrDefault(f => f.Id == Field)?.Name ?? Field;
         public string Field { get => field; set => Change(ref field, value); }
         public string Label { get => label; set => Change(ref label, value); }
@@ -39,9 +43,9 @@ namespace HollowKnightTAS.Companion.Services
     public sealed class InfoOverlaySettings : InfoNotify
     {
         private bool enabled = true;
-        private double fontSize = 16, opacity = .65, marginX = 16, marginY = 160;
-        private string anchor = "左上", color = "#FFFFFF", hotkey = "F11";
-        public int Version { get; set; } = 1;
+        private double fontSize = 16, opacity = .65, marginX = 8, marginY = 8;
+        private string anchor = "右上", color = "#FFFFFF", hotkey = "F11";
+        public int Version { get; set; } = 2;
         public bool Enabled { get => enabled; set => Change(ref enabled, value); }
         public double FontSize { get => fontSize; set => Change(ref fontSize, value); }
         public double BackgroundOpacity { get => opacity; set => Change(ref opacity, value); }
@@ -61,7 +65,7 @@ namespace HollowKnightTAS.Companion.Services
 
         public void Validate()
         {
-            if (Version != 1 || !Anchors.Contains(Anchor) || !Hotkeys.Contains(Hotkey)
+            if (Version != 2 || !Anchors.Contains(Anchor) || !Hotkeys.Contains(Hotkey)
                 || !double.IsFinite(FontSize) || FontSize < 10 || FontSize > 40
                 || !double.IsFinite(BackgroundOpacity) || BackgroundOpacity < 0 || BackgroundOpacity > 1
                 || !double.IsFinite(MarginX) || MarginX < 0 || MarginX > 10000
@@ -69,11 +73,14 @@ namespace HollowKnightTAS.Companion.Services
                 || !InfoOverlayModel.IsColor(TextColor) || Items == null || Items.Count > 32)
                 throw new InvalidDataException("信息显示设置无效：检查字号、透明度、位置和颜色。");
             foreach (var item in Items)
+            {
                 if (item == null || !InfoOverlayModel.Fields.Any(f => f.Id == item.Field)
                     || item.Precision < 0 || item.Precision > 6 || item.Label == null || item.Label.Length > 48
                     || item.Label.Any(char.IsControl) || item.Unit == null || item.Unit.Length > 16
                     || item.Unit.Any(char.IsControl) || (!string.IsNullOrEmpty(item.Color) && !InfoOverlayModel.IsColor(item.Color)))
                     throw new InvalidDataException("信息条目无效：检查字段、小数位、名称、单位和颜色。");
+                if (item.IsCustom) InfoWatchQuery.Parse(item.Expression);
+            }
         }
         public static InfoOverlaySettings Load(string path)
         {
@@ -81,6 +88,13 @@ namespace HollowKnightTAS.Companion.Services
             if (new FileInfo(path).Length > 65536) throw new InvalidDataException("信息显示设置文件过大。");
             var result = JsonSerializer.Deserialize<InfoOverlaySettings>(File.ReadAllText(path))
                 ?? throw new InvalidDataException("信息显示设置文件为空。");
+            if (result.Version == 1)
+            {
+                // Move only the previous default placement; retain user-customized positions and rows.
+                if (result.Anchor == "左上" && result.MarginX == 16 && result.MarginY == 160)
+                { result.Anchor = "右上"; result.MarginX = 8; result.MarginY = 8; }
+                result.Version = 2;
+            }
             result.Validate(); return result;
         }
         public void Save(string path)
@@ -105,7 +119,14 @@ namespace HollowKnightTAS.Companion.Services
             new InfoField("health", "当前生命", "integer"), new InfoField("maxHealth", "最大生命", "integer"),
             new InfoField("soul", "灵魂", "integer"), new InfoField("reserveSoul", "储备灵魂", "integer"),
             new InfoField("grounded", "着地", "bool"), new InfoField("facingRight", "朝向", "direction"),
-            new InfoField("jumping", "跳跃中", "bool"), new InfoField("dashing", "冲刺中", "bool")
+            new InfoField("jumping", "跳跃中", "bool"), new InfoField("dashing", "冲刺中", "bool"),
+            new InfoField("custom", "自定义字段", "custom")
+        };
+        public static string[] WatchExamples { get; } =
+        {
+            "hero.dashCooldownTimer", "hero.cState.wallSliding", "player.geo", "player.equippedCharms[0]",
+            "game.gameState", "position.x", "velocity.y", "component(\"/Knight\", \"HeroController\").jump_steps",
+            "fsm(\"/Knight\", \"Spell Control\", \"MP Cost\")"
         };
         public static InfoOverlayItem NewItem(string id)
         {
@@ -142,7 +163,12 @@ namespace HollowKnightTAS.Companion.Services
                 var a = Number("health", 0); var b = Number("maxHealth", 0);
                 return a == "—" || b == "—" ? "—" : a + " / " + b;
             }
-            if (!values.TryGetValue(field.Id, out var value) || value.ValueKind == JsonValueKind.Null) return "—";
+            if (!values.TryGetValue(item.IsCustom ? "watch:" + item.Expression : field.Id, out var value) || value.ValueKind == JsonValueKind.Null) return "—";
+            if (item.IsCustom)
+            {
+                if (value.ValueKind == JsonValueKind.String) return value.GetString() ?? "—";
+                if (value.ValueKind is JsonValueKind.True or JsonValueKind.False) return UiText.T(value.GetBoolean() ? "是" : "否");
+            }
             if (field.Kind == "text") return value.ValueKind == JsonValueKind.String ? value.GetString() ?? "—" : "—";
             if (field.Kind is "bool" or "direction")
             {

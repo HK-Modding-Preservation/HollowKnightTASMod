@@ -2735,5 +2735,35 @@
     "Source": "信息显示设置文件为空。",
     "Zh": "信息显示设置文件为空。",
     "En": "The overlay settings file is empty."
+  },
+  {
+    "Key": "自定义字段",
+    "Source": "自定义字段",
+    "Zh": "自定义字段",
+    "En": "Custom field"
+  },
+  {
+    "Key": "添加自定义字段",
+    "Source": "添加自定义字段",
+    "Zh": "添加自定义字段",
+    "En": "Add custom field"
+  },
+  {
+    "Key": "只读字段查询",
+    "Source": "只读字段查询",
+    "Zh": "只读字段查询",
+    "En": "Read-only field query"
+  },
+  {
+    "Key": "自定义字段说明",
+    "Source": "自定义字段说明",
+    "Zh": "可直接改写示例：hero / player / game 的字段，position / velocity 的分量，component(\"/对象路径\", \"组件类型\").字段，或 fsm(\"/对象路径\", \"FSM名\", \"变量名\")。支持数组/List下标；不执行方法或属性getter。对象不存在显示 —，错误详情在页底。",
+    "En": "Edit a sample: hero / player / game fields, position / velocity components, component(\"/Object\", \"Type\").field, or fsm(\"/Object\", \"FSM\", \"Variable\"). Array/List indices are supported. No methods or property getters. Missing targets show —; details appear below."
+  },
+  {
+    "Key": "自定义字段不可用：",
+    "Source": "自定义字段不可用：",
+    "Zh": "自定义字段不可用：",
+    "En": "Custom fields unavailable: "
   }
 ]

@@ -23,7 +23,25 @@ The Information overlay tab enables a panel over the game by default: Movie fram
 
 Search to add fields, remove rows or uncheck them to hide them. Drag rows to reorder, or use Move up/down. Select a row to edit its name, decimal places (0–6), unit and color. A blank name or color uses the default. Colors use `#RRGGBB`. Settings save automatically; Restore defaults resets them.
 
-Choose a corner, X/Y margins, font size and background opacity. Enable Drag position to drag the panel over the game; disable it afterwards to restore mouse passthrough. F11 toggles visibility by default, with F12 or no shortcut also available. In-game shortcuts require global hotkeys. The panel follows the game window and is not included in MP4 exports.
+The panel defaults to the top-right corner and stays aligned while moving the game window. Choose a corner, X/Y margins, font size and background opacity. Enable Drag position to drag the panel over the game; disable it afterwards to restore mouse passthrough. F11 toggles visibility by default, with F12 or no shortcut also available. In-game shortcuts require global hotkeys. The panel follows the game window and is not included in MP4 exports.
+
+### Custom read-only information
+
+Select Add custom field and edit a sample in Read-only field query. Names are case-sensitive. Roots are `hero` (HeroController), `player` (PlayerData), `game` (GameManager), `position` and `velocity` (the hero's vectors).
+
+| Query | Value |
+| --- | --- |
+| `hero.dashCooldownTimer` | Raw dash cooldown timer |
+| `hero.cState.wallSliding` | Wall slide flag |
+| `player.geo` | Geo |
+| `player.equippedCharms[0]` | First equipped charm; unavailable for an empty list |
+| `position.x` | Hero X coordinate |
+| `component("/Knight", "HeroController").jump_steps` | A field on an explicit component |
+| `fsm("/Knight", "Spell Control", "MP Cost")` | An explicit FSM variable |
+
+Component queries support instance fields in the game and other Mods. Use a full namespace if needed. Object paths must begin with `/` and identify an active object by its full hierarchy path; ambiguous components report an error. FSM/variable names must match exactly. Paths support nested fields and zero-based array/List indices.
+
+Queries read public/private fields and automatic property backing fields, returning numbers, booleans, strings or enums. They do not execute methods, property getters, assignments or arbitrary C# scripts. Raw timers retain their actual values, including negatives; only preset cooldown rows show Ready. Missing targets show `—` with details below the settings; other rows continue updating. Limits: 32 rows, 512 characters per query and 16 field segments.
 
 ## Record or replay
 

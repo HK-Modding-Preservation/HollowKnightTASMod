@@ -26,6 +26,11 @@ namespace HollowKnightTAS.Companion.Tests
             var languagePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HollowKnightTAS", "studio-language.txt");
             var originalLanguage = File.Exists(languagePath) ? File.ReadAllBytes(languagePath) : null;
             var languageIndex = UiText.Current.LanguageIndex;
+            var infoPathProperty = typeof(MainViewModel).GetProperty("InfoOverlaySettingPathOverride",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+            var originalInfoPath = infoPathProperty.GetValue(null);
+            var infoTestPath = Path.Combine(AppContext.BaseDirectory, "info-theme-" + Guid.NewGuid().ToString("N") + ".json");
+            infoPathProperty.SetValue(null, infoTestPath);
             var thread = new Thread(() =>
             {
                 try
@@ -225,6 +230,22 @@ namespace HollowKnightTAS.Companion.Tests
                         window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
                         if (page.Name == "InfoOverlayTab")
                         {
+                            vm.AddInfoItem(InfoOverlayModel.Fields.Single(f => f.Id == "custom"));
+                            var itemList = Find<ListBox>(page).Single(list =>
+                                System.Windows.Automation.AutomationProperties.GetAutomationId(list) == "HktasStudio.InfoItems");
+                            itemList.SelectedItem = vm.InfoSettings.Items.Last();
+                            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            root.UpdateLayout();
+                            var query = Find<ComboBox>(page).Single(box =>
+                                System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "HktasStudio.InfoWatchExpression");
+                            Assert.IsTrue(query.IsEditable);
+                            Assert.AreSame(vm.InfoSettings.Items.Last(), query.DataContext);
+                            Assert.AreEqual(Visibility.Visible, ((StackPanel)query.Parent).Visibility);
+                            query.Text = "player.geo";
+                            query.GetBindingExpression(ComboBox.TextProperty)!.UpdateSource();
+                            Assert.AreEqual("player.geo", vm.InfoSettings.Items.Last().Expression);
+                            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            root.UpdateLayout();
                             var panelImage = new RenderTargetBitmap(1320, 840, 144, 144, PixelFormats.Pbgra32);
                             panelImage.Render(root);
                             var panelEncoder = new PngBitmapEncoder(); panelEncoder.Frames.Add(BitmapFrame.Create(panelImage));
@@ -287,6 +308,8 @@ namespace HollowKnightTAS.Companion.Tests
                     UiText.Current.LanguageIndex = languageIndex;
                     if (originalLanguage == null) File.Delete(languagePath);
                     else File.WriteAllBytes(languagePath, originalLanguage);
+                    infoPathProperty.SetValue(null, originalInfoPath);
+                    File.Delete(infoTestPath); File.Delete(infoTestPath + ".new");
                 }
             });
             thread.SetApartmentState(ApartmentState.STA);

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Linq;
+using HollowKnightTAS.Core.Inspector;
 using GlobalEnums;
 using Newtonsoft.Json;
 using UnityEngine;
@@ -15,10 +17,11 @@ namespace HollowKnightTAS.Runtime.Observation
         private static readonly FieldInfo? Dash = Field("dashCooldownTimer");
         private static readonly FieldInfo? Shade = Field("shadowDashTimer");
         private static readonly FieldInfo? Attack = Field("attack_cooldown");
+        private static readonly ObservationValues RawFields = new ObservationValues(_ => throw new NotSupportedException());
         private static FieldInfo? Field(string name) => typeof(HeroController).GetField(name,
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
-        public static Dictionary<string, string> Capture(long nativeFrame, long movieFrame)
+        public static Dictionary<string, string> Capture(long nativeFrame, long movieFrame, string[]? watches = null)
         {
             var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             var values = new Dictionary<string, object?>
@@ -52,11 +55,65 @@ namespace HollowKnightTAS.Runtime.Observation
                     if (!player.hasShadowDash) values["shade"] = null;
                 }
             }
+            var errors = new Dictionary<string, string>();
+            foreach (var expression in watches ?? Array.Empty<string>())
+            {
+                try
+                {
+                    var query = InfoWatchQuery.Parse(expression);
+                    object? root;
+                    switch (query.Root)
+                    {
+                        case "hero": root = valid ? hero : null; break;
+                        case "player": root = valid ? PlayerData.instance : null; break;
+                        case "game": root = manager; break;
+                        case "position": root = valid ? (object)hero!.transform.position : null; break;
+                        case "velocity": root = valid ? (object?)hero!.GetComponent<Rigidbody2D>()?.velocity : null; break;
+                        default: root = ResolveTarget(query); break;
+                    }
+                    values["watch:" + expression] = query.Read(root);
+                }
+                catch (Exception error)
+                {
+                    values["watch:" + expression] = null;
+                    errors[expression] = error.Message;
+                }
+            }
             return new Dictionary<string, string>
             {
                 ["snapshotId"] = "info-" + Guid.NewGuid().ToString("N"),
-                ["snapshotJson"] = JsonConvert.SerializeObject(new { schemaVersion = 1, nativeFrame, movieFrame, values })
+                ["snapshotJson"] = JsonConvert.SerializeObject(new { schemaVersion = 1, nativeFrame, movieFrame, values, errors })
             };
+        }
+
+        private static object? ResolveTarget(InfoWatchQuery query)
+        {
+            // Explicit active object path only; no global component/FSM enumeration.
+            var target = GameObject.Find(query.ObjectPath);
+            if (target == null) throw new InvalidOperationException("Active object not found: " + query.ObjectPath);
+            if (query.Root == "component")
+            {
+                var components = target.GetComponents<Component>().Where(c => c != null
+                    && (c.GetType().FullName == query.ComponentName || c.GetType().Name == query.ComponentName)).ToArray();
+                if (components.Length != 1) throw new InvalidOperationException("Expected exactly one component: " + query.ComponentName);
+                return components[0];
+            }
+            // PlayMakerFSM.Fsm can assign Owner; never initialize/access a FSM through its getters.
+            var fsms = target.GetComponents<PlayMakerFSM>().Select(f => RawFields.Read(f, "fsm"))
+                .Where(f => (RawFields.Read(f, "name") as string) == query.FsmName).ToArray();
+            if (fsms.Length != 1) throw new InvalidOperationException("Expected exactly one FSM: " + query.FsmName);
+            var variables = RawFields.Read(fsms[0], "variables");
+            if (variables == null) throw new InvalidOperationException("FSM variables are not initialized.");
+            var matches = new List<object>();
+            foreach (var field in RawFields.Fields(variables.GetType()))
+            {
+                if (!field.FieldType.IsArray || !typeof(HutongGames.PlayMaker.NamedVariable).IsAssignableFrom(field.FieldType.GetElementType()!)) continue;
+                if (!(field.GetValue(variables) is Array array)) continue;
+                foreach (var variable in array)
+                    if ((RawFields.Read(variable, "name") as string) == query.VariableName) matches.Add(variable);
+            }
+            if (matches.Count != 1) throw new InvalidOperationException("Expected exactly one FSM variable: " + query.VariableName);
+            return RawFields.Read(matches[0], "value");
         }
 
         private static object? ReadTimer(FieldInfo? field, HeroController hero)

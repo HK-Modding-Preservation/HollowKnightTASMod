@@ -20,6 +20,8 @@ namespace HollowKnightTAS.Companion.Tests
             Assert.IsTrue(settings.Enabled); Assert.AreEqual(8, settings.Items.Count);
             CollectionAssert.AreEqual(new[] { "frame", "room", "position", "velocity", "dash", "shade", "healthPair", "soul" }, settings.Items.Select(x => x.Field).ToArray());
             Assert.AreEqual("F11", settings.Hotkey);
+            Assert.AreEqual("右上", settings.Anchor);
+            Assert.AreEqual(8d, settings.MarginX); Assert.AreEqual(8d, settings.MarginY);
         }
         [TestMethod]
         public void PausedValuesDoNotChangeAndNewSnapshotsReplaceRatherThanMerge()
@@ -81,6 +83,38 @@ namespace HollowKnightTAS.Companion.Tests
                 Assert.ThrowsExactly<InvalidDataException>(() => settings.Validate());
             }
             finally { if (File.Exists(path)) File.Delete(path); Directory.Delete(Path.GetDirectoryName(path)!); }
+        }
+
+        [TestMethod]
+        public void CustomWatchesFormatEachScalarTypeAndKeepIndependentExpressions()
+        {
+            var row = InfoOverlayModel.NewItem("custom"); row.Expression = "hero.cooldown"; row.Precision = 2;
+            Assert.AreEqual("0.82", InfoOverlayModel.Format(row, Values("{\"watch:hero.cooldown\":0.82}")));
+            row.Expression = "hero.flag";
+            Assert.AreEqual(UiText.T("是"), InfoOverlayModel.Format(row, Values("{\"watch:hero.flag\":true}")));
+            row.Expression = "game.state";
+            Assert.AreEqual("PLAYING", InfoOverlayModel.Format(row, Values("{\"watch:game.state\":\"PLAYING\"}")));
+            Assert.AreEqual("—", InfoOverlayModel.Format(row, Values("{\"watch:hero.flag\":true}")));
+        }
+        [TestMethod]
+        public void MigrationMovesOnlyOldDefaultPositionAndPreservesUserRows()
+        {
+            var path = Path.GetTempFileName();
+            try
+            {
+                var settings = InfoOverlaySettings.Defaults(); settings.Version = 1;
+                settings.Anchor = "左上"; settings.MarginX = 16; settings.MarginY = 160;
+                settings.Items.Add(InfoOverlayModel.NewItem("facingRight"));
+                File.WriteAllText(path, JsonSerializer.Serialize(settings));
+                var migrated = InfoOverlaySettings.Load(path);
+                Assert.AreEqual(2, migrated.Version); Assert.AreEqual("右上", migrated.Anchor);
+                Assert.AreEqual(8d, migrated.MarginY); Assert.AreEqual(9, migrated.Items.Count);
+                settings.MarginX = 42;
+                File.WriteAllText(path, JsonSerializer.Serialize(settings));
+                var customized = InfoOverlaySettings.Load(path);
+                Assert.AreEqual("左上", customized.Anchor); Assert.AreEqual(42d, customized.MarginX);
+            }
+            finally { File.Delete(path); }
         }
     }
 }

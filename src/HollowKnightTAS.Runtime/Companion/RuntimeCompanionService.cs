@@ -343,9 +343,7 @@ namespace HollowKnightTAS.Runtime.Companion
             UnityEngine.Object.DontDestroyOnLoad(gameObject);
             runner =
                 gameObject.AddComponent<RuntimeCompanionServiceRunner>();
-            runner.Initialize(
-                launcher,
-                settings.CompanionOverlayEnabled);
+            runner.Initialize(launcher);
         }
 
         internal static void HandleHotkey(CompanionLauncher active)
@@ -400,15 +398,9 @@ namespace HollowKnightTAS.Runtime.Companion
         MonoBehaviour
     {
         private CompanionLauncher? launcher;
-        private bool showOverlay;
-        private GUIStyle? style;
-
-        public void Initialize(
-            CompanionLauncher value,
-            bool overlayEnabled)
+        public void Initialize(CompanionLauncher value)
         {
             launcher = value;
-            showOverlay = overlayEnabled;
         }
 
         private void Update()
@@ -420,39 +412,5 @@ namespace HollowKnightTAS.Runtime.Companion
             }
         }
 
-        private void OnGUI()
-        {
-            if (Media.RuntimeVideoCapture.HideTasOverlays) return;
-            if (!showOverlay || launcher == null)
-            {
-                return;
-            }
-
-            var status = launcher.Snapshot;
-            if (style == null)
-            {
-                style = new GUIStyle(GUI.skin.box)
-                {
-                    fontSize = 13,
-                    wordWrap = true
-                };
-                style.normal.textColor = Color.white;
-            }
-
-            var text =
-                "HKTAS Companion: "
-                + status.State
-                + "\n"
-                + status.Detail
-                + "\nF10 start/reconnect | Shift+F10 disable";
-            GUI.Box(
-                new Rect(
-                    Math.Max(8, Screen.width - 430),
-                    8,
-                    420,
-                    72),
-                text,
-                style);
-        }
     }
 }

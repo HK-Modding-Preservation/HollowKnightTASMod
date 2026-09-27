@@ -18,9 +18,16 @@ namespace HollowKnightTAS.Companion.Services
         private IntPtr handle;
         private int nativeLeft, nativeTop, nativeWidth, nativeHeight;
         private bool hasNativeBounds;
+        private uint nativeDpi;
+        private IntPtr gameOwner;
+        private readonly InfoOverlayWindowTracker tracker;
+        public bool IsOwnerMoving => tracker.IsMoving;
 
         public InfoOverlayWindow()
         {
+            tracker = new InfoOverlayWindowTracker(Dispatcher, SetBounds, Hide);
+            IsVisibleChanged += (_, _) => tracker.SetVisible(IsVisible);
+            Closed += (_, _) => tracker.Dispose();
             WindowStyle = WindowStyle.None;
             ResizeMode = ResizeMode.NoResize;
             ShowInTaskbar = false;
@@ -118,6 +125,9 @@ namespace HollowKnightTAS.Companion.Services
 
         public void SetBounds(int left, int top, int width, int height, uint dpi)
         {
+            if (hasNativeBounds && nativeLeft == left && nativeTop == top
+                && nativeWidth == width && nativeHeight == height && nativeDpi == dpi) return;
+            nativeDpi = dpi;
             nativeLeft = left;
             nativeTop = top;
             nativeWidth = width;
@@ -135,9 +145,11 @@ namespace HollowKnightTAS.Companion.Services
 
         public void SetOwner(IntPtr owner)
         {
-            if (owner == IntPtr.Zero) return;
+            if (owner == IntPtr.Zero || gameOwner == owner) return;
             if (handle == IntPtr.Zero) handle = new WindowInteropHelper(this).EnsureHandle();
             new WindowInteropHelper(this).Owner = owner;
+            gameOwner = owner;
+            tracker.SetOwner(owner);
         }
 
         public void ShowOverlay()
