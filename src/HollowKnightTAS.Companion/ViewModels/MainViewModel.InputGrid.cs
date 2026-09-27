@@ -18,6 +18,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private readonly Stack<string> gridRedo = new Stack<string>();
         private string gridSource = string.Empty;
         private string gridStart = "0", gridCount = "1", gridStatus = "打开序列或播放以开始编辑。";
+        private string gridInsertCount = "1";
         private long gridPageStart;
         private long gridTotalFrames;
         private long lastFollowedGridFrame = -1;
@@ -92,6 +93,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             .Where(a => a != TasAction.None && a != TasAction.AllGameplay).ToArray();
         public string GridStart { get => gridStart; set => Set(ref gridStart, value); }
         public string GridCount { get => gridCount; set => Set(ref gridCount, value); }
+        public string GridInsertCount { get => gridInsertCount; set => Set(ref gridInsertCount, value); }
         public string GridStatus { get => gridStatus; private set => Set(ref gridStatus, value); }
         public TasAction GridAction { get => gridAction; set => Set(ref gridAction, value); }
         public bool AutoFollowGrid
@@ -166,13 +168,14 @@ namespace HollowKnightTAS.Companion.ViewModels
             InsertGridCommand = Local(() =>
             {
                 var source = GridAny();
+                var count = ParseCount(GridInsertCount, 1, MovieProtocolV2.MaximumExpandedFrames, "插入帧数");
                 if (source.V2Document != null)
                     EditGrid(new MovieV2TimelineEditor().InsertFrames(source.V2Document,
-                        GridIndex(), new[] { new NativeFrameRun(GridLength(),
+                        GridIndex(), new[] { new NativeFrameRun(count,
                             Array.Empty<GameInputSample>(),
                             new MovieSourceSpan("<input-grid>", 1, 1, 1), ParseFrameRate(DefaultFrameRate), true) }));
                 else EditGrid(MovieTimelineEditor.Insert(source.V1Document!, GridIndex(),
-                    new[] { new FrameRunCommand(GridLength(), TasAction.None, 0, 0, false,
+                    new[] { new FrameRunCommand(count, TasAction.None, 0, 0, false,
                         new MovieSourceSpan("<input-grid>", 1, 1, 1)) }).Movie);
             });
             DeleteGridCommand = Local(() =>

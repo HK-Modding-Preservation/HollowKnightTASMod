@@ -15,12 +15,12 @@ namespace HollowKnightTAS.Companion.Services
 
     public sealed class StudioQuickSlots
     {
-        private readonly string path;
+        private readonly string? path;
         public StudioQuickSlot[] Slots { get; private set; } = Enumerable.Range(0, 10).Select(_ => new StudioQuickSlot()).ToArray();
-        public StudioQuickSlots(string path)
+        public StudioQuickSlots(string? path = null)
         {
             this.path = path;
-            if (!File.Exists(path)) return;
+            if (path == null || !File.Exists(path)) return;
             if (new FileInfo(path).Length > 65536) throw new InvalidDataException("快捷槽配置过大；未覆盖原文件。");
             var slots = JsonSerializer.Deserialize<StudioQuickSlot[]>(File.ReadAllText(path));
             if (slots == null || slots.Length != 10 || slots.Any(s => s == null || s.SaveId == null || s.PendingLabel == null))
@@ -33,6 +33,7 @@ namespace HollowKnightTAS.Companion.Services
             if (index < 0 || index >= 10) throw new ArgumentOutOfRangeException(nameof(index));
             var next = (StudioQuickSlot[])Slots.Clone();
             next[index] = new StudioQuickSlot { SaveId = saveId, Tick = tick, PendingLabel = pendingLabel };
+            if (path == null) { Slots = next; return; }
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
             var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try

@@ -55,6 +55,16 @@ namespace HollowKnightTAS.Companion.Tests
                     vm.RefreshGridCommand.Execute(null);
                     var window = new MainWindow();
                     window.DataContext = vm;
+                    window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    var follow = Find<CheckBox>(window).Single(box =>
+                        System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "HktasStudio.AutoFollowGrid");
+                    follow.GetBindingExpression(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty)!.UpdateTarget();
+                    Assert.IsTrue(follow.IsChecked == true, "Follow playback must be checked when Studio opens.");
+                    var insertCount = Find<TextBox>(window).Single(box =>
+                        System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "HktasStudio.InsertFrameCount");
+                    insertCount.Text = "12";
+                    insertCount.GetBindingExpression(TextBox.TextProperty)!.UpdateSource();
+                    Assert.AreEqual("12", vm.GridInsertCount);
                     var restoreBar = Find<ProgressBar>(window).Single(bar =>
                         System.Windows.Data.BindingOperations.GetBinding(bar, ProgressBar.ValueProperty)?.Path.Path
                             == nameof(MainViewModel.RestoreProgress));

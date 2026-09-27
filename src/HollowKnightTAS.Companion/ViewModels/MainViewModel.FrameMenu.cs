@@ -15,19 +15,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 {
     public sealed partial class MainViewModel
     {
-        private readonly Dictionary<long, string> frameSaves = new();
         private static string FrameSaveRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HollowKnightTAS", "studio-frame-saves");
-        private void LoadFrameSaveIndex()
-        {
-            var path = Path.Combine(FrameSaveRoot, "index.json");
-            if (!File.Exists(path) || new FileInfo(path).Length > 1024 * 1024) return;
-            var index = JsonSerializer.Deserialize<Dictionary<long, string>>(File.ReadAllText(path));
-            if (index == null) return;
-            foreach (var item in index)
-                if (item.Key >= 0 && item.Key <= MovieProtocolV2.MaximumExpandedFrames
-                    && Path.GetFullPath(item.Value).StartsWith(FrameSaveRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                    && File.Exists(item.Value)) frameSaves[item.Key] = item.Value;
-        }
         public bool HasFrameSave(long frame) { InitializeWorldlines(); return FindTimelineFrame(frame) != null; }
         private sealed class FrameSave
         {

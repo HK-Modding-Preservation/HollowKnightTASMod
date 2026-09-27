@@ -73,8 +73,8 @@
   },
   {
     "Key": "t12",
-    "Source": "Paste 替换选区",
-    "Zh": "替换选区",
+    "Source": "粘贴",
+    "Zh": "粘贴",
     "En": "Paste"
   },
   {
@@ -91,21 +91,21 @@
   },
   {
     "Key": "t15",
-    "Source": "打开序列…",
-    "Zh": "打开序列…",
-    "En": "Open sequence…"
+    "Source": "打开序列",
+    "Zh": "打开序列",
+    "En": "Open sequence"
   },
   {
     "Key": "t16",
-    "Source": "保存序列…",
-    "Zh": "保存序列…",
-    "En": "Save sequence…"
+    "Source": "保存序列到...",
+    "Zh": "保存序列到...",
+    "En": "Save sequence to..."
   },
   {
     "Key": "t17",
-    "Source": "重新计算到选中帧",
-    "Zh": "重新计算到选中帧",
-    "En": "Recompute to selected frame"
+    "Source": "回放到当前帧",
+    "Zh": "回放到当前帧",
+    "En": "Replay to current frame"
   },
   {
     "Key": "t18",
@@ -967,14 +967,14 @@
   },
   {
     "Key": "t161",
-    "Source": "已修改过去的帧，请先点击重新计算到选中帧。",
-    "Zh": "已修改过去的帧，请先点击重新计算到选中帧。",
+    "Source": "已修改过去的帧，请先点击回放到当前帧。",
+    "Zh": "已修改过去的帧，请先点击回放到当前帧。",
     "En": "Past frames were edited. Recompute to the selected frame first."
   },
   {
     "Key": "t162",
-    "Source": "已修改过去的帧，请先点击重新计算到选中帧；未来帧修改会自动生效。",
-    "Zh": "已修改过去的帧，请先点击重新计算到选中帧；未来帧修改会自动生效。",
+    "Source": "已修改过去的帧，请先点击回放到当前帧；未来帧修改会自动生效。",
+    "Zh": "已修改过去的帧，请先点击回放到当前帧；未来帧修改会自动生效。",
     "En": "Past frames were edited. Recompute to the selected frame first; future edits apply automatically."
   },
   {
@@ -2314,5 +2314,6 @@
   "Source": "{0} 槽空槽",
   "Zh": "{0} 槽空槽",
   "En": "Slot {0} empty"
-}
+},
+  {"Key": "insertFrameCount", "Source": "插入帧数", "Zh": "插入帧数", "En": "Insert count"}
 ]

@@ -91,6 +91,10 @@
             <Button Content="{ui:Text t10}" Command="{Binding RedoGridCommand}" />
             <Button Content="{ui:Text t11}" Command="{Binding CopyGridCommand}" />
             <Button Content="{ui:Text t12}" Command="{Binding PasteGridCommand}" />
+            <TextBlock Text="{ui:Text insertFrameCount}" VerticalAlignment="Center" Margin="8,0,4,0" />
+            <TextBox Text="{Binding GridInsertCount, UpdateSourceTrigger=PropertyChanged}" Width="64"
+                     VerticalContentAlignment="Center" ToolTip="{ui:Text insertFrameCount}"
+                     AutomationProperties.AutomationId="HktasStudio.InsertFrameCount" />
             <Button Content="{ui:Text t13}" Command="{Binding InsertGridCommand}" />
             <Button Content="{ui:Text t14}" Command="{Binding DeleteGridCommand}" />
           </WrapPanel>

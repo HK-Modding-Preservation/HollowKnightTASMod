@@ -92,29 +92,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (worldlines != null) return;
             try
             {
-                worldlines = new StudioTimelineStore(Path.Combine(FrameSaveRoot, "timelines.json"));
-                if (!worldlines.Library.LegacyImported)
-                {
-                    worldlines.Update(library =>
-                    {
-                        foreach (var path in frameSaves.Values.OrderBy(File.GetCreationTimeUtc))
-                        {
-                            var save = System.Text.Json.JsonSerializer.Deserialize<FrameSave>(File.ReadAllText(path))!;
-                            var movie = TimelineTree.Parse(save.Movie);
-                            var tree = library.Trees.FirstOrDefault(t => t.Nodes[0].Movie.Length != 0
-                                && TimelineTree.SameBaseline(t.OriginalHashes, save.OriginalHashes)
-                                && HollowKnightTAS.Core.Movie.MovieV2Prefix.Matches(TimelineTree.Parse(t.Nodes[0].Movie), movie, 0));
-                            if (tree == null)
-                            {
-                                tree = library.Trees.FirstOrDefault(t => t.Nodes.Count == 1 && t.Nodes[0].Movie.Length == 0) ?? new TimelineTree();
-                                if (!library.Trees.Contains(tree)) library.Trees.Add(tree);
-                            }
-                            tree.Add(save.Frame, save.Movie, save.OriginalHashes);
-                            library.ActiveTreeId = tree.Id;
-                        }
-                        library.LegacyImported = true;
-                    });
-                }
+                worldlines = new StudioTimelineStore();
                 if (freshTimeline != null)
                 {
                     selectedTimelineTree = freshTimeline;

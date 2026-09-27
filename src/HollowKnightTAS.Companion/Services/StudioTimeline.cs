@@ -148,12 +148,13 @@ namespace HollowKnightTAS.Companion.Services
 
     public sealed class StudioTimelineStore
     {
-        private readonly string path;
+        private readonly string? path;
         public TimelineLibrary Library { get; private set; }
-        public StudioTimelineStore(string path)
+        // Studio uses a session-only store. An explicit path is reserved for offline tools.
+        public StudioTimelineStore(string? path = null)
         {
             this.path = path;
-            if (File.Exists(path))
+            if (path != null && File.Exists(path))
             {
                 if (new FileInfo(path).Length > 256L * 1024 * 1024) throw new InvalidDataException("时间线数据超过 256 MiB。");
                 Library = JsonSerializer.Deserialize<TimelineLibrary>(File.ReadAllText(path)) ?? throw new InvalidDataException("时间线数据为空。");
@@ -167,11 +168,12 @@ namespace HollowKnightTAS.Companion.Services
         }
         public void Update(Action<TimelineLibrary> edit)
         {
-            // Publish only after atomic persistence succeeds. Disk errors cannot leave a phantom node.
+            // Validate a copy before publishing, so failed edits cannot leave a phantom node.
             var next = JsonSerializer.Deserialize<TimelineLibrary>(JsonSerializer.Serialize(Library))!;
             edit(next); Validate(next);
             var bytes = JsonSerializer.SerializeToUtf8Bytes(next);
             if (bytes.Length > 256L * 1024 * 1024) throw new InvalidDataException("时间线数据超过 256 MiB，请清理不需要的分支。");
+            if (path == null) { Library = next; return; }
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
             var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try

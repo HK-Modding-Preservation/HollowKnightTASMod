@@ -32,8 +32,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         {
             try
             {
-                quickSlots = new StudioQuickSlots(Path.Combine(Environment.GetFolderPath(
-                    Environment.SpecialFolder.LocalApplicationData), "HollowKnightTAS", "studio-quick-slots.json"));
+                quickSlots = new StudioQuickSlots();
             }
             catch (Exception e) { QuickSlotStatus = "快捷槽不可用：" + e.Message; }
             SaveQuickSlotCommand = Command(() => RunQuickSlotAsync(true), allowStartupContinue: true);
