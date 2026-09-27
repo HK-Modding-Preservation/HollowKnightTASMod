@@ -6,7 +6,7 @@ HollowKnightTAS Studio 用来录制、编辑和回放《空洞骑士》的逐帧
 
 ## 安装与启动
 
-需要 Windows x64、《空洞骑士》和已安装的 Modding API。使用完整的 HollowKnightTAS 发布包，保留配套工具的目录结构。Studio 发布包自带 .NET 运行时；导出视频另需 FFmpeg。
+需要 Windows x64、《空洞骑士》和已安装的 Modding API。使用完整的 HollowKnightTAS 发布包，保留配套工具的目录结构。Studio 发布包自带 .NET 运行时和 FFmpeg 视频编码器。
 
 1. 保存编辑并关闭游戏和 Studio。
 2. 将包解压到游戏的 `hollow_knight_Data/Managed/Mods/HollowKnightTAS`。若压缩包已有顶层 `HollowKnightTAS` 文件夹，则解压到 `Mods`。避免形成双层同名目录。
@@ -73,7 +73,7 @@ Ctrl+S 或「保存序列」首次选择文件路径，之后覆盖当前文件�
 
 ## 导出 MP4
 
-准备 `ffmpeg.exe` 和一个尚不存在的 `.mp4` 输出路径。当前视频导出要求序列固定为 50 fps。
+选择一个尚不存在的 `.mp4` 输出路径，Studio 会使用内置编码器。当前视频导出要求序列固定为 50 fps。
 
 - 输入编辑器的 MP4 按钮导出当前完整序列，包括未来草稿输入。
 - 时间线中设置起点和终点，导出同一祖先路径上的区间 `(起点帧,终点帧]`。反向选择自动排序，兄弟分支之间不能直接导出。

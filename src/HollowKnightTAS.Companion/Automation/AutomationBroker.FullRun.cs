@@ -99,6 +99,8 @@ namespace HollowKnightTAS.Companion.Automation
                 { ["requestId"] = command.RequestId };
                 if (command.CommandId == AutomationCommandIds.StartVideoExport
                     && !fields.ContainsKey("replayLoadedMovie")) fields["replayLoadedMovie"] = "true";
+                if (command.CommandId == AutomationCommandIds.StartVideoExport)
+                    HollowKnightTAS.Companion.Services.BundledFfmpeg.ApplyDefault(fields);
                 var result = await ForwardAsync(runtime, command, command.CommandId,
                     fields, IpcMessageTypes.CommandAccepted, cancellationToken);
                 if (result.Success && command.CommandId == AutomationCommandIds.StartVideoExport)

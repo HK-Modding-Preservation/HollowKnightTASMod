@@ -122,7 +122,7 @@ MCP 对应 `hktas_get_object_details`；SDK 的 `GetObjectDetailsJsonAsync` 自�
 
 ## 视频、完成状态与失败处理
 
-`startVideoExport` / `hktas_start_video_export` 使用 `control.playback`，需要暂停的固定 50 fps 回放；必填 `ffmpegPath`、不存在的 `outputPath`、正整数 `maximumFrames` 和 `expectedRuntimeMode=Paused`。`maximumFrames` 是采集上限，必须严格大于所选区间的 Movie 帧数，并为加载画面留出余量；可传 `endMovieFrame` 指定 Movie 终点。全流程导出从当前回放位置录制剩余区间并自动结束；完整导出或区间准备可直接使用 Studio。`cancelVideoExport` 携带该次 `operationId`。全流程不使用手动 finish 收尾。
+`startVideoExport` / `hktas_start_video_export` 使用 `control.playback`，需要暂停的固定 50 fps 回放，默认使用内置编码器。`ffmpegPath` 可选，用于指定其他编码器路径（SDK 传 `null` 使用内置版本）。必填不存在的 `outputPath`、正整数 `maximumFrames` 和 `expectedRuntimeMode=Paused`。`maximumFrames` 是采集上限，必须严格大于所选区间的 Movie 帧数，并为加载画面留出余量；可传 `endMovieFrame` 指定 Movie 终点。全流程导出从当前回放位置录制剩余区间并自动结束；完整导出或区间准备可直接使用 Studio。`cancelVideoExport` 携带该次 `operationId`。全流程不使用手动 finish 收尾。
 
 请求成功只表示接受。读取 `fullRunStatus` / `getStatus` 的返回数据，检查实际帧、故障、回放停止原因以及视频状态；以匹配操作的 `Completed` 为完成，`Failed` 和 `Cancelled` 均不代表成功。嵌套 Runtime 状态按返回字段解析。
 

@@ -22,6 +22,65 @@ namespace HollowKnightTAS.Companion.Tests
         private static readonly string Hash = new('a', 64);
 
         [TestMethod]
+        public async Task SdkCanRequestBundledEncoderWithoutAPath()
+        {
+            var command = await CaptureCommandAsync((client, token) => client.StartVideoExportAsync(
+                null, "movie.mp4", 10000, "lease-test", "Paused", 1400, true, token));
+            Assert.IsFalse(command.Arguments.ContainsKey("ffmpegPath"));
+            Assert.IsNull(Validate("ValidateArgumentShape", command));
+            Assert.IsNull(Validate("ValidateArgumentValues", command));
+            Assert.IsTrue(HollowKnightTAS.AgentBridge.McpCatalog.TryGetTool("hktas_start_video_export", out var tool));
+            var required = tool!.InputSchema["required"]!.AsArray();
+            Assert.IsFalse(System.Linq.Enumerable.Any(required, value => value!.GetValue<string>() == "ffmpegPath"));
+        }
+
+        [TestMethod]
+        public void DefaultEncoderIgnoresPathAndCurrentDirectory()
+        {
+            var expected = Path.Combine(AppContext.BaseDirectory, "Tools", "ffmpeg", "ffmpeg.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(expected)!);
+            // CreateNew protects any real encoder already present in the test output.
+            using (new FileStream(expected, FileMode.CreateNew)) { }
+            var oldPath = Environment.GetEnvironmentVariable("PATH");
+            var oldDirectory = Environment.CurrentDirectory;
+            try
+            {
+                Environment.SetEnvironmentVariable("PATH", "");
+                Environment.CurrentDirectory = Path.GetTempPath();
+                foreach (var fields in new[] { new Dictionary<string, string>(),
+                    new Dictionary<string, string> { ["ffmpegPath"] = " " } })
+                {
+                    BundledFfmpeg.ApplyDefault(fields);
+                    Assert.AreEqual(expected, fields["ffmpegPath"]);
+                }
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("PATH", oldPath);
+                Environment.CurrentDirectory = oldDirectory;
+                File.Delete(expected);
+            }
+        }
+
+        [TestMethod]
+        public void BundledEncoderResolvesRelativeToInstallationAndReportsMissingFile()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "HKTAS 编码器 " + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Assert.ThrowsExactly<FileNotFoundException>(() => BundledFfmpeg.Resolve(root));
+                var expected = Path.Combine(root, "Tools", "ffmpeg", "ffmpeg.exe");
+                Directory.CreateDirectory(Path.GetDirectoryName(expected)!);
+                File.WriteAllBytes(expected, new byte[] { 0 });
+                Assert.AreEqual(expected, BundledFfmpeg.Resolve(root));
+                var fields = new Dictionary<string, string> { ["ffmpegPath"] = expected };
+                BundledFfmpeg.ApplyDefault(fields);
+                Assert.AreEqual(expected, fields["ffmpegPath"]);
+            }
+            finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+        }
+
+        [TestMethod]
         [Timeout(15000)]
         public async Task ExistingSdkCallOmitsEndFrameAndNewCallPreservesExactBoundary()
         {

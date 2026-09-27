@@ -6,7 +6,7 @@ HollowKnightTAS Studio records, edits and replays frame-by-frame input for Hollo
 
 ## Install and start
 
-You need Windows x64, Hollow Knight and an installed Modding API. Use a complete HollowKnightTAS release package and preserve the companion directory structure. The Studio release includes its .NET runtime. Video export also requires FFmpeg.
+You need Windows x64, Hollow Knight and an installed Modding API. Use a complete HollowKnightTAS release package and preserve the companion directory structure. The Studio release includes its .NET runtime and FFmpeg video encoder.
 
 1. Save your edits and close the game and Studio.
 2. Extract the package into `hollow_knight_Data/Managed/Mods/HollowKnightTAS` under the game directory. If the archive already has a top-level `HollowKnightTAS` folder, extract it into `Mods`. Avoid nesting two folders with the same name.
@@ -73,7 +73,7 @@ Opening another file validates it first, then pauses and records the current bra
 
 ## Export MP4
 
-Provide `ffmpeg.exe` and a `.mp4` output path that does not already exist. Video export currently requires a sequence fixed at 50 fps throughout.
+Choose a `.mp4` output path that does not already exist. Studio uses its bundled encoder. Video export currently requires a sequence fixed at 50 fps throughout.
 
 - The Input Editor MP4 button exports the entire current sequence, including future draft input.
 - Set a start and end node in Timeline to export `(start frame,end frame]` on one ancestor path. Reverse selections are reordered automatically; sibling branches cannot form a range.

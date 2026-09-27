@@ -106,6 +106,8 @@ Save your edits and close the game and Studio. Omit `-StageOnly` to build and in
 
 `HKModsDir` in `LocalBuildProperties.props` determines the installation location. The script checks that the game and Studio are closed, replaces Companion, builds Runtime and verifies the installed signed bundle. It produces `HollowKnightTAS.zip` and `SHA256.txt`. The zip root contains the Mod files; extract it into `Mods/HollowKnightTAS`.
 
+The build runs `scripts/Stage-BundledFfmpeg.ps1` to download the pinned FFmpeg 8.0.1 essentials build, verify its SHA-256 and cache it in `.local/ffmpeg`. The signed bundle includes `Tools/ffmpeg/ffmpeg.exe`, the upstream license and build information. The first build needs network access; players can export video offline with the complete release. Redistribution must provide the corresponding source and dependency build materials under the included GPL license.
+
 ## Package a release with documentation
 
 `scripts/Package-StudioUpdate.ps1` packages an existing installation with Chinese and English versions of all three guides, without recompiling. Obtain and verify the lowercase SHA-256 hashes of the target installation's Runtime, Core and manifest, then pass them to the script:

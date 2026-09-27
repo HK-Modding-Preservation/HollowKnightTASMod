@@ -817,24 +817,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 throw new InvalidDataException("当前 MovieText 无法导出。");
             }
 
-            var ffmpegPath = FindFfmpegOnPath();
-            if (string.IsNullOrEmpty(ffmpegPath))
-            {
-                var ffmpegDialog = new OpenFileDialog
-                {
-                    Title = UiText.T("选择 FFmpeg 可执行文件"),
-                    Filter = UiText.T("FFmpeg (ffmpeg.exe)|ffmpeg.exe|所有文件|*.*"),
-                    CheckFileExists = true,
-                    Multiselect = false,
-                    FileName = "ffmpeg.exe"
-                };
-                if (ffmpegDialog.ShowDialog() != true)
-                {
-                    return;
-                }
-
-                ffmpegPath = ffmpegDialog.FileName;
-            }
+            var ffmpegPath = BundledFfmpeg.Resolve();
 
             var outputDialog = new SaveFileDialog
             {
@@ -893,20 +876,6 @@ namespace HollowKnightTAS.Companion.ViewModels
             VideoExportStatus = "已请求取消 · operationId=" + operationId;
             videoExportOperationId = string.Empty;
             Status = "视频导出取消请求已发送。";
-        }
-
-        private static string? FindFfmpegOnPath()
-        {
-            var path = Environment.GetEnvironmentVariable("PATH");
-            if (string.IsNullOrEmpty(path)) return null;
-            foreach (var directory in path.Split(Path.PathSeparator))
-            {
-                if (string.IsNullOrWhiteSpace(directory)) continue;
-                var candidate = Path.Combine(directory.Trim().Trim('"'), "ffmpeg.exe");
-                if (File.Exists(candidate)) return candidate;
-            }
-
-            return null;
         }
 
         private AsyncRelayCommand Command(Func<Task> action, bool requireConnected = true, bool allowStartupContinue = false, bool allowStartupStep = false, bool allowCompletedReplay = false, bool allowDuringVideoExport = false)

@@ -795,7 +795,7 @@ namespace HollowKnightTAS.Automation.Client
         }
 
         public Task<AutomationResultEnvelope> StartVideoExportAsync(
-            string ffmpegPath,
+            string? ffmpegPath,
             string outputPath,
             int maximumFrames,
             string leaseId,
@@ -816,10 +816,11 @@ namespace HollowKnightTAS.Automation.Client
                 throw new ArgumentOutOfRangeException(nameof(endMovieFrame));
             var fields = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["ffmpegPath"] = ffmpegPath, ["outputPath"] = outputPath,
+                ["outputPath"] = outputPath,
                 ["maximumFrames"] = maximumFrames.ToString(CultureInfo.InvariantCulture),
                 ["replayLoadedMovie"] = replayLoadedMovie ? "true" : "false"
             };
+            if (!string.IsNullOrWhiteSpace(ffmpegPath)) fields["ffmpegPath"] = ffmpegPath;
             if (endMovieFrame.HasValue) fields["endMovieFrame"] = endMovieFrame.Value.ToString(CultureInfo.InvariantCulture);
             return ExecuteAsync(
                 CreateCommand(

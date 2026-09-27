@@ -93,14 +93,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private static (string Ffmpeg, string Output)? PickVideoExportFiles()
         {
-            var ffmpeg = FindFfmpegOnPath();
-            if (string.IsNullOrEmpty(ffmpeg))
-            {
-                var picker = new OpenFileDialog { Title = UiText.T("选择 FFmpeg 可执行文件"),
-                    Filter = UiText.T("FFmpeg (ffmpeg.exe)|ffmpeg.exe|所有文件|*.*"), CheckFileExists = true, FileName = "ffmpeg.exe" };
-                if (picker.ShowDialog() != true) return null;
-                ffmpeg = picker.FileName;
-            }
+            var ffmpeg = BundledFfmpeg.Resolve();
             var output = new SaveFileDialog { Title = UiText.T("选择 MP4 导出文件（不会覆盖已有文件）"),
                 Filter = UiText.T("MP4 视频|*.mp4"), DefaultExt = ".mp4", AddExtension = true,
                 OverwritePrompt = false, FileName = "hktas-export.mp4" };

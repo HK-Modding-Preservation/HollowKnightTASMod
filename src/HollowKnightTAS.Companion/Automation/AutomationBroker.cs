@@ -986,6 +986,8 @@ namespace HollowKnightTAS.Companion.Automation
                     {
                         var videoFields = new Dictionary<string, string>(command.Arguments, StringComparer.Ordinal)
                         { ["requestId"] = command.RequestId };
+                        if (command.CommandId == AutomationCommandIds.StartVideoExport)
+                            BundledFfmpeg.ApplyDefault(videoFields);
                         return await ForwardAsync(session, command, command.CommandId, videoFields,
                             IpcMessageTypes.CommandAccepted, cancellationToken);
                     }
@@ -3235,8 +3237,8 @@ namespace HollowKnightTAS.Companion.Automation
             switch (command.CommandId)
             {
                 case AutomationCommandIds.StartVideoExport:
-                    required = new[] { "ffmpegPath", "outputPath", "maximumFrames" };
-                    optional = new[] { "replayLoadedMovie", "endMovieFrame" };
+                    required = new[] { "outputPath", "maximumFrames" };
+                    optional = new[] { "ffmpegPath", "replayLoadedMovie", "endMovieFrame" };
                     break;
                 case AutomationCommandIds.FinishVideoExport:
                 case AutomationCommandIds.CancelVideoExport:

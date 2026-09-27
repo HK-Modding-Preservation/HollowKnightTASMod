@@ -106,6 +106,8 @@ dotnet run --project src/HollowKnightTAS.BundleTool -c Release -- print-public .
 
 安装位置由 `LocalBuildProperties.props` 中的 `HKModsDir` 决定。脚本检查游戏和 Studio 未运行后替换 Companion，构建 Runtime，并验证已安装的签名包。生成 `HollowKnightTAS.zip` 和 `SHA256.txt`；该 zip 的根目录是 Mod 内容，安装时解压到 `Mods/HollowKnightTAS`。
 
+构建会通过 `scripts/Stage-BundledFfmpeg.ps1` 下载固定的 FFmpeg 8.0.1 essentials 构建并校验 SHA-256，缓存于 `.local/ffmpeg`。发布包包含 `Tools/ffmpeg/ffmpeg.exe`、上游许可及构建信息，并纳入签名清单。首次构建需要联网；发布给玩家的完整包可离线导出视频。再次分发时须按附带 GPL 许可提供对应源码和依赖的构建材料。
+
 ## 带文档的发布包
 
 `scripts/Package-StudioUpdate.ps1` 从现有安装生成包含三个指南各自中英文版本的 zip，不重新编译。先取得并核对目标安装的 Runtime、Core 和 manifest 的小写 SHA-256，再传入：

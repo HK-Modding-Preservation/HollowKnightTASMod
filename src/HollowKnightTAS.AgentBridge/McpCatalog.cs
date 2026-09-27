@@ -314,7 +314,7 @@ namespace HollowKnightTAS.AgentBridge
                     false),
                 Tool(
                     "hktas_start_video_export",
-                    "Start exporting gameplay frames and audio to a video file. Full-run v2 can stop capture at the optional inclusive endMovieFrame boundary.",
+                    "Start exporting gameplay frames and audio using the bundled encoder (ffmpegPath is an optional override). Full-run v2 can stop capture at the optional inclusive endMovieFrame boundary.",
                     Schema(
                         Props(
                             ("ffmpegPath", String(1024)),
@@ -326,7 +326,6 @@ namespace HollowKnightTAS.AgentBridge
                             ("expectedMovieTick", Integer(0))),
                         new[]
                         {
-                            "ffmpegPath",
                             "outputPath",
                             "maximumFrames",
                             "expectedRuntimeMode"

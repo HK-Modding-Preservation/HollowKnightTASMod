@@ -314,6 +314,8 @@ Copy-Item -Path (Join-Path $sdkPublishRoot '*') `
     -Recurse `
     -Force
 
+& (Join-Path $PSScriptRoot 'Stage-BundledFfmpeg.ps1') -Destination (Join-Path $toolsStage 'ffmpeg')
+
 & dotnet build $bundleToolProject `
     -c $Configuration `
     --nologo

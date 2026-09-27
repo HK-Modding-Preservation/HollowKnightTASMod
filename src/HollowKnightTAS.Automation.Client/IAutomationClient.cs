@@ -172,7 +172,7 @@ namespace HollowKnightTAS.Automation.Client
             CancellationToken cancellationToken = default);
 
         Task<AutomationResultEnvelope> StartVideoExportAsync(
-            string ffmpegPath,
+            string? ffmpegPath,
             string outputPath,
             int maximumFrames,
             string leaseId,
