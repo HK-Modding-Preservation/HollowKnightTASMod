@@ -166,6 +166,18 @@ namespace HollowKnightTAS.Runtime.FullRun
             string Value(string key, string fallback) => fields.TryGetValue(key, out var value) ? value : fallback;
             var id = Value("snapshotId", "");
             var view = Value("view", "world");
+            if (view == "fsms")
+            {
+                if (fields.Keys.Any(key => key != "requestId" && key != "view" && key != "watches"))
+                    throw new ArgumentException("FSM observations accept only view and watches.");
+                var json = Value("watches", "[]");
+                if (json.Length > 16000) throw new ArgumentException("FSM request is too large.");
+                var targets = Newtonsoft.Json.JsonConvert.DeserializeObject<string[]>(json)
+                    ?? throw new ArgumentException("watches must be an array.");
+                if (targets.Length > 32 || targets.Any(t => t == null || t.Length > 256))
+                    throw new ArgumentException("At most 32 FSM targets of 256 characters are supported.");
+                return observationQueue.Invoke(frame => worldObserver.CaptureFsms(frame, movieFrame, targets));
+            }
             if (view == "info")
             {
                 if (Value("snapshotId", "").Length != 0 || Value("offset", "0") != "0")
@@ -179,7 +191,7 @@ namespace HollowKnightTAS.Runtime.FullRun
                 return observationQueue.Invoke(frame => RuntimeInfoObservation.Capture(frame, movieFrame, watches));
             }
             if (fields.ContainsKey("watches")) throw new ArgumentException("watches requires the info view.");
-            if (view != "world" && view != "all" && view != "colliders") throw new ArgumentException("Unknown observation view.");
+            if (view != "world" && view != "all" && view != "colliders" && view != "fsmCatalog") throw new ArgumentException("Unknown observation view.");
             var inactive = Value("includeInactive", "false");
             if (inactive != "true" && inactive != "false") throw new ArgumentException("includeInactive must be true or false.");
             var offset = int.Parse(Value("offset", "0"), CultureInfo.InvariantCulture);

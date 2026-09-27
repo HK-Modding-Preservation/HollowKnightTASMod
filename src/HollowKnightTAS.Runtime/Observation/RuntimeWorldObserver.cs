@@ -30,7 +30,7 @@ namespace HollowKnightTAS.Runtime.Observation
     /// On-demand, synchronous observation. Construct and call only on Unity's main thread at the
     /// caller's completed-frame boundary. It installs no hooks and never advances a frame.
     /// </summary>
-    public sealed class RuntimeWorldObserver
+    public sealed partial class RuntimeWorldObserver
     {
         private readonly int ownerThread = Thread.CurrentThread.ManagedThreadId;
         private readonly string sessionId = Guid.NewGuid().ToString("N");
@@ -51,6 +51,7 @@ namespace HollowKnightTAS.Runtime.Observation
         public WorldCapture Capture(long nativeFrame, long movieFrame, string view = "world", bool includeInactive = false)
         {
             RequireMainThread();
+            if (view == "fsmCatalog") return CaptureFsmCatalog(nativeFrame, movieFrame);
             if (view != "world" && view != "all" && view != "colliders") throw new ArgumentException("view must be world, all, or colliders.", nameof(view));
             var errors = new List<object>();
             var hero = Existing<HeroController>();

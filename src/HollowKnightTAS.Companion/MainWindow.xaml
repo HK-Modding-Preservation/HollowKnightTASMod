@@ -239,6 +239,7 @@
         <TextBlock Text="{ui:Text t61}" TextWrapping="Wrap" Margin="0,6,0,16" />
       </StackPanel></ScrollViewer></TabItem>
       <TabItem x:Name="InfoOverlayTab" Header="{ui:Text 信息显示}" AutomationProperties.AutomationId="HktasStudio.InfoOverlayTab"><controls:InfoOverlaySettingsPanel /></TabItem>
+      <TabItem x:Name="FsmViewerTab" Header="{ui:Text Boss状态机}" AutomationProperties.AutomationId="HktasStudio.FsmViewerTab"><controls:FsmViewerPanel /></TabItem>
       <TabItem x:Name="ShortcutSettingsTab" Header="{ui:Text t62}">
         <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
           <TextBlock Text="{ui:Text t63}" FontSize="20" Margin="0,0,0,16" />

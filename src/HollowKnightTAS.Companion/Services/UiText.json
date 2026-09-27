@@ -2765,5 +2765,161 @@
     "Source": "自定义字段不可用：",
     "Zh": "自定义字段不可用：",
     "En": "Custom fields unavailable: "
+  },
+  {
+    "Key": "Boss状态机",
+    "Source": "Boss状态机",
+    "Zh": "Boss状态机",
+    "En": "Boss FSMs"
+  },
+  {
+    "Key": "选择Boss或场景对象",
+    "Source": "选择Boss或场景对象",
+    "Zh": "选择Boss或场景对象",
+    "En": "Select a boss or scene object"
+  },
+  {
+    "Key": "添加本体及子对象",
+    "Source": "添加本体及子对象",
+    "Zh": "添加本体及子对象",
+    "En": "Add object and children"
+  },
+  {
+    "Key": "刷新对象",
+    "Source": "刷新对象",
+    "Zh": "刷新对象",
+    "En": "Refresh objects"
+  },
+  {
+    "Key": "清空选择",
+    "Source": "清空选择",
+    "Zh": "清空选择",
+    "En": "Clear selection"
+  },
+  {
+    "Key": "搜索对象或状态机",
+    "Source": "搜索对象或状态机",
+    "Zh": "搜索对象或状态机",
+    "En": "Search objects or FSMs"
+  },
+  {
+    "Key": "搜索状态",
+    "Source": "搜索状态",
+    "Zh": "搜索状态",
+    "En": "Find state"
+  },
+  {
+    "Key": "定位当前状态",
+    "Source": "定位当前状态",
+    "Zh": "定位当前状态",
+    "En": "Locate current state"
+  },
+  {
+    "Key": "放大/还原",
+    "Source": "放大/还原",
+    "Zh": "放大/还原",
+    "En": "Expand / restore"
+  },
+  {
+    "Key": "适应",
+    "Source": "适应",
+    "Zh": "适应",
+    "En": "Fit"
+  },
+  {
+    "Key": "全局转移",
+    "Source": "全局转移",
+    "Zh": "全局转移",
+    "En": "Global transitions"
+  },
+  {
+    "Key": "起始",
+    "Source": "起始",
+    "Zh": "起始",
+    "En": "Start"
+  },
+  {
+    "Key": "当前",
+    "Source": "当前",
+    "Zh": "当前",
+    "En": "Current"
+  },
+  {
+    "Key": "当前：",
+    "Source": "当前：",
+    "Zh": "当前：",
+    "En": "Current: "
+  },
+  {
+    "Key": "未初始化",
+    "Source": "未初始化",
+    "Zh": "未初始化",
+    "En": "Not initialized"
+  },
+  {
+    "Key": "已禁用",
+    "Source": "已禁用",
+    "Zh": "已禁用",
+    "En": "Disabled"
+  },
+  {
+    "Key": "对象未激活",
+    "Source": "对象未激活",
+    "Zh": "对象未激活",
+    "En": "Object inactive"
+  },
+  {
+    "Key": "数据已过期",
+    "Source": "数据已过期",
+    "Zh": "数据已过期",
+    "En": "Stale data"
+  },
+  {
+    "Key": "等待状态图…",
+    "Source": "等待状态图…",
+    "Zh": "等待状态图…",
+    "En": "Waiting for graph…"
+  },
+  {
+    "Key": "等待游戏连接或回档完成…",
+    "Source": "等待游戏连接或回档完成…",
+    "Zh": "等待游戏连接或回档完成…",
+    "En": "Waiting for game connection or restore…"
+  },
+  {
+    "Key": "正在重新绑定状态机…",
+    "Source": "正在重新绑定状态机…",
+    "Zh": "正在重新绑定状态机…",
+    "En": "Rebinding FSMs…"
+  },
+  {
+    "Key": "场景已变化，正在重新绑定…",
+    "Source": "场景已变化，正在重新绑定…",
+    "Zh": "场景已变化，正在重新绑定…",
+    "En": "Scene changed; rebinding…"
+  },
+  {
+    "Key": "当前状态采样，不包含完整转移历史",
+    "Source": "当前状态采样，不包含完整转移历史",
+    "Zh": "当前状态采样，不包含完整转移历史",
+    "En": "Current-state samples; intermediate transitions are not recorded"
+  },
+  {
+    "Key": "状态机读取失败：",
+    "Source": "状态机读取失败：",
+    "Zh": "状态机读取失败：",
+    "En": "FSM read failed: "
+  },
+  {
+    "Key": "最多同时显示32张状态图。",
+    "Source": "最多同时显示32张状态图。",
+    "Zh": "最多同时显示32张状态图。",
+    "En": "Select up to 32 FSMs at a time."
+  },
+  {
+    "Key": "动作尚未加载，观察不会触发初始化。",
+    "Source": "动作尚未加载，观察不会触发初始化。",
+    "Zh": "动作尚未加载，观察不会触发初始化。",
+    "En": "Actions have not been loaded. Observation does not initialize them."
   }
 ]

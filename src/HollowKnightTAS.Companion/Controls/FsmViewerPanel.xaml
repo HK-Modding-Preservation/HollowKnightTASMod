@@ -1,0 +1,23 @@
+<UserControl x:Class="HollowKnightTAS.Companion.Controls.FsmViewerPanel"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:ui="clr-namespace:HollowKnightTAS.Companion.Services" Loaded="OnLoaded" Unloaded="OnUnloaded">
+ <Grid Margin="10">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <WrapPanel Margin="0,0,0,8">
+   <ComboBox x:Name="Objects" Width="420" ToolTip="{ui:Text 选择Boss或场景对象}"/>
+   <Button Content="{ui:Text 添加本体及子对象}" Click="AddObject" Margin="6,0"/>
+   <Button Content="{ui:Text 刷新对象}" Click="Refresh"/>
+   <Button Content="{ui:Text 清空选择}" Click="Clear" Margin="6,0"/>
+  </WrapPanel>
+  <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="280"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <DockPanel><TextBox x:Name="Filter" DockPanel.Dock="Top" ToolTip="{ui:Text 搜索对象或状态机}" TextChanged="FilterChanged" Margin="0,0,0,6"/>
+    <ListBox x:Name="Targets" HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+     <ListBox.ItemTemplate><DataTemplate><CheckBox IsChecked="{Binding Selected, Mode=TwoWay}" Checked="SelectionChanged" Unchecked="SelectionChanged"><TextBlock Text="{Binding Label}" TextWrapping="Wrap"/></CheckBox></DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+   </DockPanel>
+   <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Center"/>
+   <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><WrapPanel x:Name="Graphs" SizeChanged="GraphsSizeChanged"/></ScrollViewer>
+  </Grid>
+  <TextBlock x:Name="Status" Grid.Row="2" Margin="0,8,0,0" TextWrapping="Wrap"/>
+ </Grid>
+</UserControl>
