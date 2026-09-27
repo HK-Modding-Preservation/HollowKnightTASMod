@@ -100,7 +100,7 @@ internal static partial class StudioScenarioHarness
     {
         var before = MovieFrames(vm.MovieText);
         vm.GridStart = before.ToString(CultureInfo.InvariantCulture);
-        vm.GridCount = frames.ToString(CultureInfo.InvariantCulture);
+        vm.GridInsertCount = frames.ToString(CultureInfo.InvariantCulture);
         Execute(vm.InsertGridCommand);
         Require(MovieFrames(vm.MovieText) == before + frames, "neutral future draft appended");
     }
