@@ -12,14 +12,15 @@ namespace HollowKnightTAS.Companion.ViewModels
     public sealed partial class MainViewModel
     {
         private string sequenceDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "HollowKnightTAS", "Sequences");
-        private string sequenceAutoSaveSeconds = "60";
+        private const int DefaultSequenceAutoSaveSeconds = 300;
+        private string sequenceAutoSaveSeconds = DefaultSequenceAutoSaveSeconds.ToString();
         private string sequenceSaveStatus = "";
         private string activeSequenceDirectory = "";
-        private int activeAutoSaveSeconds = 60;
+        private int activeAutoSaveSeconds = DefaultSequenceAutoSaveSeconds;
         private string? sequenceSavePath;
         private string autoSaveName = Guid.NewGuid().ToString("N");
         private string lastAutoSaveText = "";
-        private DateTime nextSequenceAutoSave = DateTime.UtcNow.AddSeconds(60);
+        private DateTime nextSequenceAutoSave = DateTime.UtcNow.AddSeconds(DefaultSequenceAutoSaveSeconds);
         private bool sequenceSaving;
         private static string SequenceSettingsPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HollowKnightTAS", "studio-sequence-settings.json");
         public string SequenceDirectory { get => sequenceDirectory; set => Set(ref sequenceDirectory, value); }

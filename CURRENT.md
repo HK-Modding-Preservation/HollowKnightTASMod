@@ -1,3 +1,9 @@
+2026-09-27 序列自动保存默认间隔改为现实时间5分钟（300秒），保留已有用户设置；本机未发现已保存的序列设置。9项保存/回档定向检查通过，已更新签名安装与安装包，安装版启动正常退出（exit 0），Runtime/Core未变。本轮实际进度条、单向绑定启动修复与默认间隔一并本地提交，不推送。
+
+2026-09-27 回档进度条启动故障修复：ProgressBar.Value 默认双向绑定只读 RestoreProgress 导致 Studio 启动异常，现显式 Mode=OneWay。补充真实 WPF 主窗口绑定/半进度更新回归，独立 StudioThemeTests 1/1通过；已重新签名安装，安装版 --headless 启动及定时正常退出检查通过（exit 0）。Runtime/Core未变，未进行游戏内回放视觉验收。上条6项逻辑检查未覆盖窗口加载，不代表此前版本可启动。证据 artifacts/restore-progress/tests/startup-binding.trx、startup-probe.txt。
+
+2026-09-27 回档加载进度条改为实际 Movie 已完成帧数/目标帧数，不显示数字；准备阶段空条，新回放启动后接收进度，成功后填满。6项定向检查通过（实际比例、旧进程隔离、再次清零、零帧、失败解除及冻结保留），Release已构建并签名安装，包内492项核验通过（更新项与安装一致，其余与备份一致），Runtime/Core未改。未启动游戏进行视觉验收。Spec：mydocs/specs/tasks/D09_回档显示冻结.md；证据 artifacts/restore-progress/。
+
 2026-09-27 朋友跨机器回放测试包已准备：桌面 TAS回放测试包_嫉妒马尔穆_2026-09-27.zip（168674334 字节；SHA256 599b99fc216de7b74e89c43722598779cc95a5545417824de48dd1d235eb43c2），含最新 TAS、EnviousMarmu 1.0.0、带四槽初始快照的辐辉3800帧序列、中文说明/环境/校验。两个安装包顶层目录已适配直接解压到 Mods，492+2 项原内容哈希一致。使用默认 TAS 配置与实际安装 DLL，本机完整回放3354无存活马尔穆/9血、3800回神居/9血、Completed且fault/mismatch=0；原输入未变，仅另存实测环境头副本后验证，原序列不改。31原始user*文件不变，本机设置恢复，测试进程退出。本轮不改生产代码、不重建安装。系统/区域/画面等仍参与环境校验，朋友机器尚未验证，不宣称通用兼容。说明 docs/Friend-Replay-Test-Package.md；证据 artifacts/friend-replay/。仅本地提交，不推送。
 
 2026-09-27 Mod 菜单精简：删除 External automation / Debug state mutation 两项，仅保留 Studio 入口；Runtime 与 Studio 启动均固定 ApprovedControl，写命令的认证、租约和前置条件保留。旧两项配置忽略且不再保存。删除 Runtime 角色位置/速度、血量/灵魂 writer 及 mutation 事务实现，能力目录和 MCP 工具移除对应命令；旧协议字段仅兼容保留，旧命令拒绝。8 项配置/身份检查、8 项权限检查、13 项自动化管道集成、15 项 MCP 检查通过（44 项去重）；Release 构建和签名安装通过，安装 DLL 元数据确认旧设置、菜单处理器及 writer 类型不存在。未启动游戏做菜单视觉/播放验收，不继承旧构建的实机 PASS。Runtime/Core 和环境身份已更新，旧序列可能被环境校验拒绝，不改写其指纹。旧 T24 冻结静态 mutation allowlist 含已删除 writer，其对应审计范围不再适用于现代码，未重做历史矩阵。备份与本轮证据 artifacts/remove-mod-options/；协议 docs/protocol/Automation-v1.md。仅本地提交，不推送。

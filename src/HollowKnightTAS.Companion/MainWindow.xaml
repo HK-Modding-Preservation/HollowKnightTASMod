@@ -29,7 +29,7 @@
         <Style.Triggers><DataTrigger Binding="{Binding IsRestorePresentationFrozen}" Value="True"><Setter Property="Visibility" Value="Visible" /></DataTrigger></Style.Triggers>
       </Style></Border.Style>
       <StackPanel><TextBlock Text="{ui:Text t5}" Margin="0,0,0,5" />
-        <ProgressBar IsIndeterminate="True" Height="5" /></StackPanel>
+        <ProgressBar Minimum="0" Maximum="1" Value="{Binding RestoreProgress, Mode=OneWay}" Height="5" /></StackPanel>
     </Border>
     <Border DockPanel.Dock="Bottom" Padding="6" Margin="0,6,0,0" Background="{StaticResource PanelBrush}">
       <TextBlock Text="{ui:TextBinding Status}" TextWrapping="Wrap" MaxHeight="54"

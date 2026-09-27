@@ -2224,6 +2224,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                         CultureInfo.InvariantCulture, out var frame))
                 {
                     currentFullRunMovieFrame = frame;
+                    UpdateRestoreProgress(frame);
                     OnPropertyChanged(nameof(FrameCounterText));
                     TrackGridFrame(frame);
                 }

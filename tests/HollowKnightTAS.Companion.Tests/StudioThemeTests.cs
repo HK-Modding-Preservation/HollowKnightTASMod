@@ -55,6 +55,17 @@ namespace HollowKnightTAS.Companion.Tests
                     vm.RefreshGridCommand.Execute(null);
                     var window = new MainWindow();
                     window.DataContext = vm;
+                    var restoreBar = Find<ProgressBar>(window).Single(bar =>
+                        System.Windows.Data.BindingOperations.GetBinding(bar, ProgressBar.ValueProperty)?.Path.Path
+                            == nameof(MainViewModel.RestoreProgress));
+                    Assert.AreEqual(System.Windows.Data.BindingMode.OneWay,
+                        System.Windows.Data.BindingOperations.GetBinding(restoreBar, ProgressBar.ValueProperty)!.Mode);
+                    Assert.IsFalse(restoreBar.IsIndeterminate);
+                    typeof(MainViewModel).GetMethod("SetRestoreProgress",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(vm, new object[] { 0.5d });
+                    window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    restoreBar.GetBindingExpression(ProgressBar.ValueProperty)!.UpdateTarget();
+                    Assert.AreEqual(0.5d, restoreBar.Value, "The real window must accept the read-only progress binding and reflect its value.");
                     var bindingUpdate = typeof(MainViewModel).GetMethod("UpdateInputBindingLabels",
                         System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
                     var grid = (DataGrid)window.FindName("InputGrid");

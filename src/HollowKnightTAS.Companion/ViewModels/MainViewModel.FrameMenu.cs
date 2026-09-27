@@ -187,11 +187,13 @@ namespace HollowKnightTAS.Companion.ViewModels
                 SetSequenceInitialSaves(sourceSaves);
             }
             SetRestorePresentationFrozen(true);
+            restoreTargetFrame = frame;
             var completed = false;
             try
             {
                 if (sourceMovie != null) MovieText = sourceMovie;
                 await RestartDraftCoreAsync(frame, cancellationToken, pauseWhenInputReadyZero);
+                SetRestoreProgress(1);
                 completed = true;
             }
             finally
@@ -234,6 +236,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             await restartProtectedGame();
             cancellationToken.ThrowIfCancellationRequested();
             fullRunMovies!.ArmReplay(candidate, frame == 0 && !pauseWhenInputReadyZero ? -1 : frame);
+            restoreReplayStarted = true;
             currentFullRunMovieFrame = 0;
             RefreshInputGrid();
             if (frame > 0)

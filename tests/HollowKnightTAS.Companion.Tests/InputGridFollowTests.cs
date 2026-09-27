@@ -122,12 +122,14 @@ namespace HollowKnightTAS.Companion.Tests
             var method = typeof(MainViewModel).GetMethod("RestartDraftAtAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
             try
             {
-                await (System.Threading.Tasks.Task)method.Invoke(vm, new object?[] { 10L, null })!;
+                await (System.Threading.Tasks.Task)method.Invoke(vm, new object?[] { 10L, null,
+                    System.Threading.CancellationToken.None, false, false, null, true })!;
                 Assert.Fail("Expected launch failure.");
             }
             catch (InvalidOperationException e) { Assert.AreEqual("injected launch failure", e.Message); }
             Assert.IsTrue(released);
             Assert.IsTrue(vm.IsInputGridInteractive);
+            Assert.AreEqual(0d, vm.RestoreProgress);
             Assert.AreEqual(100, vm.InputRows.Count);
         }
 
@@ -158,16 +160,22 @@ namespace HollowKnightTAS.Companion.Tests
             vm.InputGridPositionChanged += scrolls.Add;
             var freeze = typeof(MainViewModel).GetMethod("SetRestorePresentationFrozen", BindingFlags.Instance | BindingFlags.NonPublic)!;
             freeze.Invoke(vm, new object[] { true });
+            typeof(MainViewModel).GetField("restoreTargetFrame", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(vm, 600L);
+            ReceiveFrame(vm, 900, 1100);
+            Assert.AreEqual(0d, vm.RestoreProgress, "The departing game's progress must not fill the new replay bar.");
+            typeof(MainViewModel).GetField("restoreReplayStarted", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(vm, true);
             vm.MovieText = Movie(1500); // Loading a different world's Movie must not clear the display.
             vm.RefreshGridCommand.Execute(null);
             ReceiveFrame(vm, 0, 0);
             ReceiveFrame(vm, 300, 500);
+            Assert.AreEqual(0.5d, vm.RestoreProgress, "Use Movie frames, not native/loading frames.");
             vm.ShowCurrentGridFrame();
             Assert.AreSame(rows, vm.InputRows);
             Assert.AreEqual("▶", vm.InputRows[900].Current);
             Assert.AreEqual(0, scrolls.Count);
             Assert.IsFalse(vm.IsInputGridInteractive);
             ReceiveFrame(vm, 600, 800);
+            Assert.AreEqual(1d, vm.RestoreProgress);
             freeze.Invoke(vm, new object[] { false });
             Assert.AreEqual(1500, vm.InputRows.Count);
             Assert.AreEqual("▶", vm.InputRows[600].Current);
@@ -176,6 +184,13 @@ namespace HollowKnightTAS.Companion.Tests
             Assert.AreEqual("3", vm.GridCount);
             Assert.IsTrue(vm.IsInputGridInteractive);
             CollectionAssert.AreEqual(follow ? new long[] { 600 } : Array.Empty<long>(), scrolls.ToArray());
+            freeze.Invoke(vm, new object[] { true });
+            Assert.AreEqual(0d, vm.RestoreProgress, "A subsequent restore starts empty.");
+            typeof(MainViewModel).GetField("restoreTargetFrame", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(vm, 0L);
+            typeof(MainViewModel).GetField("restoreReplayStarted", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(vm, true);
+            ReceiveFrame(vm, 0, 0);
+            Assert.AreEqual(0d, vm.RestoreProgress, "Frame-zero preparation must not divide by zero or pretend to be complete.");
+            freeze.Invoke(vm, new object[] { false });
         }
 
         private static void ReceiveFrame(MainViewModel vm, long movieFrame, long nativeFrame)

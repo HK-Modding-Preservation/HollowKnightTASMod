@@ -29,13 +29,34 @@ namespace HollowKnightTAS.Companion.ViewModels
         private bool gridApplying;
         private bool draftRequiresRestart;
         private bool isRestorePresentationFrozen;
+        private long restoreTargetFrame;
+        private bool restoreReplayStarted;
+        private double restoreProgress;
+        public double RestoreProgress => restoreProgress;
+        private void SetRestoreProgress(double value)
+        {
+            if (restoreProgress == value) return;
+            restoreProgress = value;
+            OnPropertyChanged(nameof(RestoreProgress));
+        }
+
+        private void UpdateRestoreProgress(long frame)
+        {
+            if (IsRestorePresentationFrozen && restoreReplayStarted && restoreTargetFrame > 0)
+                SetRestoreProgress(Math.Clamp((double)frame / restoreTargetFrame, 0, 1));
+        }
         private string frozenFrameCounter = string.Empty;
         public bool IsRestorePresentationFrozen => isRestorePresentationFrozen;
         public bool IsInputGridInteractive => !isRestorePresentationFrozen && !gridApplying;
         private void SetRestorePresentationFrozen(bool value)
         {
             if (isRestorePresentationFrozen == value) return;
-            if (value) frozenFrameCounter = FrameCounterText;
+            if (value)
+            {
+                frozenFrameCounter = FrameCounterText;
+                restoreReplayStarted = false;
+                SetRestoreProgress(0);
+            }
             isRestorePresentationFrozen = value;
             OnPropertyChanged(nameof(IsRestorePresentationFrozen));
             OnPropertyChanged(nameof(RuntimeSummary));
