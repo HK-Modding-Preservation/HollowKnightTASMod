@@ -191,6 +191,13 @@ namespace HollowKnightTAS.Companion
             // This preview handler consumes button cells before DataGrid can move focus.
             // Keep subsequent transport/editor shortcuts on the grid, not the last text box.
             cell.Focus();
+            if (cell.Column.SortMemberPath == "RngSeed" && e.ClickCount == 2 && row.IsV2)
+            {
+                InputGrid.SelectedItem = row;
+                new RngSeedWindow(vm, row.Tick, row.RngSeed) { Owner = this }.ShowDialog();
+                e.Handled = true;
+                return;
+            }
             if (cell.Column.SortMemberPath == "Axes" && e.ClickCount == 2)
             {
                 InputGrid.SelectedItem = row;
@@ -343,6 +350,9 @@ namespace HollowKnightTAS.Companion
             var rate = new MenuItem { Header = UiText.T("修改选区帧率…") };
             rate.Click += (_, _) => EditFrameRate(true);
             menu.Items.Add(rate);
+            var rng = new MenuItem { Header = UiText.T("修改当前帧 RNG 种子…"), IsEnabled = row.IsV2 };
+            rng.Click += (_, _) => new RngSeedWindow(vm, row.Tick, row.RngSeed) { Owner = this }.ShowDialog();
+            menu.Items.Add(rng);
             menu.PlacementTarget = InputGrid; menu.IsOpen = true;
             e.Handled = true;
         }

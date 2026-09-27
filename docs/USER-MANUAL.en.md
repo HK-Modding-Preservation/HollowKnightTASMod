@@ -49,6 +49,8 @@ Default FPS is 50, with integer values from 1 to 1000. The default setting affec
 
 Enter a positive Insert count, then insert empty frames to add that many rows at the start of the selection. Context-menu insertion uses the same count. One Undo removes the entire insertion.
 
+Double-click an `RNG seed` cell or choose “Edit this frame RNG seed…” from the context menu. Enter an integer from -2147483648 to 2147483647; `0` is valid and a blank value clears the setting. The seed resets RNG once before that Movie frame, after any scene synchronization. Random values then evolve normally, and scene changes retain their existing RNG reset behavior. Seeds follow their frames through copy, insertion and deletion, support Undo/Redo, and changing an executed frame branches the worldline and requires replay just like an input edit.
+
 ## Save sequences and starting saves
 
 Ctrl+S or Save sequence chooses a path on the first save, then overwrites that file. Save sequence to... chooses another path. New sequences use `.hktaspack`, containing all input and the four-slot starting-save snapshot fixed at startup frame 0, including empty slots and slot-associated Mod files. Sharing the package carries these starting conditions with it.

@@ -6,10 +6,14 @@ namespace HollowKnightTAS.Core.Movie
 {
     public static class MovieV2RangeEditor
     {
+        public static MovieV2Document SetRngSeed(MovieV2Document movie, long frame, int? seed)
+            => Transform(movie, frame, 1, r => new NativeFrameRun(1, r.Samples, r.Span,
+                r.FramesPerSecond, r.Authored, seed));
+
         public static MovieV2Document SetFrameRate(MovieV2Document movie, long start, long count, int fps)
         {
             if (fps < 1 || fps > 1000) throw new ArgumentOutOfRangeException(nameof(fps));
-            return Transform(movie, start, count, r => new NativeFrameRun(r.RepeatCount, r.Samples, r.Span, fps, r.Authored));
+            return Transform(movie, start, count, r => new NativeFrameRun(r.RepeatCount, r.Samples, r.Span, fps, r.Authored, r.RngSeed));
         }
 
         // Authored runs express held input intent; InControl computes edges through its
@@ -34,7 +38,7 @@ namespace HollowKnightTAS.Core.Movie
                         samples[i] = new GameInputSample(channel, values, sample.Mouse);
                     }
                 }
-                return new NativeFrameRun(run.RepeatCount, samples, run.Span, run.FramesPerSecond, true);
+                return new NativeFrameRun(run.RepeatCount, samples, run.Span, run.FramesPerSecond, true, run.RngSeed);
             });
         }
 
@@ -69,7 +73,7 @@ namespace HollowKnightTAS.Core.Movie
             {
                 var next = position + run.RepeatCount;
                 var a = Math.Max(start, position); var b = Math.Min(end, next);
-                NativeFrameRun Slice(long n) => new NativeFrameRun(n, run.Samples, run.Span, run.FramesPerSecond, run.Authored);
+                NativeFrameRun Slice(long n) => new NativeFrameRun(n, run.Samples, run.Span, run.FramesPerSecond, run.Authored, run.RngSeed);
                 if (a >= b) result.Add(run);
                 else
                 {

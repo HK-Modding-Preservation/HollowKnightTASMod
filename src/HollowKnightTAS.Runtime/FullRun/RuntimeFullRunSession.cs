@@ -487,8 +487,19 @@ namespace HollowKnightTAS.Runtime.FullRun
                     while (timingRunIndex + 1 < replayMovie.Runs.Count && movieFrame >= timingRunStart + replayMovie.Runs[timingRunIndex].RepeatCount)
                         timingRunStart += replayMovie.Runs[timingRunIndex++].RepeatCount;
                     activeFrameRate = replayMovie.Runs[timingRunIndex].FramesPerSecond;
+                    // Loading/scene seed handshake frames do not consume Movie frames.
+                    // This callback runs on the game thread before the native PlayerLoop.
+                    // Apply after scene synchronization, once for the input-ready frame;
+                    // never reuse the scene-sync helper (it advances the scene epoch).
+                    if (ready && replayMovie.Runs[timingRunIndex].RngSeed is int seed)
+                    {
+                        UnityEngine.Random.InitState(seed);
+                        Modding.Logger.LogDebug("[HKTAS] Movie RNG seed: frame=" + movieFrame
+                            + " native=" + completed + " seed=" + seed);
+                    }
                 }
                 clock.SetFrameRate(ready ? activeFrameRate : 50);
+                if (ready) TraceMovieRng("before", replayMovie?.Runs[timingRunIndex].RngSeed);
                 frameInputEnabled = ready;
                 frameBoundary = boundary;
                 input.SetFrameInputEnabled(ready);
@@ -587,6 +598,7 @@ namespace HollowKnightTAS.Runtime.FullRun
                     return;
                 }
                 ObserveBoss();
+                TraceMovieRng("after", null);
                 if (mode == "Recording") journal!.CompleteFrame(movieFrame, activeFrameRate);
                 movieFrame++;
                 clock.ReportMovieFrameCompleted();

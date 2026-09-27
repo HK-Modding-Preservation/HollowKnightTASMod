@@ -95,6 +95,8 @@ Full-run channels are `hero`, `preMenu`, `binder`, `mouseInControl` and `mouseHo
 
 The `path` returned by `fullRunSnapshot` points to a Movie snapshot in the current shadow directory. Read it and save a candidate alongside it. Submit future-input edits through `fullRunUpdateMovie`, retaining the executed prefix. After `fullRunSeek` sets a target, call `fullRunPlay` to start advancing. Returning to the past requires restarting from the bound starting conditions and replaying; Studio's replay-to-frame and timeline handle that process. `fullRunSeek` is not a backward restore command. Shared files must remain inside the session's shadow directory; do not modify real user saves.
 
+Movie v2 frame records accept an optional integer `rngSeed` from -2147483648 to 2147483647. Omit it to leave RNG unchanged. A seeded record must have `repeatCount: 1`, for example `{"repeatCount":1,"authored":true,"rngSeed":12345,"samples":[]}`. The seed applies once before that Movie frame, after scene RNG synchronization; loading frames do not apply it. It contributes to canonical content and worldline prefix identity, so editing an executed frame requires replay. Older parsers reject this field.
+
 ## Non-visual world observation
 
 Once Runtime connects, full-run v2 supports these read-only queries. At a paused boundary they do not advance gameplay, clocks or random state:

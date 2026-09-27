@@ -387,7 +387,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 var overlapEnd = Math.Min(end, runEnd);
                 if (overlapEnd > overlapStart)
                     runs.Add(new NativeFrameRun(overlapEnd - overlapStart,
-                        run.Samples, run.Span, run.FramesPerSecond, run.Authored));
+                        run.Samples, run.Span, run.FramesPerSecond, run.Authored, run.RngSeed));
                 position = runEnd;
                 if (position >= end) break;
             }

@@ -130,6 +130,7 @@
               <DataGridTextColumn Header="" Binding="{Binding Current}" Width="28" />
               <DataGridTextColumn Header="{ui:Text t23}" Binding="{Binding Tick}" Width="75" />
               <DataGridTextColumn Header="{ui:Text t24}" Binding="{Binding FramesPerSecond}" Width="45" />
+              <DataGridTextColumn Header="{ui:Text rngSeedColumn}" Binding="{Binding RngSeed}" SortMemberPath="RngSeed" Width="115" />
               <DataGridCheckBoxColumn Header="{ui:Text t25}" SortMemberPath="Submit" Binding="{Binding Submit, Mode=OneWay}" Width="65" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
               <DataGridCheckBoxColumn Header="{ui:Text t26}" SortMemberPath="Cancel" Binding="{Binding Cancel, Mode=OneWay}" Width="65" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
               <DataGridCheckBoxColumn Header="{ui:Text t27}" Binding="{Binding Left, Mode=OneWay}" SortMemberPath="Left" Width="55" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />

@@ -14,6 +14,27 @@ namespace HollowKnightTAS.Companion.ViewModels
         private bool gridHasUserEdits, recordingGridSync;
         private long earliestGridEdit = long.MaxValue;
         public long[] SelectedGridFrames { get; set; } = Array.Empty<long>();
+        public bool TrySetGridRngSeed(long frame, string text)
+        {
+            try
+            {
+                int? seed = null;
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    if (!int.TryParse(text.Trim(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var parsed))
+                        throw new InvalidOperationException("RNG 种子必须是 -2147483648 至 2147483647 的整数；留空清除。");
+                    seed = parsed;
+                }
+                var movie = GridAny().V2Document ?? throw new InvalidOperationException("RNG 种子仅支持 Movie v2。");
+                var candidate = MovieV2RangeEditor.SetRngSeed(movie, frame, seed);
+                if (new MovieV2Codec().WriteCanonical(candidate) == MovieText) return true;
+                GridStart = frame.ToString(CultureInfo.InvariantCulture);
+                GridCount = "1";
+                EditGridDocument(candidate);
+                return true;
+            }
+            catch (Exception ex) { GridStatus = ex.Message; return false; }
+        }
         private long recordingGridNativeFrame = -1;
         public string DefaultFrameRate
         {

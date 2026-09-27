@@ -40,7 +40,7 @@ namespace HollowKnightTAS.Core.Movie
                 return Failure(baseline, nativeFrame, "Replacement native frame is outside the movie.");
             var runs = Slice(movie, 0, nativeFrame);
             runs.Add(new NativeFrameRun(1, samples,
-                new MovieSourceSpan(movie.SourceName, 1, 1, 1), Slice(movie, nativeFrame, 1)[0].FramesPerSecond, Slice(movie, nativeFrame, 1)[0].Authored));
+                new MovieSourceSpan(movie.SourceName, 1, 1, 1), Slice(movie, nativeFrame, 1)[0].FramesPerSecond, Slice(movie, nativeFrame, 1)[0].Authored, Slice(movie, nativeFrame, 1)[0].RngSeed));
             runs.AddRange(Slice(movie, nativeFrame + 1, count - nativeFrame - 1));
             return Commit(movie, runs, baseline);
         }
@@ -132,7 +132,7 @@ namespace HollowKnightTAS.Core.Movie
                 var overlapStart = Math.Max(start, position);
                 var overlapEnd = Math.Min(end, runEnd);
                 if (overlapEnd > overlapStart)
-                    output.Add(new NativeFrameRun(overlapEnd - overlapStart, run.Samples, run.Span, run.FramesPerSecond, run.Authored));
+                    output.Add(new NativeFrameRun(overlapEnd - overlapStart, run.Samples, run.Span, run.FramesPerSecond, run.Authored, run.RngSeed));
                 position = runEnd;
                 if (position >= end) break;
             }

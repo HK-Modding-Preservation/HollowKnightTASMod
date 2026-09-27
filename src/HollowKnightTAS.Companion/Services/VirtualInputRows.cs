@@ -36,7 +36,7 @@ namespace HollowKnightTAS.Companion.Services
                 if (cache.TryGetValue(index, out var row)) return row;
                 var run = Array.BinarySearch(ends, (long)index + 1);
                 if (run < 0) run = ~run;
-                row = native != null ? new InputGridRow(new V2InputGridRow(index, native[run].Samples, current, native[run].FramesPerSecond))
+                row = native != null ? new InputGridRow(new V2InputGridRow(index, native[run].Samples, current, native[run].FramesPerSecond, native[run].RngSeed))
                     : new InputGridRow(index, legacy![run], current);
                 if (cache.Count >= 2048) cache.Remove(order.Dequeue());
                 cache.Add(index, row); order.Enqueue(index);

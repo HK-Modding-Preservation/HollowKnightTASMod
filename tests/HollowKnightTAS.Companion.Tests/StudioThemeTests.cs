@@ -243,6 +243,33 @@ namespace HollowKnightTAS.Companion.Tests
                     Assert.AreEqual(2, inputGrid.SelectedItems.Count, "Undo must also retain the selection.");
                     VerifyAxisDialog(vm);
                     Assert.AreEqual(0, sessions.ConnectedCount, "Offline UI test must not connect to a game.");
+                    var rngMovie = new HollowKnightTAS.Core.Movie.MovieV2Document("rng-ui",
+                        new HollowKnightTAS.Core.Movie.MovieV2Header("game", "api", "mod",
+                            HollowKnightTAS.Core.Movie.MovieProtocolV2.NativeProfileId,
+                            HollowKnightTAS.Core.Movie.MovieProtocolV2.ActionSchemaId, false, new string('a', 64), 800, 450),
+                        new[] { new HollowKnightTAS.Core.Movie.NativeFrameRun(10,
+                            Array.Empty<HollowKnightTAS.Core.Movie.GameInputSample>(),
+                            new HollowKnightTAS.Core.Movie.MovieSourceSpan("rng-ui", 1, 1, 1), authored: true) });
+                    vm.MovieText = new HollowKnightTAS.Core.Movie.MovieV2Codec().WriteCanonical(rngMovie);
+                    vm.RefreshGridCommand.Execute(null);
+                    var rngColumn = inputGrid.Columns.OfType<DataGridTextColumn>().Single(c => c.SortMemberPath == "RngSeed");
+                    Assert.AreEqual("RngSeed", ((System.Windows.Data.Binding)rngColumn.Binding).Path.Path);
+                    var rngDialog = new RngSeedWindow(vm, 4, null);
+                    rngDialog.Loaded += (_, _) => rngDialog.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        var seedBox = Find<TextBox>(rngDialog).Single();
+                        var ok = Find<Button>(rngDialog).Single(b => b.IsDefault);
+                        seedBox.Text = "2147483648";
+                        ok.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        Assert.IsTrue(rngDialog.IsVisible);
+                        Assert.IsNull(vm.InputRows[4].RngSeed);
+                        seedBox.Text = "0";
+                        ok.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    }));
+                    Assert.IsTrue(rngDialog.ShowDialog());
+                    Assert.AreEqual(0, vm.InputRows[4].RngSeed);
+                    vm.UndoGridCommand.Execute(null); Assert.IsNull(vm.InputRows[4].RngSeed);
+                    vm.RedoGridCommand.Execute(null); Assert.AreEqual(0, vm.InputRows[4].RngSeed);
                     window.Close();
                     app.Shutdown();
                 }

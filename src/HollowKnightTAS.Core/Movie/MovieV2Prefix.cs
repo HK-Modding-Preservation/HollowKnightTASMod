@@ -13,7 +13,7 @@ namespace HollowKnightTAS.Core.Movie
             {
                 if (count == 0) break;
                 var length = Math.Min(count, run.RepeatCount);
-                runs.Add(new NativeFrameRun(length, run.Samples, run.Span, run.FramesPerSecond, run.Authored));
+                runs.Add(new NativeFrameRun(length, run.Samples, run.Span, run.FramesPerSecond, run.Authored, run.RngSeed));
                 count -= length;
             }
             if (count != 0) throw new ArgumentOutOfRangeException(nameof(count));

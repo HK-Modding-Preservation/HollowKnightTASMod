@@ -95,6 +95,8 @@ Invoke-Tas @('automation','call','fullRunStep','control.step',
 
 `fullRunSnapshot` 返回的 `path` 指向当前影子目录中的 Movie 快照，可读取并在同目录另存候选。修改未来输入后提交 `fullRunUpdateMovie`，保持已执行前缀一致。`fullRunSeek` 设置目标后，还需调用 `fullRunPlay` 开始向前运行。回到过去需要从绑定起点重启重放，Studio 的重算和时间线负责该流程；`fullRunSeek` 不能代替向过去回档。共享文件必须是当前会话的影子目录内文件，不修改真实用户存档。
 
+Movie v2 帧记录可带可选整数 `rngSeed`，范围为 -2147483648 至 2147483647；省略表示不干预。包含它的记录必须为 `repeatCount: 1`，例如 `{"repeatCount":1,"authored":true,"rngSeed":12345,"samples":[]}`。种子在该 Movie 帧开始前、场景 RNG 同步完成后应用一次；加载帧不执行。它属于 canonical 内容及世界线前缀身份，编辑已执行帧需要重放；旧版解析器会拒绝该字段。
+
 ## 非视觉世界观察
 
 Runtime 连接后，全流程 v2 提供以下只读查询，暂停时不会推进游戏、时钟或随机数：

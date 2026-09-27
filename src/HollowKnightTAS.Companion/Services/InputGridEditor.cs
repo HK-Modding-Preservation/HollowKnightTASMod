@@ -15,6 +15,7 @@ namespace HollowKnightTAS.Companion.Services
         {
             Tick = row.NativeFrame;
             FramesPerSecond = row.FramesPerSecond;
+            RngSeed = row.RngSeed;
             Current = row.Current;
             IsV2 = true;
             Channels = row.Channels;
@@ -56,6 +57,7 @@ namespace HollowKnightTAS.Companion.Services
         public override bool Equals(object? obj) => obj is InputGridRow row && row.Tick == Tick;
         public override int GetHashCode() => Tick.GetHashCode();
         public int FramesPerSecond { get; } = 50;
+        public int? RngSeed { get; }
         public bool HasAction(string action) => action == "Submit" ? Submit : action == "Cancel" ? Cancel : Enum.TryParse<TasAction>(action, out var parsed) && Has(parsed);
         public long Tick { get; }
         public FrameRunCommand Input { get; }
@@ -99,14 +101,16 @@ namespace HollowKnightTAS.Companion.Services
 
     public sealed class V2InputGridRow
     {
-        public V2InputGridRow(long nativeFrame, IReadOnlyList<GameInputSample> samples, long currentFrame, int framesPerSecond = 50)
+        public V2InputGridRow(long nativeFrame, IReadOnlyList<GameInputSample> samples, long currentFrame, int framesPerSecond = 50, int? rngSeed = null)
         {
+            RngSeed = rngSeed;
             FramesPerSecond = framesPerSecond;
             NativeFrame = nativeFrame;
             Samples = samples;
             Current = nativeFrame == currentFrame ? "▶" : "";
         }
         public int FramesPerSecond { get; }
+        public int? RngSeed { get; }
         public long NativeFrame { get; }
         public IReadOnlyList<GameInputSample> Samples { get; }
         public string Current { get; }
@@ -139,7 +143,7 @@ namespace HollowKnightTAS.Companion.Services
             {
                 var runEnd = position + run.RepeatCount;
                 for (var frame = Math.Max(start, position); frame < Math.Min(end, runEnd); frame++)
-                    rows.Add(new V2InputGridRow(frame, run.Samples, currentFrame, run.FramesPerSecond));
+                    rows.Add(new V2InputGridRow(frame, run.Samples, currentFrame, run.FramesPerSecond, run.RngSeed));
                 position = runEnd;
                 if (position >= end) break;
             }

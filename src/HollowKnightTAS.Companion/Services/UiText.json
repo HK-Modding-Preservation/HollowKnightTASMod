@@ -2309,5 +2309,47 @@
   "Zh": "{0} 槽空槽",
   "En": "Slot {0} empty"
 },
-  {"Key": "insertFrameCount", "Source": "插入帧数", "Zh": "插入帧数", "En": "Insert count"}
+  {"Key": "insertFrameCount", "Source": "插入帧数", "Zh": "插入帧数", "En": "Insert count"},
+{
+  "Key": "rngSeedColumn",
+  "Source": "RNG 种子",
+  "Zh": "RNG 种子",
+  "En": "RNG seed"
+},
+{
+  "Key": "rngSeedEdit",
+  "Source": "修改当前帧 RNG 种子",
+  "Zh": "修改当前帧 RNG 种子",
+  "En": "Edit this frame RNG seed"
+},
+{
+  "Key": "rngSeedMenu",
+  "Source": "修改当前帧 RNG 种子…",
+  "Zh": "修改当前帧 RNG 种子…",
+  "En": "Edit this frame RNG seed…"
+},
+{
+  "Key": "rngSeedHint",
+  "Source": "在此帧开始前重设一次种子。留空表示不修改 RNG。",
+  "Zh": "在此帧开始前重设一次种子。留空表示不修改 RNG。",
+  "En": "Reset the seed once before this frame. Leave blank to keep RNG unchanged."
+},
+{
+  "Key": "rngSeedClear",
+  "Source": "清除种子",
+  "Zh": "清除种子",
+  "En": "Clear seed"
+},
+{
+  "Key": "rngSeedInvalid",
+  "Source": "RNG 种子必须是 -2147483648 至 2147483647 的整数；留空清除。",
+  "Zh": "RNG 种子必须是 -2147483648 至 2147483647 的整数；留空清除。",
+  "En": "RNG seed must be an integer from -2147483648 to 2147483647; leave blank to clear."
+},
+{
+  "Key": "rngSeedV2",
+  "Source": "RNG 种子仅支持 Movie v2。",
+  "Zh": "RNG 种子仅支持 Movie v2。",
+  "En": "RNG seeds require a Movie v2 sequence."
+}
 ]
