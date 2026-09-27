@@ -16,21 +16,33 @@ namespace HollowKnightTAS.Core.Media
                 S(0x4282, "matroska"), U(0x4287, 4), U(0x4285, 2))),
                 new byte[] { 0x18, 0x53, 0x80, 0x67, 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff },
                 E(0x1549A966, Join(U(0x2AD7B1, 1000), S(0x4D80, "HollowKnightTAS"), S(0x5741, "HollowKnightTAS"))),
-                E(0x1654AE6B, E(0xAE, Join(U(0xD7, 1), U(0x73C5, 1), U(0x83, 1), U(0x9C, 0),
+                E(0x1654AE6B, Join(E(0xAE, Join(U(0xD7, 1), U(0x73C5, 1), U(0x83, 1), U(0x9C, 0),
                     S(0x86, "V_UNCOMPRESSED"),
                     U(0x23E383, (ulong)(1000000000L * f.FpsDenominator / f.FpsNumerator)),
                     E(0xE0, Join(U(0xB0, (ulong)f.Width), U(0xBA, (ulong)f.Height),
-                        E(0x2EB524, new byte[] { 82, 71, 66, 24 })))))));
+                        E(0x2EB524, new byte[] { 82, 71, 66, 24 }))))),
+                    E(0xAE, Join(U(0xD7, 2), U(0x73C5, 2), U(0x83, 2), U(0x9C, 0),
+                        S(0x86, "A_PCM/FLOAT/IEEE"), E(0xE1, Join(F(0xB5, f.SampleRate),
+                            U(0x9F, (ulong)f.Channels), U(0x6264, 32))))))));
         }
 
-        public static byte[] Frame(byte[] rgb, long startMicroseconds, long durationMicroseconds)
+        public static byte[] Frame(byte[] rgb, byte[] pcm, long startMicroseconds, long durationMicroseconds, long audioStartMicroseconds)
         {
             if (startMicroseconds < 0 || durationMicroseconds <= 0) throw new ArgumentOutOfRangeException();
+            var offset = checked((short)(audioStartMicroseconds - startMicroseconds));
             return E(0x1F43B675, Join(U(0xE7, (ulong)startMicroseconds),
                 E(0xA0, Join(E(0xA1, Join(new byte[] { 0x81, 0, 0, 0 }, rgb)),
-                    U(0x9B, (ulong)durationMicroseconds)))));
+                    U(0x9B, (ulong)durationMicroseconds))),
+                pcm.Length == 0 ? Array.Empty<byte>() : E(0xA3,
+                    Join(new byte[] { 0x82, (byte)(offset >> 8), (byte)offset, 0x80 }, pcm))));
         }
 
+        private static byte[] F(uint id, double value)
+        {
+            var bytes = BitConverter.GetBytes(value);
+            if (BitConverter.IsLittleEndian) Array.Reverse(bytes);
+            return E(id, bytes);
+        }
         private static byte[] S(uint id, string value) => E(id, Encoding.UTF8.GetBytes(value));
         private static byte[] U(uint id, ulong value)
         {

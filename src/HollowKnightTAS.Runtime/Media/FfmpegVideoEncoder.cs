@@ -18,13 +18,10 @@ namespace HollowKnightTAS.Runtime.Media
         private readonly VideoExportTimeline timeline;
         private readonly VariableVideoTimeline variableTimeline = new VariableVideoTimeline();
         private readonly BlockingCollection<byte[]> video = new BlockingCollection<byte[]>(2);
-        private readonly BlockingCollection<byte[]> audio = new BlockingCollection<byte[]>(2);
         private readonly CancellationTokenSource stopped = new CancellationTokenSource();
         private readonly NativeNamedPipeServer videoPipe;
-        private readonly NativeNamedPipeServer audioPipe;
         private readonly Process process;
         private readonly Task videoWriter;
-        private readonly Task audioWriter;
         private readonly string temporaryDirectory;
         private readonly string temporaryOutput;
         private readonly StringBuilder diagnostics = new StringBuilder();
@@ -50,11 +47,9 @@ namespace HollowKnightTAS.Runtime.Media
             temporaryDirectory = Path.Combine(parent, ".hktas-export-" + id);
             temporaryOutput = Path.Combine(temporaryDirectory, "partial.mp4");
             var videoName = "hktas-video-" + id;
-            var audioName = "hktas-audio-" + id;
             // Unity's bundled Mono does not implement the managed named-pipe server.
             // Use the same local-user-only native transport as the runtime command channel.
             videoPipe = new NativeNamedPipeServer(videoName, PipeDirection.Out);
-            audioPipe = new NativeNamedPipeServer(audioName, PipeDirection.Out);
             process = new Process();
             try
             {
@@ -63,13 +58,10 @@ namespace HollowKnightTAS.Runtime.Media
                 {
                     FileName = ffmpegPath,
                     // Inputs are generated pipe names; only output needs quoting. No shell is involved.
-                    // Both input formats are fully specified: probing can deadlock bounded dual-input
-                    // producers before FFmpeg opens/consumes the other stream.
+                    // One interleaved stream prevents audio/video input queues from waiting on each other.
                     Arguments = "-hide_banner -loglevel warning -nostdin -n -thread_queue_size 4 -nofind_stream_info"
                         + " -f matroska -i \\\\.\\pipe\\" + videoName
-                        + " -thread_queue_size 4 -nofind_stream_info -f f32le -ar " + format.SampleRate
-                        + " -ac " + format.Channels + " -i \\\\.\\pipe\\" + audioName
-                        + " -map 0:v:0 -map 1:a:0 -vf vflip,pad=ceil(iw/2)*2:ceil(ih/2)*2 -c:v libx264 -preset veryfast -tune zerolatency -crf 18"
+                        + " -map 0:v:0 -map 0:a:0 -vf vflip,pad=ceil(iw/2)*2:ceil(ih/2)*2 -c:v libx264 -preset veryfast -tune zerolatency -crf 18"
                         + " -fps_mode:v passthrough -enc_time_base:v 1:1000000 -video_track_timescale 1000000"
                         + " -pix_fmt yuv420p -c:a aac -b:a 192k -movflags +faststart -f mp4 " + Quote(temporaryOutput),
                     UseShellExecute = false,
@@ -88,13 +80,11 @@ namespace HollowKnightTAS.Runtime.Media
                 if (!process.Start()) throw new IOException("FFmpeg did not start.");
                 process.BeginErrorReadLine();
                 videoWriter = Pump(videoPipe, video, MatroskaVideoStream.Header(format));
-                audioWriter = Pump(audioPipe, audio);
             }
             catch
             {
                 stopped.Cancel();
                 videoPipe.Dispose();
-                audioPipe.Dispose();
                 TryKill();
                 process.Dispose();
                 CleanupTemporaryOutput();
@@ -116,6 +106,7 @@ namespace HollowKnightTAS.Runtime.Media
             if (rgb == null || rgb.Length != timeline.Format.VideoFrameBytes)
                 throw new ArgumentException("RGB frame length does not match the export format.", nameof(rgb));
             var start = variableTimeline.Microseconds;
+            var audioStart = checked(variableTimeline.AudioSampleFrames * 1000000L / timeline.Format.SampleRate);
             var values = variableTimeline.Advance(durationSeconds, timeline.Format.SampleRate, timeline.Format.Channels);
             if (pcm == null || pcm.Length != checked(values * sizeof(float)))
                 throw new ArgumentException("PCM length does not match this frame's media time.", nameof(pcm));
@@ -124,8 +115,7 @@ namespace HollowKnightTAS.Runtime.Media
                 deadline.CancelAfter(TimeSpan.FromSeconds(15));
                 try
                 {
-                    video.Add(MatroskaVideoStream.Frame(rgb, start, variableTimeline.Microseconds - start), deadline.Token);
-                    audio.Add(pcm, deadline.Token);
+                    video.Add(MatroskaVideoStream.Frame(rgb, pcm, start, variableTimeline.Microseconds - start, audioStart), deadline.Token);
                     FrameCount++;
                 }
                 catch
@@ -143,8 +133,7 @@ namespace HollowKnightTAS.Runtime.Media
             try
             {
                 video.CompleteAdding();
-                audio.CompleteAdding();
-                if (!Task.WaitAll(new[] { videoWriter, audioWriter }, TimeSpan.FromSeconds(30)))
+                if (!Task.WaitAll(new[] { videoWriter }, TimeSpan.FromSeconds(30)))
                     throw new TimeoutException("FFmpeg input finalization timed out.");
                 if (!process.WaitForExit(30000)) throw new TimeoutException("FFmpeg finalization timed out.");
                 process.WaitForExit(); // Drain asynchronous stderr after the bounded process wait.
@@ -173,7 +162,6 @@ namespace HollowKnightTAS.Runtime.Media
                 stopped.Cancel();
                 TryKill();
                 videoPipe.Dispose();
-                audioPipe.Dispose();
             }
         }
 
@@ -182,17 +170,15 @@ namespace HollowKnightTAS.Runtime.Media
             if (disposed) return;
             Cancel();
             disposed = true;
-            try { Task.WaitAll(new[] { videoWriter, audioWriter }, TimeSpan.FromSeconds(5)); }
+            try { Task.WaitAll(new[] { videoWriter }, TimeSpan.FromSeconds(5)); }
             catch (AggregateException) { }
             videoPipe.Dispose();
-            audioPipe.Dispose();
             process.Dispose();
             CleanupTemporaryOutput();
             // Queues/CTS remain alive if a native pipe write has not unwound yet.
-            if (videoWriter.IsCompleted && audioWriter.IsCompleted)
+            if (videoWriter.IsCompleted)
             {
                 video.Dispose();
-                audio.Dispose();
                 stopped.Dispose();
             }
         }
