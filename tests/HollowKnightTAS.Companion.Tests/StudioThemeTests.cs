@@ -241,9 +241,22 @@ namespace HollowKnightTAS.Companion.Tests
                             Assert.IsTrue(query.IsEditable);
                             Assert.AreSame(vm.InfoSettings.Items.Last(), query.DataContext);
                             Assert.AreEqual(Visibility.Visible, ((StackPanel)query.Parent).Visibility);
-                            query.Text = "player.geo";
-                            query.GetBindingExpression(ComboBox.TextProperty)!.UpdateSource();
+                            var editor = query.Template.FindName("PART_EditableTextBox", query) as TextBox;
+                            Assert.IsNotNull(editor, "Editable ComboBox must expose a real text editor.");
+                            Assert.AreEqual(Visibility.Visible, editor.Visibility);
+                            Assert.IsFalse(editor.IsReadOnly);
+                            Assert.AreEqual(vm.InfoSettings.Items.Last().Expression, editor.Text);
+                            Assert.IsTrue(editor.ActualWidth > 20 && editor.ActualHeight > 0);
+                            query.SelectedItem = "player.geo";
+                            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            Assert.AreEqual("player.geo", editor.Text, "Selected examples must appear in the text editor.");
                             Assert.AreEqual("player.geo", vm.InfoSettings.Items.Last().Expression);
+                            editor.SelectAll();
+                            editor.SelectedText = "hero.cState.wallSliding";
+                            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            Assert.AreEqual("hero.cState.wallSliding", query.Text);
+                            Assert.AreEqual("hero.cState.wallSliding", vm.InfoSettings.Items.Last().Expression,
+                                "Editing the real textbox must update the saved expression without a dropdown selection.");
                             window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
                             root.UpdateLayout();
                             var panelImage = new RenderTargetBitmap(1320, 840, 144, 144, PixelFormats.Pbgra32);

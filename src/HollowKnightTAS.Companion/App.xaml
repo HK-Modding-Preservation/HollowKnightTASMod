@@ -135,7 +135,7 @@
               <Border x:Name="ComboBorder" Background="{TemplateBinding Background}"
                       BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
                 <Grid>
-                  <ContentPresenter Margin="7,3,28,3"
+                  <ContentPresenter x:Name="SelectionContent" Margin="7,3,28,3"
                                     VerticalAlignment="Center" HorizontalAlignment="Left"
                                     Content="{TemplateBinding SelectionBoxItem}"
                                     ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
@@ -143,9 +143,17 @@
                   <Path Data="M 0 0 L 5 5 L 10 0" Stroke="{StaticResource MutedTextBrush}"
                         StrokeThickness="1.5" HorizontalAlignment="Right" VerticalAlignment="Center"
                         Margin="0,0,9,0" IsHitTestVisible="False" />
-                  <ToggleButton Background="Transparent" BorderThickness="0" Focusable="False"
+                  <ToggleButton x:Name="DropDownButton" Background="Transparent" BorderThickness="0" Focusable="False"
                                 IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
                                 ClickMode="Press" Opacity="0" />
+                  <TextBox x:Name="PART_EditableTextBox" Visibility="Collapsed"
+                           Margin="7,3,28,3" Padding="0" BorderThickness="0"
+                           Background="{TemplateBinding Background}" Foreground="{TemplateBinding Foreground}"
+                           VerticalContentAlignment="Center" IsReadOnly="{TemplateBinding IsReadOnly}">
+                    <TextBox.Template><ControlTemplate TargetType="TextBox">
+                      <ScrollViewer x:Name="PART_ContentHost" Focusable="False" />
+                    </ControlTemplate></TextBox.Template>
+                  </TextBox>
                 </Grid>
               </Border>
               <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
@@ -160,6 +168,12 @@
               </Popup>
             </Grid>
             <ControlTemplate.Triggers>
+              <Trigger Property="IsEditable" Value="True">
+                <Setter TargetName="SelectionContent" Property="Visibility" Value="Collapsed" />
+                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+                <Setter TargetName="DropDownButton" Property="HorizontalAlignment" Value="Right" />
+                <Setter TargetName="DropDownButton" Property="Width" Value="26" />
+              </Trigger>
               <Trigger Property="IsKeyboardFocusWithin" Value="True">
                 <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
               </Trigger>
