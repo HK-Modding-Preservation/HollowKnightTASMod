@@ -18,6 +18,7 @@ namespace HollowKnightTAS.Companion.ViewModels
         private readonly HashSet<InfoOverlayItem> watchedInfoItems = new();
         private string infoStatus = "", infoSearch = "";
         private bool infoAdjusting;
+        private bool infoSettingsInvalid;
         public InfoOverlaySettings InfoSettings => infoSettings;
         public string InfoStatus { get => infoStatus; private set => Set(ref infoStatus, value); }
         public string InfoSearch { get => infoSearch; set { Set(ref infoSearch, value); OnPropertyChanged(nameof(InfoFields)); } }
@@ -35,9 +36,9 @@ namespace HollowKnightTAS.Companion.ViewModels
         private void InitializeInfoOverlay()
         {
             try { infoSettings = InfoOverlaySettings.Load(InfoPath); }
-            catch (Exception error) { infoSettings = InfoOverlaySettings.Defaults(); infoSettings.Enabled = false; InfoStatus = "信息设置读取失败：" + error.Message; }
+            catch (Exception error) { infoSettingsInvalid = true; infoSettings = InfoOverlaySettings.Defaults(); infoSettings.Enabled = false; InfoStatus = "信息设置读取失败：" + error.Message; }
             infoController = new InfoOverlayController(() => SelectedSession?.Client, RequestRuntimeAsync,
-                () => IsRestorePresentationFrozen, message => InfoStatus = message,
+                () => IsRestorePresentationFrozen, message => { if (!infoSettingsInvalid) InfoStatus = message; },
                 (x, y) => { InfoSettings.MarginX = Math.Round(x); InfoSettings.MarginY = Math.Round(y); });
             infoSaveTimer.Tick += SaveInfoSettings;
             AttachInfoSettings(); infoController.Configure(infoSettings);
@@ -66,8 +67,8 @@ namespace HollowKnightTAS.Companion.ViewModels
         private void SaveInfoSettings(object? sender, EventArgs e)
         {
             infoSaveTimer.Stop();
-            try { infoSettings.Save(InfoPath); infoController?.Configure(infoSettings); InfoStatus = "信息设置已保存。"; }
-            catch (Exception error) { InfoStatus = "信息设置未保存：" + error.Message; }
+            try { infoSettings.Save(InfoPath); infoSettingsInvalid = false; infoController?.Configure(infoSettings); InfoStatus = "信息设置已保存。"; }
+            catch (Exception error) { infoSettingsInvalid = true; InfoStatus = "信息设置未保存：" + error.Message; }
         }
         public void AddInfoItem(InfoField? field)
         { if (field != null && infoSettings.Items.Count < 32) infoSettings.Items.Add(InfoOverlayModel.NewItem(field.Id)); }

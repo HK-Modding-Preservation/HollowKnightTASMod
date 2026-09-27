@@ -46,6 +46,9 @@ internal static partial class StudioScenarioHarness
     {
         output = args.Single(a => a.StartsWith("--scenario-output=")).Split('=', 2)[1];
         Directory.CreateDirectory(output);
+        if (args.Contains("--info-overlay"))
+            typeof(MainViewModel).GetProperty("InfoOverlaySettingPathOverride", BindingFlags.Static | BindingFlags.NonPublic)!
+                .SetValue(null, Path.Combine(output, "info-settings.json"));
         videoExportScenarios = args.Contains("--video-export");
         battleVideoScenarios = videoExportScenarios && args.Any(a => a.StartsWith("--video-movie=", StringComparison.Ordinal));
         worldlineFaultScenarios = args.Contains("--worldline-fault");
@@ -58,7 +61,8 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (worldlineFaultScenarios) await RunWorldlineFaultAsync(args);
+                if (args.Contains("--info-overlay")) await RunInfoOverlayAsync(args);
+                else if (worldlineFaultScenarios) await RunWorldlineFaultAsync(args);
                 else if (args.Contains("--rng-seed")) await RunRngSeedAsync(args.SingleOrDefault(a => a.StartsWith("--rng-seed-continue="))?.Split('=', 2)[1]);
                 else if (args.Contains("--sequence-binding")) await RunSequenceBindingAsync();
                 else if (videoExportScenarios) await RunVideoExportAsync(args);

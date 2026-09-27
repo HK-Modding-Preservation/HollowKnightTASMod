@@ -2699,5 +2699,41 @@
     "Source": "信息读取失败：",
     "Zh": "信息读取失败：",
     "En": "Information read failed: "
+  },
+  {
+    "Key": "信息设置读取失败：{0}",
+    "Source": "信息设置读取失败：{0}",
+    "Zh": "信息设置读取失败：{0}",
+    "En": "Could not load overlay settings: {0}"
+  },
+  {
+    "Key": "信息设置未保存：{0}",
+    "Source": "信息设置未保存：{0}",
+    "Zh": "信息设置未保存：{0}",
+    "En": "Overlay settings were not saved: {0}"
+  },
+  {
+    "Key": "信息显示设置无效：检查字号、透明度、位置和颜色。",
+    "Source": "信息显示设置无效：检查字号、透明度、位置和颜色。",
+    "Zh": "信息显示设置无效：检查字号、透明度、位置和颜色。",
+    "En": "Invalid overlay settings: check font size, opacity, position and colors."
+  },
+  {
+    "Key": "信息条目无效：检查字段、小数位、名称、单位和颜色。",
+    "Source": "信息条目无效：检查字段、小数位、名称、单位和颜色。",
+    "Zh": "信息条目无效：检查字段、小数位、名称、单位和颜色。",
+    "En": "Invalid information row: check the field, decimal places, label, unit and color."
+  },
+  {
+    "Key": "信息显示设置文件过大。",
+    "Source": "信息显示设置文件过大。",
+    "Zh": "信息显示设置文件过大。",
+    "En": "The overlay settings file is too large."
+  },
+  {
+    "Key": "信息显示设置文件为空。",
+    "Source": "信息显示设置文件为空。",
+    "Zh": "信息显示设置文件为空。",
+    "En": "The overlay settings file is empty."
   }
 ]

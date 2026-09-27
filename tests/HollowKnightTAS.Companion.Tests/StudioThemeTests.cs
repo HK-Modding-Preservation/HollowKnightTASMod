@@ -223,6 +223,14 @@ namespace HollowKnightTAS.Companion.Tests
                         tabs.SelectedItem = page;
                         root.UpdateLayout();
                         window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        if (page.Name == "InfoOverlayTab")
+                        {
+                            var panelImage = new RenderTargetBitmap(1320, 840, 144, 144, PixelFormats.Pbgra32);
+                            panelImage.Render(root);
+                            var panelEncoder = new PngBitmapEncoder(); panelEncoder.Frames.Add(BitmapFrame.Create(panelImage));
+                            using var panelOutput = File.Create(Path.Combine(AppContext.BaseDirectory, "studio-info-overlay-en.png"));
+                            panelEncoder.Save(panelOutput);
+                        }
                         foreach (var block in Find<TextBlock>(page))
                             Assert.IsFalse(System.Text.RegularExpressions.Regex.IsMatch(block.Text, "[\u4e00-\u9fff]"),
                                 $"Untranslated English page text: {block.Text}");
