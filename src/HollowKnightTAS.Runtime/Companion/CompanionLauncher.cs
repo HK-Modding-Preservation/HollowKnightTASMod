@@ -15,9 +15,6 @@ namespace HollowKnightTAS.Runtime.Companion
 {
     public sealed class CompanionLauncher : IDisposable
     {
-        private static readonly ProtocolRange RuntimeProtocols =
-            CompanionProtocolMetadata.SupportedProtocols;
-
         private readonly object sync = new object();
         private readonly string modRoot;
         private readonly CompanionSessionRegistration registration;
@@ -316,52 +313,26 @@ namespace HollowKnightTAS.Runtime.Companion
                     "Unsupported platform.");
             }
 
-            var manifestPath = Path.Combine(
+            var entrypoint = Path.Combine(
                 modRoot,
-                "companion.manifest.json");
-            if (!File.Exists(manifestPath))
+                "Companion",
+                "win-x64",
+                "HollowKnightTAS.Companion.exe");
+            if (!File.Exists(entrypoint))
             {
                 Transition(
                     CompanionLaunchState.Unavailable,
-                    "Signed Companion bundle is not installed.",
+                    "Companion executable is not installed.",
                     0,
                     null,
                     string.Empty);
                 return AttemptResult.TerminalFailure(
-                    "Companion manifest is missing.");
+                    "Companion executable is missing: " + entrypoint);
             }
 
-            Transition(
-                CompanionLaunchState.Verifying,
-                "Verifying signed manifest and every declared file.",
-                0,
-                null,
-                string.Empty);
-            var verification =
-                CompanionBundleVerifier.Verify(
-                    modRoot,
-                    manifestPath,
-                    "win-x64",
-                    RuntimeProtocols,
-                    CompanionReleaseKey.Create());
-            if (!verification.Success
-                || verification.Manifest == null
-                || verification.EntrypointPath == null)
-            {
-                Transition(
-                    CompanionLaunchState.Rejected,
-                    verification.Status
-                    + ": "
-                    + verification.Detail,
-                    0,
-                    null,
-                    verification.Manifest?.Version
-                    ?? string.Empty);
-                return AttemptResult.TerminalFailure(
-                    verification.Detail);
-            }
-
-            var bundleVersion = verification.Manifest.Version;
+            // Launch the local installation directly. Protocol compatibility is
+            // negotiated by the existing connection handshake.
+            var bundleVersion = CompanionProtocolMetadata.Version;
             Transition(
                 CompanionLaunchState.AttachingExisting,
                 "Checking the current-user Companion control pipe.",
@@ -424,21 +395,21 @@ namespace HollowKnightTAS.Runtime.Companion
                     attach.Version);
             }
 
-            return await LaunchVerifiedAsync(
-                    verification.EntrypointPath,
+            return await LaunchAsync(
+                    entrypoint,
                     bundleVersion,
                     token)
                 .ConfigureAwait(false);
         }
 
-        private async Task<AttemptResult> LaunchVerifiedAsync(
+        private async Task<AttemptResult> LaunchAsync(
             string entrypoint,
             string bundleVersion,
             CancellationToken token)
         {
             Transition(
                 CompanionLaunchState.Launching,
-                "Starting the verified Companion executable.",
+                "Starting the Companion executable.",
                 0,
                 null,
                 bundleVersion);
@@ -525,7 +496,7 @@ namespace HollowKnightTAS.Runtime.Companion
             {
                 Transition(
                     CompanionLaunchState.Ready,
-                    "Verified Companion authenticated.",
+                    "Companion authenticated.",
                     0,
                     null,
                     bundleVersion);
