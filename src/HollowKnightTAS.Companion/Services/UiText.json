@@ -404,8 +404,8 @@
   {
     "Key": "t67",
     "Source": "新序列启用游戏鼠标",
-    "Zh": "新序列启用游戏鼠标",
-    "En": "Enable game mouse for new sequences"
+    "Zh": "新序列启用游戏鼠标（开启后不能更改分辨率）",
+    "En": "Enable game mouse for new sequences (resolution must stay unchanged)"
   },
   {
     "Key": "t68",
