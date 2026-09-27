@@ -37,7 +37,12 @@
     <ListBox x:Name="ItemsList" ItemsSource="{Binding InfoSettings.Items}" SelectedIndex="0" AllowDrop="True" PreviewMouseLeftButtonDown="OnDragStart" PreviewMouseMove="OnDragMove" Drop="OnDrop" AutomationProperties.AutomationId="HktasStudio.InfoItems">
      <ListBox.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal">
       <CheckBox IsChecked="{Binding Enabled}" Margin="0,0,8,0"/>
-      <TextBlock Text="{ui:TextBinding FieldName}"/><TextBlock Text="{Binding Label}" Margin="8,0,0,0"/>
+      <TextBlock><TextBlock.Style><Style TargetType="TextBlock">
+       <Setter Property="Text" Value="{Binding Label}"/>
+       <Style.Triggers><DataTrigger Binding="{Binding Label}" Value="">
+        <Setter Property="Text" Value="{ui:TextBinding FieldName}"/>
+       </DataTrigger></Style.Triggers>
+      </Style></TextBlock.Style></TextBlock>
      </StackPanel></DataTemplate></ListBox.ItemTemplate>
     </ListBox>
    </DockPanel>
