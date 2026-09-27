@@ -1,5 +1,7 @@
 # 项目构建指南
 
+[English](BUILD.en.md)
+
 项目包含 .NET Framework 游戏 Runtime、.NET Studio/CLI/MCP/SDK，以及用于原生帧控制的 Windows C 动态库。构建在 Windows x64 上进行。
 
 ## 环境与目录
@@ -82,7 +84,7 @@ dotnet run --project src/HollowKnightTAS.BundleTool -c Release -- print-public .
     -OutputRoot "$PWD/artifacts/clock-local"
 ```
 
-脚本名包含 `T24`，它是完整配套构建实际调用的原生时钟构建入口。输出与指定游戏可执行文件、Unity 和游戏程序集绑定。
+该脚本是完整配套构建使用的原生时钟构建入口。输出与指定游戏可执行文件、Unity 和游戏程序集绑定。
 
 构建并验签暂存包，不修改游戏安装：
 
@@ -106,7 +108,7 @@ dotnet run --project src/HollowKnightTAS.BundleTool -c Release -- print-public .
 
 ## 带文档的发布包
 
-`scripts/Package-StudioUpdate.ps1` 从现有安装生成包含三个指南的 zip，不重新编译。先取得并核对目标安装的 Runtime、Core 和 manifest 的小写 SHA-256，再传入：
+`scripts/Package-StudioUpdate.ps1` 从现有安装生成包含三个指南各自中英文版本的 zip，不重新编译。先取得并核对目标安装的 Runtime、Core 和 manifest 的小写 SHA-256，再传入：
 
 ```powershell
 ./scripts/Package-StudioUpdate.ps1 `

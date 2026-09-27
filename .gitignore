@@ -24,6 +24,9 @@ __pycache__/
 !/docs/USER-MANUAL.md
 !/docs/AI-CONTROL.md
 !/docs/BUILD.md
+!/docs/USER-MANUAL.en.md
+!/docs/AI-CONTROL.en.md
+!/docs/BUILD.en.md
 /packaging/*.md
 /scripts/*/README.md
 

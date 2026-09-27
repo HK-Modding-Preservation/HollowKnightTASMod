@@ -307,9 +307,9 @@
   },
   {
     "Key": "t51",
-    "Source": "从标题画面的「选项 → Modding → HollowKnightTAS」打开 Studio，或在 Studio 点击「启动游戏…」，等待启动第 0 帧。打开 .hktaspack 后播放或步进；没有序列时开始新录制。加载期间原生帧仍推进，表格输入帧不消耗。Pause 播放/暂停，P 只继续播放，V 步进；按住 V 连续步进。",
-    "Zh": "从标题画面的「选项 → Modding → HollowKnightTAS」打开 Studio，或在 Studio 点击「启动游戏…」，等待启动第 0 帧。打开 .hktaspack 后播放或步进；没有序列时开始新录制。加载期间原生帧仍推进，表格输入帧不消耗。Pause 播放/暂停，P 只继续播放，V 步进；按住 V 连续步进。",
-    "En": "Open Studio from Options → Modding → HollowKnightTAS on the title screen, or use Launch game in Studio. Wait at startup frame 0. Open a .hktaspack and play or step; with no sequence, this starts recording. Loading advances native frames without consuming input rows. Pause toggles playback, P resumes, and V steps. Hold V for repeated steps."
+    "Source": "从标题画面的「选项 → Modding → HollowKnightTAS」打开 Studio，等待启动第 0 帧。打开 .hktaspack 后播放或步进；没有序列时开始录制。加载期间不消耗输入行。Pause 播放/暂停，P 只继续播放，按住 V 连续步进。",
+    "Zh": "从标题画面的「选项 → Modding → HollowKnightTAS」打开 Studio，等待启动第 0 帧。打开 .hktaspack 后播放或步进；没有序列时开始录制。加载期间不消耗输入行。Pause 播放/暂停，P 只继续播放，按住 V 连续步进。",
+    "En": "Open Studio from Options → Modding → HollowKnightTAS on the title screen and wait at startup frame 0. Open a .hktaspack and play or step; with no sequence, this starts recording. Loading does not consume input rows. Pause toggles playback, P resumes, and holding V repeats steps."
   },
   {
     "Key": "t52",
@@ -319,9 +319,9 @@
   },
   {
     "Key": "t53",
-    "Source": "每行是一帧，Frame N 表示已执行 [0,N)，下一步执行第 N 行。单击按键格或上下拖动编辑，Shift 选择连续帧，Ctrl 选择不连续帧；右键可复制、粘贴、插入、删除和修改选区帧率。未来输入在播放前同步；修改过去输入后，选中目标行并重新计算。勾选「播放时跟随」让表格跟随执行位置。",
-    "Zh": "每行是一帧，Frame N 表示已执行 [0,N)，下一步执行第 N 行。单击按键格或上下拖动编辑，Shift 选择连续帧，Ctrl 选择不连续帧；右键可复制、粘贴、插入、删除和修改选区帧率。未来输入在播放前同步；修改过去输入后，选中目标行并重新计算。勾选「播放时跟随」让表格跟随执行位置。",
-    "En": "Each row is one input frame. Frame N means [0,N) has executed; row N is next. Click cells or drag vertically to edit. Shift selects a range; Ctrl selects separate rows. The context menu provides copy, paste, insert, delete and selection FPS. Future edits sync before playback. After editing past input, select a target and recompute. Enable Follow playback to track execution."
+    "Source": "每行是一帧，Frame N 表示已执行 [0,N)，下一步执行第 N 行。单击或上下拖动按键格编辑；Shift 连选，Ctrl 多选。填写「插入帧数」后插入空帧，一次撤销整批插入；右键可编辑选区和帧率。未来输入在播放前同步；修改过去输入后，选中目标行并点击「回放到当前帧」。播放时跟随默认开启。",
+    "Zh": "每行是一帧，Frame N 表示已执行 [0,N)，下一步执行第 N 行。单击或上下拖动按键格编辑；Shift 连选，Ctrl 多选。填写「插入帧数」后插入空帧，一次撤销整批插入；右键可编辑选区和帧率。未来输入在播放前同步；修改过去输入后，选中目标行并点击「回放到当前帧」。播放时跟随默认开启。",
+    "En": "Each row is one input frame. At Frame N, [0,N) has executed and row N is next. Click cells or drag vertically; Shift selects a range and Ctrl selects separate rows. Set Insert count before inserting empty frames; one Undo removes the whole insertion. The context menu edits rows and FPS. Future edits sync before playback. After editing past input, select the target row and click Replay to current frame. Follow playback is enabled by default."
   },
   {
     "Key": "t54",
@@ -331,9 +331,9 @@
   },
   {
     "Key": "t55",
-    "Source": "时间线叶子保留实际最远进度及完整未来输入。点击叶子加载分支，恢复所选节点才改变游戏位置。保存节点只记录恢复目标，不播放或回档；运行中会先暂停，未来或未验证的目标显示「未验证存档」。Shift+F1–F10 保存，F1–F10 恢复。回档通过重启重放完成，画面和表格暂时冻结，进度条显示已重放帧数的比例，完成后显示目标结果。",
-    "Zh": "时间线叶子保留实际最远进度及完整未来输入。点击叶子加载分支，恢复所选节点才改变游戏位置。保存节点只记录恢复目标，不播放或回档；运行中会先暂停，未来或未验证的目标显示「未验证存档」。Shift+F1–F10 保存，F1–F10 恢复。回档通过重启重放完成，画面和表格暂时冻结，进度条显示已重放帧数的比例，完成后显示目标结果。",
-    "En": "Timeline leaves retain the furthest executed frame and all future input. Select a leaf to load its branch; restore a selected node to change game position. Saving a node records a target without playing or seeking; running playback pauses first. Future or unverified targets are marked unverified. Shift+F1–F10 saves and F1–F10 restores. Restore restarts and replays while the game and table stay frozen; the bar tracks replay progress."
+    "Source": "时间线、检查点和快捷槽绑定只在本次 Studio 会话内保留，重开 Studio 后清空；回档重启游戏不清空。叶子保留实际最远进度及完整未来输入。点击叶子加载分支，恢复所选节点才改变游戏位置。保存节点不播放或回档；运行中先暂停，未运行或修改后未验证的目标标记为未验证。Shift+F1–F10 保存，F1–F10 恢复。回档重启重放期间画面和表格冻结，进度条按重放进度更新。",
+    "Zh": "时间线、检查点和快捷槽绑定只在本次 Studio 会话内保留，重开 Studio 后清空；回档重启游戏不清空。叶子保留实际最远进度及完整未来输入。点击叶子加载分支，恢复所选节点才改变游戏位置。保存节点不播放或回档；运行中先暂停，未运行或修改后未验证的目标标记为未验证。Shift+F1–F10 保存，F1–F10 恢复。回档重启重放期间画面和表格冻结，进度条按重放进度更新。",
+    "En": "Timelines, checkpoints and quick-slot bindings last only for this Studio session. Reopening Studio clears them; restarting the game for restore does not. Leaves retain the furthest executed frame and all future input. Select a leaf to load a branch, then restore a node to change game position. Saving a node does not play or seek; running playback pauses first. Unexecuted or edited targets are marked unverified. Shift+F1–F10 saves and F1–F10 restores. Restore restarts and replays with the game and table frozen while the progress bar advances."
   },
   {
     "Key": "t56",
@@ -343,9 +343,9 @@
   },
   {
     "Key": "t57",
-    "Source": "Ctrl+S 首次选择路径，之后保存到当前文件；另存为可选择新路径。.hktaspack 携带完整输入和第 0 帧固定的四槽初始存档，重播使用独立影子副本；未绑定的 .hktas 依赖本机起始存档。默认每 5 分钟将有变化的草稿保存到序列目录的 Autosave，不覆盖手动文件、不推进游戏。暂停、切换分支和正常关闭另会保存本机时间线。强制结束进程可能丢失最后的编辑。",
-    "Zh": "Ctrl+S 首次选择路径，之后保存到当前文件；另存为可选择新路径。.hktaspack 携带完整输入和第 0 帧固定的四槽初始存档，重播使用独立影子副本；未绑定的 .hktas 依赖本机起始存档。默认每 5 分钟将有变化的草稿保存到序列目录的 Autosave，不覆盖手动文件、不推进游戏。暂停、切换分支和正常关闭另会保存本机时间线。强制结束进程可能丢失最后的编辑。",
-    "En": "Ctrl+S chooses a path on first save, then saves to that file. Save as chooses another path. A .hktaspack contains all input and the four-slot snapshot fixed at frame 0; replay uses an independent shadow copy. Unbound .hktas files depend on local starting saves. By default, changed drafts are saved every 5 minutes to Autosave without overwriting manual files or advancing the game. Pausing, switching branches and closing normally also save the local timeline. Force-closing may lose recent edits."
+    "Source": "Ctrl+S 首次选择路径，之后保存到当前文件；「保存序列到...」选择新路径。.hktaspack 携带完整输入及启动第 0 帧固定的四槽初始存档，重播使用独立影子副本；未绑定的 .hktas 依赖本机起始存档。默认每 5 分钟将有变化的草稿写入序列目录的 Autosave，不覆盖手动文件、不推进游戏。关闭 Studio 前请保存序列；会话时间线不能代替序列文件。",
+    "Zh": "Ctrl+S 首次选择路径，之后保存到当前文件；「保存序列到...」选择新路径。.hktaspack 携带完整输入及启动第 0 帧固定的四槽初始存档，重播使用独立影子副本；未绑定的 .hktas 依赖本机起始存档。默认每 5 分钟将有变化的草稿写入序列目录的 Autosave，不覆盖手动文件、不推进游戏。关闭 Studio 前请保存序列；会话时间线不能代替序列文件。",
+    "En": "Ctrl+S chooses a path on first save, then saves to that file. Save sequence to... chooses another path. A .hktaspack contains all input and the four-slot snapshot fixed at startup frame 0; replay uses an independent shadow copy. Unbound .hktas files depend on local starting saves. By default, changed drafts are saved every 5 minutes to Autosave without overwriting manual files or advancing the game. Save the sequence before closing Studio; the session timeline does not replace a sequence file."
   },
   {
     "Key": "t58",
@@ -355,9 +355,9 @@
   },
   {
     "Key": "t59",
-    "Source": "设置页可修改语言、默认帧率（初始 50，范围 1–1000）、游戏鼠标、快捷键、序列目录及自动保存间隔（秒，0 关闭）。默认帧率只影响新建和追加帧；已有序列保留鼠标模式。启用全局热键后，在游戏或其他窗口也可控制播放、继续、步进及快捷槽。显示碰撞箱只画轮廓，不改变碰撞。",
-    "Zh": "设置页可修改语言、默认帧率（初始 50，范围 1–1000）、游戏鼠标、快捷键、序列目录及自动保存间隔（秒，0 关闭）。默认帧率只影响新建和追加帧；已有序列保留鼠标模式。启用全局热键后，在游戏或其他窗口也可控制播放、继续、步进及快捷槽。显示碰撞箱只画轮廓，不改变碰撞。",
-    "En": "Settings controls language, default FPS (initially 50; range 1–1000), game mouse, hotkeys, sequence folder and autosave interval (seconds; 0 disables it). Default FPS affects only new or appended frames; existing sequences retain their mouse mode. Global hotkeys allow playback, resume, step and quick slots while other windows have focus. Collider display draws outlines without changing collisions."
+    "Source": "设置页可修改语言、默认帧率（初始 50，范围 1–1000）、游戏鼠标、快捷键、序列目录及自动保存间隔（秒，0 关闭）。默认帧率只影响新建和追加帧；已有序列保留鼠标模式。启用游戏鼠标后，录制与回放需保持相同分辨率。启用全局热键后，在游戏或其他窗口也可控制播放、继续、步进及快捷槽。显示碰撞箱只画轮廓，不改变碰撞。",
+    "Zh": "设置页可修改语言、默认帧率（初始 50，范围 1–1000）、游戏鼠标、快捷键、序列目录及自动保存间隔（秒，0 关闭）。默认帧率只影响新建和追加帧；已有序列保留鼠标模式。启用游戏鼠标后，录制与回放需保持相同分辨率。启用全局热键后，在游戏或其他窗口也可控制播放、继续、步进及快捷槽。显示碰撞箱只画轮廓，不改变碰撞。",
+    "En": "Settings controls language, default FPS (initially 50; range 1–1000), game mouse, hotkeys, sequence folder and autosave interval (seconds; 0 disables it). Default FPS affects only new or appended frames; existing sequences retain their mouse mode. With game mouse input enabled, keep the same resolution for recording and replay. Global hotkeys allow playback, resume, step and quick slots while other windows have focus. Collider display draws outlines without changing collisions."
   },
   {
     "Key": "t60",

@@ -1,5 +1,7 @@
 # AI 控制指南
 
+[English](AI-CONTROL.en.md)
+
 AI、脚本和 Studio 共用受保护的游戏控制路径。先按[玩家指南](USER-MANUAL.md)安装完整配套包，并通过 Studio 启动 TAS 游戏。普通游戏不提供控制会话。
 
 ## 接入与权限
@@ -10,7 +12,7 @@ AI、脚本和 Studio 共用受保护的游戏控制路径。先按[玩家指南
 - `HollowKnightTAS.AgentBridge.exe`：stdio MCP 服务，由 MCP 客户端作为子进程启动。
 - `SDK`：.NET 自动化客户端及依赖，使用 `AutomationClient` 连接。
 
-工具默认读取当前用户的 automation bootstrap。CLI 和 MCP 可传 `--bootstrap=<完整路径>` 指定会话入口。连接信息和认证凭据仅供本机使用，不应随序列分发。
+工具默认读取 `%LOCALAPPDATA%/HollowKnightTAS/automation/automation-v1.json` 中的会话连接信息（automation bootstrap）。CLI 和 MCP 可传 `--bootstrap=<完整路径>` 指定会话入口。连接信息和认证凭据仅供本机使用，不应随序列分发。
 
 MCP 客户端配置示例，路径按实际安装位置填写：
 
@@ -37,7 +39,7 @@ $cli = 'D:/Games/Hollow Knight/hollow_knight_Data/Managed/Mods/HollowKnightTAS/C
 & $cli automation call getCapabilities observe.status
 ```
 
-以 `getCapabilities` 返回的命令、scope 和 availability 为准。当前 Studio 使用全流程 v2，会话从原生启动第 0 帧开始。全流程控制命令通过 CLI 或 SDK 的 `CreateCommand` / `ExecuteAsync` 调用；MCP 提供世界观察及视频工具，但没有独立的 `fullRun*` 控制工具。
+以 `getCapabilities` 返回的命令、scope 和 availability 为准。当前 Studio 使用全流程 v2，会话从原生启动第 0 帧开始。Studio 时间线、检查点和快捷槽绑定仅在本次 Studio 会话内保留，跨会话保留输入需保存序列文件。全流程控制命令通过 CLI 或 SDK 的 `CreateCommand` / `ExecuteAsync` 调用；MCP 提供世界观察及视频工具，但没有独立的 `fullRun*` 控制工具。
 
 CLI 返回结果封套，`success` 是字符串 `"true"` 或 `"false"`。`dataBase64` 解码为 UTF-8 JSON 字符串映射，部分字段还包含嵌套 JSON。以下函数检查请求是否成功并解码：
 
@@ -87,7 +89,7 @@ Invoke-Tas @('automation','call','fullRunStep','control.step',
 
 播放用相同方式调用 `fullRunPlay`；暂停传 `--expected-mode=Running`。不要与人工 Studio 操作同时写入。状态改变导致前置条件失败时，重新观察并判断，不循环重试旧帧号。
 
-`beginFullRunReplay` 接收 canonical v2 Movie 的 UTF-8 字节 Base64，不接收 `.hktaspack` 容器本身。序列包应通过 Studio 加载以应用绑定的初始存档。完整 Movie 应通过 Core 的 `MovieV2Codec` 解析并规范化，保持真实环境头及输入通道顺序；大文档使用 SDK，避免命令行长度限制。
+`beginFullRunReplay` 接收 canonical v2 Movie 的 UTF-8 字节 Base64，不接收 `.hktaspack` 容器本身。序列包应通过 Studio 加载以应用绑定的初始存档。完整 Movie 应通过 Core 的 `MovieV2Codec` 解析并规范化，保持真实环境头及输入通道顺序；较长文档可用 SDK 避免命令行长度限制，但仍受协议的 900000 字符字段上限及 1 MiB 消息上限约束；SDK 不会自动把全流程回放请求分块。超出请求大小时，通过 Studio 打开文件。
 
 全流程输入通道包含 `hero`、`preMenu`、`binder`、`mouseInControl` 和 `mouseHollowKnight`。菜单和角色通道分别记录，不能只修改角色方向就假定菜单也会移动。连续帧保持相同按键表示持续按住，需要新按下边沿时先安排松开帧。输入结构及动作顺序以 `src/HollowKnightTAS.Core/Movie/MovieProtocolV2.cs` 和 `src/HollowKnightTAS.Core/Movie/MovieV2Codec.cs` 为准。
 
@@ -120,7 +122,7 @@ MCP 对应 `hktas_get_object_details`；SDK 的 `GetObjectDetailsJsonAsync` 自�
 
 ## 视频、完成状态与失败处理
 
-`startVideoExport` / `hktas_start_video_export` 使用 `control.playback`，需要暂停的固定 50 fps 回放、`ffmpegPath` 和不存在的 `outputPath`，可传 `endMovieFrame` 指定终点。全流程导出从当前回放位置录制剩余区间并自动结束；完整导出或区间准备可直接使用 Studio。`cancelVideoExport` 携带该次 `operationId`。全流程不使用手动 finish 收尾。
+`startVideoExport` / `hktas_start_video_export` 使用 `control.playback`，需要暂停的固定 50 fps 回放；必填 `ffmpegPath`、不存在的 `outputPath`、正整数 `maximumFrames` 和 `expectedRuntimeMode=Paused`。`maximumFrames` 是采集上限，必须严格大于所选区间的 Movie 帧数，并为加载画面留出余量；可传 `endMovieFrame` 指定 Movie 终点。全流程导出从当前回放位置录制剩余区间并自动结束；完整导出或区间准备可直接使用 Studio。`cancelVideoExport` 携带该次 `operationId`。全流程不使用手动 finish 收尾。
 
 请求成功只表示接受。读取 `fullRunStatus` / `getStatus` 的返回数据，检查实际帧、故障、回放停止原因以及视频状态；以匹配操作的 `Completed` 为完成，`Failed` 和 `Cancelled` 均不代表成功。嵌套 Runtime 状态按返回字段解析。
 
@@ -133,3 +135,5 @@ MCP 对应 `hktas_get_object_details`；SDK 的 `GetObjectDetailsJsonAsync` 自�
 局内保存的请求接受不等于完成，需核对保存请求 ID、最终状态及 `getReplaySaves` 条目。恢复以返回的 `operationId` 查询 `coldRestore` 状态，完成后重新连接；取消必须携带同一个操作 ID。收到存档覆盖要求时，需要针对具体文件与目标的授权。初始存档包、Studio 时间线和局内 replay save 是不同的数据对象，不混用其 ID 或文件格式。
 
 接口定义可查 `src/HollowKnightTAS.Core/Automation/AutomationCommandIds.cs`、`src/HollowKnightTAS.Companion/Automation/AutomationCapabilityCatalog.cs`、`src/HollowKnightTAS.AgentBridge/McpCatalog.cs` 和 `src/HollowKnightTAS.Automation.Client/AutomationClient.cs`。
+
+[玩家安装与使用](USER-MANUAL.md) · [项目构建指南](BUILD.md)
