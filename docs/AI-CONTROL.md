@@ -136,4 +136,4 @@ MCP 对应 `hktas_get_object_details`；SDK 的 `GetObjectDetailsJsonAsync` 自�
 
 接口定义可查 `src/HollowKnightTAS.Core/Automation/AutomationCommandIds.cs`、`src/HollowKnightTAS.Companion/Automation/AutomationCapabilityCatalog.cs`、`src/HollowKnightTAS.AgentBridge/McpCatalog.cs` 和 `src/HollowKnightTAS.Automation.Client/AutomationClient.cs`。
 
-[玩家安装与使用](USER-MANUAL.md) · [项目构建指南](BUILD.md)
+[玩家安装与使用](USER-MANUAL.md)

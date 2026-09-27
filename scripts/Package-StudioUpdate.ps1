@@ -56,10 +56,8 @@ foreach ($file in $manifest.files) {
 }
 Add-PackageFile 'docs/USER-MANUAL.md' (Join-Path $PSScriptRoot '../docs/USER-MANUAL.md')
 Add-PackageFile 'docs/AI-CONTROL.md' (Join-Path $PSScriptRoot '../docs/AI-CONTROL.md')
-Add-PackageFile 'docs/BUILD.md' (Join-Path $PSScriptRoot '../docs/BUILD.md')
 Add-PackageFile 'docs/USER-MANUAL.en.md' (Join-Path $PSScriptRoot '../docs/USER-MANUAL.en.md')
 Add-PackageFile 'docs/AI-CONTROL.en.md' (Join-Path $PSScriptRoot '../docs/AI-CONTROL.en.md')
-Add-PackageFile 'docs/BUILD.en.md' (Join-Path $PSScriptRoot '../docs/BUILD.en.md')
 if (!$VerifyOnly) {
     [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($output)) | Out-Null
     $stream = [IO.File]::Open($output, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)

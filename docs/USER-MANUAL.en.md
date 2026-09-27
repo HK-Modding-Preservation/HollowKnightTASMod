@@ -73,7 +73,7 @@ Opening another file validates it first, then pauses and records the current bra
 
 ## Export MP4
 
-Choose a `.mp4` output path that does not already exist. Studio uses its bundled encoder. Video preserves the actual duration of each game frame, including changes in frame rate.
+Choose a `.mp4` output path that does not already exist. Studio uses its bundled encoder.
 
 - The Input Editor MP4 button exports the entire current sequence, including future draft input.
 - Set a start and end node in Timeline to export `(start frame,end frame]` on one ancestor path. Reverse selections are reordered automatically; sibling branches cannot form a range.
@@ -90,4 +90,4 @@ Setting includes language, FPS, mouse mode, sequence directory, autosave interva
 - Restore or export fails: retain the error and check the current operation status before issuing another request.
 - For logs, check `ModLog.txt` and `Player.log` in the game user directory, normally `%USERPROFILE%/AppData/LocalLow/Team Cherry/Hollow Knight` on Windows.
 
-See the [AI control guide](AI-CONTROL.en.md) for automation and the [build guide](BUILD.en.md) for compiling the project.
+See the [AI control guide](AI-CONTROL.en.md) for automation.

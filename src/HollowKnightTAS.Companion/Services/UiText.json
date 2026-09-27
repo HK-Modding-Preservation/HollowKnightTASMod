@@ -367,9 +367,9 @@
   },
   {
     "Key": "t61",
-    "Source": "输入编辑器导出当前完整序列；时间线可选择同一祖先路径上的起点和终点，导出 (起点帧,终点帧]，兄弟分支不可直接导出。使用内置视频编码器，按每帧实际时长导出；请选择一个不存在的 .mp4 路径。准备重放不录入视频，正式采集包含加载画面。暂停后可继续同一次采集；取消不发布最终 MP4。等待导出状态完成后再使用文件。",
-    "Zh": "输入编辑器导出当前完整序列；时间线可选择同一祖先路径上的起点和终点，导出 (起点帧,终点帧]，兄弟分支不可直接导出。使用内置视频编码器，按每帧实际时长导出；请选择一个不存在的 .mp4 路径。准备重放不录入视频，正式采集包含加载画面。暂停后可继续同一次采集；取消不发布最终 MP4。等待导出状态完成后再使用文件。",
-    "En": "Export the full sequence from Input Editor, or select start and end nodes on one ancestor path in Timeline to export (start,end]. Sibling branches cannot form a range. Uses the bundled video encoder. Frame timing follows the game clock. Choose a new .mp4 path. Preparation is excluded; capture includes loading frames. Pause and resume continue the same capture. Cancellation does not publish a final MP4. Wait for export completion before using the file."
+    "Source": "输入编辑器导出当前完整序列；时间线可选择同一祖先路径上的起点和终点，导出 (起点帧,终点帧]，兄弟分支不可直接导出。使用内置视频编码器；请选择一个不存在的 .mp4 路径。准备重放不录入视频，正式采集包含加载画面。暂停后可继续同一次采集；取消不发布最终 MP4。等待导出状态完成后再使用文件。",
+    "Zh": "输入编辑器导出当前完整序列；时间线可选择同一祖先路径上的起点和终点，导出 (起点帧,终点帧]，兄弟分支不可直接导出。使用内置视频编码器；请选择一个不存在的 .mp4 路径。准备重放不录入视频，正式采集包含加载画面。暂停后可继续同一次采集；取消不发布最终 MP4。等待导出状态完成后再使用文件。",
+    "En": "Export the full sequence from Input Editor, or select start and end nodes on one ancestor path in Timeline to export (start,end]. Sibling branches cannot form a range. Uses the bundled video encoder. Choose a new .mp4 path. Preparation is excluded; capture includes loading frames. Pause and resume continue the same capture. Cancellation does not publish a final MP4. Wait for export completion before using the file."
   },
   {
     "Key": "t62",

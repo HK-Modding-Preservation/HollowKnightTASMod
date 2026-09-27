@@ -136,4 +136,4 @@ An accepted in-game save request is not yet a completed save. Match its request 
 
 Definitions are in `src/HollowKnightTAS.Core/Automation/AutomationCommandIds.cs`, `src/HollowKnightTAS.Companion/Automation/AutomationCapabilityCatalog.cs`, `src/HollowKnightTAS.AgentBridge/McpCatalog.cs` and `src/HollowKnightTAS.Automation.Client/AutomationClient.cs`.
 
-[Installation and player guide](USER-MANUAL.en.md) · [Build guide](BUILD.en.md)
+[Installation and player guide](USER-MANUAL.en.md)
