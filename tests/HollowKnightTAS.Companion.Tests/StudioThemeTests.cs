@@ -107,7 +107,7 @@ namespace HollowKnightTAS.Companion.Tests
                         .Select(tab => tab.Header?.ToString())
                         .ToArray();
                     Assert.AreEqual(tabs.Items.Count, visibleTabs.Length, "All remaining pages are directly visible.");
-                    CollectionAssert.AreEqual(new[] { "输入编辑器", "时间线", "操作手册", "设置" }, visibleTabs);
+                    CollectionAssert.AreEqual(new[] { "输入编辑器", "时间线", "操作手册", "信息显示", "设置" }, visibleTabs);
                     Assert.IsFalse(grid.Columns.Any(c => c.SortMemberPath is "Channels" or "Samples"));
                     Assert.IsFalse(visibleTabs.Contains("Movie Text"));
                     Assert.IsNull(window.FindName("SavesTab"));
@@ -209,7 +209,7 @@ namespace HollowKnightTAS.Companion.Tests
                     // Switch without rebuilding the window or view model, including existing status text.
                     UiText.Current.LanguageIndex = 1;
                     window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-                    CollectionAssert.AreEqual(new[] { "Input Editor", "Timeline", "Manual", "Setting" },
+                    CollectionAssert.AreEqual(new[] { "Input Editor", "Timeline", "Manual", "Information overlay", "Setting" },
                         tabs.Items.OfType<TabItem>().Select(t => t.Header?.ToString()).ToArray());
                     Assert.IsTrue(Find<TextBlock>(root).Any(t => t.Text == "Default FPS"));
                     Assert.IsFalse(Find<TextBlock>(root).Any(t => t.Text.Contains("共 ")));

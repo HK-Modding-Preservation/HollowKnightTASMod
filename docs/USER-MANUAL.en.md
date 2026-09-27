@@ -2,7 +2,7 @@
 
 [中文](USER-MANUAL.md)
 
-HollowKnightTAS Studio records, edits and replays frame-by-frame input for Hollow Knight. Its four tabs are Input Editor, Timeline, Manual and Setting. The interface supports Chinese and English.
+HollowKnightTAS Studio records, edits and replays frame-by-frame input for Hollow Knight. Its five tabs are Input Editor, Timeline, Manual, Information overlay and Setting. The interface supports Chinese and English.
 
 ## Install and start
 
@@ -13,9 +13,17 @@ You need Windows x64, Hollow Knight and an installed Modding API. Use a complete
 3. The Mod directory must directly contain `HollowKnightTAS.dll`, `HollowKnightTAS.Core.dll`, `companion.manifest.json` and `Companion/win-x64/HollowKnightTAS.Companion.exe`. When updating, use all companion files from the same release.
 4. Start the game. From the title screen, open Options → Modding → HollowKnightTAS and select the entry that opens Studio and restarts the game. Wait for the controlled game to pause at startup frame 0.
 
-A normal game launch leaves TAS control, recording, external interfaces and collider display inactive.
+A normal game launch leaves TAS control, recording, external interfaces, collider display and information overlay inactive.
 
 Other Mods can remain enabled; you are responsible for checking compatibility. Replay checks the actual environment, including game and Mod identities and display settings. Use a matching environment when replay reports a mismatch.
+
+## Information overlay
+
+The Information overlay tab enables a panel over the game by default: Movie frame, internal room name, position, velocity, dash and shade dash cooldowns, health and soul. It appears after Runtime connects, updates during playback and stepping, and remains visible while paused. Unavailable hero values show `—`. Ready means the cooldown timer ended; other action restrictions still apply.
+
+Search to add fields, remove rows or uncheck them to hide them. Drag rows to reorder, or use Move up/down. Select a row to edit its name, decimal places (0–6), unit and color. A blank name or color uses the default. Colors use `#RRGGBB`. Settings save automatically; Restore defaults resets them.
+
+Choose a corner, X/Y margins, font size and background opacity. Enable Drag position to drag the panel over the game; disable it afterwards to restore mouse passthrough. F11 toggles visibility by default, with F12 or no shortcut also available. In-game shortcuts require global hotkeys. The panel follows the game window and is not included in MP4 exports.
 
 ## Record or replay
 

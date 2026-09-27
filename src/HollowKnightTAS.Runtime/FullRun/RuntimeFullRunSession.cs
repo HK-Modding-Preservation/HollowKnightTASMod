@@ -166,6 +166,12 @@ namespace HollowKnightTAS.Runtime.FullRun
             string Value(string key, string fallback) => fields.TryGetValue(key, out var value) ? value : fallback;
             var id = Value("snapshotId", "");
             var view = Value("view", "world");
+            if (view == "info")
+            {
+                if (Value("snapshotId", "").Length != 0 || Value("offset", "0") != "0")
+                    throw new ArgumentException("Info observations are single frame captures without pagination.");
+                return observationQueue.Invoke(frame => RuntimeInfoObservation.Capture(frame, movieFrame));
+            }
             if (view != "world" && view != "all" && view != "colliders") throw new ArgumentException("Unknown observation view.");
             var inactive = Value("includeInactive", "false");
             if (inactive != "true" && inactive != "false") throw new ArgumentException("includeInactive must be true or false.");

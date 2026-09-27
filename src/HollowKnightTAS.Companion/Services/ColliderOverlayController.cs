@@ -192,7 +192,7 @@ namespace HollowKnightTAS.Companion.Services
             status?.Invoke(detail);
         }
 
-        private static IntPtr FindMainWindow(int processId)
+        internal static IntPtr FindMainWindow(int processId)
         {
             try
             {
@@ -204,7 +204,7 @@ namespace HollowKnightTAS.Companion.Services
             catch (InvalidOperationException) { return IntPtr.Zero; }
         }
 
-        private static bool TryGetClientBounds(IntPtr window, out NativeRect bounds, out uint dpi)
+        internal static bool TryGetClientBounds(IntPtr window, out NativeRect bounds, out uint dpi)
         {
             bounds = default;
             dpi = 96;
@@ -238,7 +238,7 @@ namespace HollowKnightTAS.Companion.Services
 
         private void OnApplicationExit(object? sender, System.Windows.ExitEventArgs args) => Dispose();
 
-        private readonly record struct NativeRect(int Left, int Top, int Right, int Bottom);
+        internal readonly record struct NativeRect(int Left, int Top, int Right, int Bottom);
 
         [StructLayout(LayoutKind.Sequential)] private struct PointI { public int X, Y; }
         [StructLayout(LayoutKind.Sequential)] private struct ClientRect { public int Left, Top, Right, Bottom; }

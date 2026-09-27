@@ -337,7 +337,7 @@
   },
   {
     "Key": "t56",
-    "Source": "保存序列",
+    "Source": "保存序列说明",
     "Zh": "保存序列",
     "En": "Saving sequences"
   },
@@ -2351,5 +2351,353 @@
   "Source": "RNG 种子仅支持 Movie v2。",
   "Zh": "RNG 种子仅支持 Movie v2。",
   "En": "RNG seeds require a Movie v2 sequence."
-}
+},
+  {
+    "Key": "信息显示",
+    "Source": "信息显示",
+    "Zh": "信息显示",
+    "En": "Information overlay"
+  },
+  {
+    "Key": "在游戏画面中显示信息",
+    "Source": "在游戏画面中显示信息",
+    "Zh": "在游戏画面中显示信息",
+    "En": "Show information over the game"
+  },
+  {
+    "Key": "信息显示说明",
+    "Source": "信息显示说明",
+    "Zh": "只读信息直接叠加在游戏画面内；播放、单步时更新，暂停时保留，不录入 MP4。显隐快捷键跟随全局热键开关。",
+    "En": "Read-only information over the game. Updates while playing or stepping, and stays visible while paused. Not included in MP4 exports. Global shortcuts follow the global hotkey switch."
+  },
+  {
+    "Key": "位置",
+    "Source": "位置",
+    "Zh": "位置",
+    "En": "Position"
+  },
+  {
+    "Key": "左上",
+    "Source": "左上",
+    "Zh": "左上",
+    "En": "Top left"
+  },
+  {
+    "Key": "右上",
+    "Source": "右上",
+    "Zh": "右上",
+    "En": "Top right"
+  },
+  {
+    "Key": "左下",
+    "Source": "左下",
+    "Zh": "左下",
+    "En": "Bottom left"
+  },
+  {
+    "Key": "右下",
+    "Source": "右下",
+    "Zh": "右下",
+    "En": "Bottom right"
+  },
+  {
+    "Key": "调整位置",
+    "Source": "调整位置",
+    "Zh": "调整位置",
+    "En": "Drag position"
+  },
+  {
+    "Key": "字号",
+    "Source": "字号",
+    "Zh": "字号",
+    "En": "Font size"
+  },
+  {
+    "Key": "文字颜色",
+    "Source": "文字颜色",
+    "Zh": "文字颜色",
+    "En": "Text color"
+  },
+  {
+    "Key": "背景透明度",
+    "Source": "背景透明度",
+    "Zh": "背景透明度",
+    "En": "Background opacity"
+  },
+  {
+    "Key": "显隐快捷键",
+    "Source": "显隐快捷键",
+    "Zh": "显隐快捷键",
+    "En": "Toggle shortcut"
+  },
+  {
+    "Key": "搜索字段",
+    "Source": "搜索字段",
+    "Zh": "搜索字段",
+    "En": "Find field"
+  },
+  {
+    "Key": "添加",
+    "Source": "添加",
+    "Zh": "添加",
+    "En": "Add"
+  },
+  {
+    "Key": "恢复默认",
+    "Source": "恢复默认",
+    "Zh": "恢复默认",
+    "En": "Restore defaults"
+  },
+  {
+    "Key": "上移",
+    "Source": "上移",
+    "Zh": "上移",
+    "En": "Move up"
+  },
+  {
+    "Key": "下移",
+    "Source": "下移",
+    "Zh": "下移",
+    "En": "Move down"
+  },
+  {
+    "Key": "删除",
+    "Source": "删除",
+    "Zh": "删除",
+    "En": "Remove"
+  },
+  {
+    "Key": "显示名称",
+    "Source": "显示名称",
+    "Zh": "显示名称",
+    "En": "Display name"
+  },
+  {
+    "Key": "留空使用默认值",
+    "Source": "留空使用默认值",
+    "Zh": "留空使用默认值",
+    "En": "Leave blank to use the default"
+  },
+  {
+    "Key": "小数位",
+    "Source": "小数位",
+    "Zh": "小数位",
+    "En": "Decimals"
+  },
+  {
+    "Key": "单位",
+    "Source": "单位",
+    "Zh": "单位",
+    "En": "Unit"
+  },
+  {
+    "Key": "条目颜色",
+    "Source": "条目颜色",
+    "Zh": "条目颜色",
+    "En": "Item color"
+  },
+  {
+    "Key": "冷却结束显示就绪",
+    "Source": "冷却结束显示就绪",
+    "Zh": "冷却结束显示就绪",
+    "En": "Show Ready when cooldown ends"
+  },
+  {
+    "Key": "信息格式说明",
+    "Source": "信息格式说明",
+    "Zh": "拖动条目可排序。颜色使用 #RRGGBB，留空使用统一文字颜色；小数位 0–6。就绪仅表示冷却结束，其他能力限制仍然有效。",
+    "En": "Drag rows to reorder. Colors use #RRGGBB; blank uses the main text color. Decimals: 0–6. Ready means the cooldown ended; other ability restrictions still apply."
+  },
+  {
+    "Key": "拖动面板调整位置",
+    "Source": "拖动面板调整位置",
+    "Zh": "拖动面板调整位置",
+    "En": "Drag this panel to position it"
+  },
+  {
+    "Key": "帧",
+    "Source": "帧",
+    "Zh": "帧",
+    "En": "Frame"
+  },
+  {
+    "Key": "原生帧",
+    "Source": "原生帧",
+    "Zh": "原生帧",
+    "En": "Native frame"
+  },
+  {
+    "Key": "房间",
+    "Source": "房间",
+    "Zh": "房间",
+    "En": "Room"
+  },
+  {
+    "Key": "坐标",
+    "Source": "坐标",
+    "Zh": "坐标",
+    "En": "Position"
+  },
+  {
+    "Key": "坐标 X",
+    "Source": "坐标 X",
+    "Zh": "坐标 X",
+    "En": "Position X"
+  },
+  {
+    "Key": "坐标 Y",
+    "Source": "坐标 Y",
+    "Zh": "坐标 Y",
+    "En": "Position Y"
+  },
+  {
+    "Key": "速度",
+    "Source": "速度",
+    "Zh": "速度",
+    "En": "Velocity"
+  },
+  {
+    "Key": "速度 X",
+    "Source": "速度 X",
+    "Zh": "速度 X",
+    "En": "Velocity X"
+  },
+  {
+    "Key": "速度 Y",
+    "Source": "速度 Y",
+    "Zh": "速度 Y",
+    "En": "Velocity Y"
+  },
+  {
+    "Key": "冲刺冷却",
+    "Source": "冲刺冷却",
+    "Zh": "冲刺冷却",
+    "En": "Dash cooldown"
+  },
+  {
+    "Key": "暗影冲刺冷却",
+    "Source": "暗影冲刺冷却",
+    "Zh": "暗影冲刺冷却",
+    "En": "Shade dash cooldown"
+  },
+  {
+    "Key": "攻击冷却",
+    "Source": "攻击冷却",
+    "Zh": "攻击冷却",
+    "En": "Attack cooldown"
+  },
+  {
+    "Key": "生命",
+    "Source": "生命",
+    "Zh": "生命",
+    "En": "Health"
+  },
+  {
+    "Key": "当前生命",
+    "Source": "当前生命",
+    "Zh": "当前生命",
+    "En": "Current health"
+  },
+  {
+    "Key": "最大生命",
+    "Source": "最大生命",
+    "Zh": "最大生命",
+    "En": "Maximum health"
+  },
+  {
+    "Key": "灵魂",
+    "Source": "灵魂",
+    "Zh": "灵魂",
+    "En": "Soul"
+  },
+  {
+    "Key": "储备灵魂",
+    "Source": "储备灵魂",
+    "Zh": "储备灵魂",
+    "En": "Reserve soul"
+  },
+  {
+    "Key": "着地",
+    "Source": "着地",
+    "Zh": "着地",
+    "En": "Grounded"
+  },
+  {
+    "Key": "朝向",
+    "Source": "朝向",
+    "Zh": "朝向",
+    "En": "Facing"
+  },
+  {
+    "Key": "跳跃中",
+    "Source": "跳跃中",
+    "Zh": "跳跃中",
+    "En": "Jumping"
+  },
+  {
+    "Key": "冲刺中",
+    "Source": "冲刺中",
+    "Zh": "冲刺中",
+    "En": "Dashing"
+  },
+  {
+    "Key": "就绪",
+    "Source": "就绪",
+    "Zh": "就绪",
+    "En": "Ready"
+  },
+  {
+    "Key": "右",
+    "Source": "右",
+    "Zh": "右",
+    "En": "Right"
+  },
+  {
+    "Key": "左",
+    "Source": "左",
+    "Zh": "左",
+    "En": "Left"
+  },
+  {
+    "Key": "是",
+    "Source": "是",
+    "Zh": "是",
+    "En": "Yes"
+  },
+  {
+    "Key": "否",
+    "Source": "否",
+    "Zh": "否",
+    "En": "No"
+  },
+  {
+    "Key": "无",
+    "Source": "无",
+    "Zh": "无",
+    "En": "None"
+  },
+  {
+    "Key": "信息显示已关闭。",
+    "Source": "信息显示已关闭。",
+    "Zh": "信息显示已关闭。",
+    "En": "Information overlay is off."
+  },
+  {
+    "Key": "信息显示已启用。",
+    "Source": "信息显示已启用。",
+    "Zh": "信息显示已启用。",
+    "En": "Information overlay is on."
+  },
+  {
+    "Key": "信息设置已保存。",
+    "Source": "信息设置已保存。",
+    "Zh": "信息设置已保存。",
+    "En": "Overlay settings saved."
+  },
+  {
+    "Key": "信息读取失败：",
+    "Source": "信息读取失败：",
+    "Zh": "信息读取失败：",
+    "En": "Information read failed: "
+  }
 ]

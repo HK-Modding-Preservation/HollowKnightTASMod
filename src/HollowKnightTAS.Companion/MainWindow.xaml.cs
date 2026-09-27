@@ -76,6 +76,7 @@ namespace HollowKnightTAS.Companion
                 gridFollowTimer.Stop();
                 if (DataContext is MainViewModel vm)
                 {
+                    vm.DisposeInfoOverlay();
                     vm.InputGridRefreshed -= RestoreGridSelection;
                     vm.InputGridPositionChanged -= ScrollGridToFrame;
                     vm.PropertyChanged -= OnInputBindingsChanged;
@@ -262,7 +263,7 @@ namespace HollowKnightTAS.Companion
 
         private void OnInputBindingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName is nameof(MainViewModel.GlobalHotkeysEnabled) or nameof(MainViewModel.ConfiguredPause) or nameof(MainViewModel.ConfiguredAdvance) or nameof(MainViewModel.ConfiguredPlay))
+            if (e.PropertyName is nameof(MainViewModel.GlobalHotkeysEnabled) or nameof(MainViewModel.ConfiguredPause) or nameof(MainViewModel.ConfiguredAdvance) or nameof(MainViewModel.ConfiguredPlay) or nameof(MainViewModel.ConfiguredInfoKey))
                 ConfigureGlobalHotkeys();
             if (e.PropertyName == nameof(MainViewModel.IsRestorePresentationFrozen)
                 && sender is MainViewModel { IsRestorePresentationFrozen: true })
@@ -396,12 +397,13 @@ namespace HollowKnightTAS.Companion
         private void ConfigureGlobalHotkeys()
         {
             if (DataContext is MainViewModel vm)
-                globalHotkeys?.Configure(vm.GlobalHotkeysEnabled, vm.ConfiguredPause, vm.ConfiguredAdvance, vm.ConfiguredPlay);
+                globalHotkeys?.Configure(vm.GlobalHotkeysEnabled, vm.ConfiguredPause, vm.ConfiguredAdvance, vm.ConfiguredPlay, vm.ConfiguredInfoKey);
         }
 
         private void ExecuteGlobalHotkey(Key key, ModifierKeys modifiers)
         {
             if (DataContext is not MainViewModel vm) return;
+            if (key == vm.ConfiguredInfoKey && key != Key.None && modifiers == ModifierKeys.None) { vm.InfoSettings.Enabled = !vm.InfoSettings.Enabled; return; }
             var slot = StudioHotkeys.QuickSlotIndex(key, modifiers);
             if (slot >= 0)
             {
@@ -425,6 +427,8 @@ namespace HollowKnightTAS.Companion
                 Key.DeadCharProcessed => e.DeadCharProcessedKey,
                 _ => e.Key
             };
+            if (key == viewModel.ConfiguredInfoKey && key != Key.None && Keyboard.Modifiers == ModifierKeys.None)
+            { e.Handled = true; if (!e.IsRepeat) viewModel.InfoSettings.Enabled = !viewModel.InfoSettings.Enabled; return; }
             var quickSlot = StudioHotkeys.QuickSlotIndex(key, Keyboard.Modifiers);
             if (quickSlot >= 0)
             {
