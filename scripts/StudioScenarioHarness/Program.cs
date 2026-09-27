@@ -56,7 +56,7 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (args.Contains("--rng-seed")) await RunRngSeedAsync();
+                if (args.Contains("--rng-seed")) await RunRngSeedAsync(args.SingleOrDefault(a => a.StartsWith("--rng-seed-continue="))?.Split('=', 2)[1]);
                 else if (args.Contains("--sequence-binding")) await RunSequenceBindingAsync();
                 else if (videoExportScenarios) await RunVideoExportAsync(args);
                 else if (args.Contains("--reopen-only")) await Reopen();

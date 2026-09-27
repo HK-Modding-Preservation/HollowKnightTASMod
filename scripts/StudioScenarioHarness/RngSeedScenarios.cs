@@ -13,7 +13,7 @@ internal static partial class StudioScenarioHarness
 {
     // Opt-in real-game scenario. Only neutral title-screen inputs; original saves
     // are protected by the production full-run launcher and verified at exit.
-    static async Task RunRngSeedAsync()
+    static async Task RunRngSeedAsync(string? previousOutput = null)
     {
         Environment.SetEnvironmentVariable("HKTAS_FULL_RUN_RNG_TRACE", "1");
         var vm = (MainViewModel)app.MainWindow.DataContext;
@@ -50,28 +50,39 @@ internal static partial class StudioScenarioHarness
         }
         string State(string[] rows, int frame) => rows.Single(r => r.StartsWith(frame + ",before,", StringComparison.Ordinal)).Split(',')[3];
 
-        await vm.FrameMenuAsync("rebuild", 24);
-        AtFrame(vm, boot, 24, "seeded replay reaches Movie frame 24");
-        var first = await Trace("first");
-        Require(first.Length == 48, "one before/after RNG observation per Movie frame, excluding loading frames");
-        Require(first.Count(r => r.Split(',')[2].Length != 0) == 4, "each seeded Movie frame applies once");
-        Require(State(first, 0) == State(first, 8) && State(first, 7) == State(first, 20),
-            "scene-first and later equal seeds produce identical initial RNG states");
-        await Task.Delay(300);
-        Require(first.SequenceEqual(await Trace("paused")), "paused observation does not consume or reset RNG");
-        await vm.FrameMenuAsync("rebuild", 24);
-        AtFrame(vm, boot, 24, "cold replay reaches same frame");
-        Require(first.SequenceEqual(await Trace("repeat")), "independent cold replay reproduces every before/after RNG state");
-        var snapshotMovie = await VideoRuntimeMovie(vm, movies);
-        Require(snapshotMovie.Movie == seededMovie, "Runtime snapshot preserves all seed commands");
-        await vm.SaveCurrentBranchAsync();
-        var oldLeaf = vm.SelectedWorldline!.Id;
-        var oldMovie = vm.SelectedWorldline.Movie;
-        Require(vm.TrySetGridRngSeed(7, "54321"), "past seed edit accepted");
-        await vm.SaveCurrentBranchAsync();
-        Require(vm.SelectedTimelineTree!.Leaves.Count() >= 2
-            && vm.SelectedTimelineTree.Nodes.Single(n => n.Id == oldLeaf).Movie == oldMovie,
-            "past RNG edit creates a sibling and preserves original worldline");
+        string[] first;
+        if (previousOutput == null)
+        {
+            await vm.FrameMenuAsync("rebuild", 24);
+            AtFrame(vm, boot, 24, "seeded replay reaches Movie frame 24");
+            first = await Trace("first");
+            Require(first.Length == 48, "one before/after RNG observation per Movie frame, excluding loading frames");
+            Require(first.Count(r => r.Split(',')[2].Length != 0) == 4, "each seeded Movie frame applies once");
+            Require(State(first, 0) == State(first, 8) && State(first, 7) == State(first, 20),
+                "scene-first and later equal seeds produce identical initial RNG states");
+            await Task.Delay(300);
+            Require(first.SequenceEqual(await Trace("paused")), "paused observation does not consume or reset RNG");
+            await vm.FrameMenuAsync("rebuild", 24);
+            AtFrame(vm, boot, 24, "cold replay reaches same frame");
+            Require(first.SequenceEqual(await Trace("repeat")), "independent cold replay reproduces every before/after RNG state");
+            var snapshotMovie = await VideoRuntimeMovie(vm, movies);
+            Require(snapshotMovie.Movie == seededMovie, "Runtime snapshot preserves all seed commands");
+            await vm.SaveCurrentBranchAsync();
+            var oldLeaf = vm.SelectedWorldline!.Id;
+            var oldMovie = vm.SelectedWorldline.Movie;
+            Require(vm.TrySetGridRngSeed(7, "54321"), "past seed edit accepted");
+            await vm.SaveCurrentBranchAsync();
+            Require(vm.SelectedTimelineTree!.Leaves.Count() >= 2
+                && vm.SelectedTimelineTree.Nodes.Single(n => n.Id == oldLeaf).Movie == oldMovie,
+                "past RNG edit creates a sibling and preserves original worldline");
+        }
+        else
+        {
+            first = File.ReadAllLines(Path.Combine(previousOutput, "first.csv")).Skip(1).ToArray();
+            var repeated = File.ReadAllLines(Path.Combine(previousOutput, "repeat.csv")).Skip(1).ToArray();
+            Require(first.Length == 48 && first.SequenceEqual(repeated), "prior independent RNG replay evidence verified");
+            Require(vm.TrySetGridRngSeed(7, "54321"), "remaining branch replay seed prepared");
+        }
         await vm.FrameMenuAsync("rebuild", 24);
         AtFrame(vm, boot, 24, "edited worldline replayed");
         var branch = await Trace("branch");
