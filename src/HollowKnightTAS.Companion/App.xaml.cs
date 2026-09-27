@@ -216,12 +216,17 @@ namespace HollowKnightTAS.Companion
                         if (!startupGame.HasExited) startupGame.Kill();
                     }, async () =>
                     {
-                        if (startupGame == null || startupBoot?.IsWaiting != true || fullRunMovies == null)
+                        if (startupGame == null || startupBoot == null || fullRunMovies == null
+                            || (!startupBoot.IsWaiting && !fullRunMovies.IsTerminal))
                             throw new InvalidOperationException("重放重启需要受控游戏停在帧边界。");
                         fullRunMovies.VerifyOriginalSavesUnchanged();
                         var process = startupGame;
                         var path = process.MainModule?.FileName ?? throw new InvalidOperationException("游戏路径不可用。");
-                        await restorePresentation.BeginAsync(process);
+                        // A failed gate cannot service capture/style messages.
+                        // The original saves are still checked before replacing
+                        // this exact App-owned process through the normal launcher.
+                        if (startupBoot.FullRunFaultCode == 0)
+                            await restorePresentation.BeginAsync(process);
                         startupGame = null;
                         try
                         {
@@ -237,7 +242,11 @@ namespace HollowKnightTAS.Companion
                     }, async success =>
                     {
                         try { if (success) await restorePresentation.CompleteAsync(); }
-                        finally { restorePresentation.Dispose(); }
+                        finally
+                        {
+                            if (startupBoot?.FullRunFaultCode != 0) restorePresentation.AbandonFaultedTarget();
+                            else restorePresentation.Dispose();
+                        }
                     });
                 automaticStartup = new AutomaticStartupHandoff(sessions, Dispatcher,
                     gamePath => Task.Run(() => VerifiedStartupProfile.Load(

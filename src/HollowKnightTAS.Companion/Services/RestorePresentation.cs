@@ -113,6 +113,15 @@ namespace HollowKnightTAS.Companion.Services
             target = IntPtr.Zero;
         }
 
+        // A faulted native gate may no longer service synchronous window messages.
+        // Do not restore its style from the Studio UI thread; that process will
+        // be replaced on the next explicit replay. Still release our cover/audio.
+        public void AbandonFaultedTarget()
+        {
+            target = IntPtr.Zero;
+            Dispose();
+        }
+
         private static IntPtr FindWindow(int pid)
         {
             var result = IntPtr.Zero;

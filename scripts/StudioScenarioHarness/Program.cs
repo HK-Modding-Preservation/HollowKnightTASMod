@@ -21,6 +21,7 @@ internal static partial class StudioScenarioHarness
     static int finished;
     static bool videoExportScenarios;
     static bool battleVideoScenarios;
+    static bool worldlineFaultScenarios;
     static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name,
         BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(owner)!;
     static void Log(string text) { File.AppendAllText(Path.Combine(output, "scenario.log"), DateTime.Now.ToString("O") + " " + text + "\n"); }
@@ -47,6 +48,7 @@ internal static partial class StudioScenarioHarness
         Directory.CreateDirectory(output);
         videoExportScenarios = args.Contains("--video-export");
         battleVideoScenarios = videoExportScenarios && args.Any(a => a.StartsWith("--video-movie=", StringComparison.Ordinal));
+        worldlineFaultScenarios = args.Contains("--worldline-fault");
         if (!args.Contains("--headless") || Process.GetProcessesByName("hollow_knight").Length != 0
             || Process.GetProcessesByName("HollowKnightTAS.Companion").Length != 0) return 12;
         app = new App(); app.InitializeComponent();
@@ -56,7 +58,8 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (args.Contains("--rng-seed")) await RunRngSeedAsync(args.SingleOrDefault(a => a.StartsWith("--rng-seed-continue="))?.Split('=', 2)[1]);
+                if (worldlineFaultScenarios) await RunWorldlineFaultAsync(args);
+                else if (args.Contains("--rng-seed")) await RunRngSeedAsync(args.SingleOrDefault(a => a.StartsWith("--rng-seed-continue="))?.Split('=', 2)[1]);
                 else if (args.Contains("--sequence-binding")) await RunSequenceBindingAsync();
                 else if (videoExportScenarios) await RunVideoExportAsync(args);
                 else if (args.Contains("--reopen-only")) await Reopen();
@@ -176,7 +179,7 @@ internal static partial class StudioScenarioHarness
     [DllImport("kernel32.dll")] static extern bool GlobalMemoryStatusEx(ref Memory memory);
     static void Guard()
     {
-        var deadline = DateTime.UtcNow.AddMinutes(battleVideoScenarios ? 20 : videoExportScenarios ? 8 : 4);
+        var deadline = DateTime.UtcNow.AddMinutes(battleVideoScenarios || worldlineFaultScenarios ? 20 : videoExportScenarios ? 8 : 4);
         while (Volatile.Read(ref finished) == 0)
         {
             try
