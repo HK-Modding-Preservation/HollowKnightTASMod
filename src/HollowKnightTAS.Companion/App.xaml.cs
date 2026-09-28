@@ -159,6 +159,7 @@ namespace HollowKnightTAS.Companion
                 }
                 Func<string, Task> launchGameAsync = async gamePath =>
                     {
+                        using var timing = new ReplayPerformanceTrace("launch");
                         var existingGames = System.Diagnostics.Process.GetProcessesByName("hollow_knight");
                         try
                         {
@@ -171,13 +172,16 @@ namespace HollowKnightTAS.Companion
                         }
                         var profile = await Task.Run(() => VerifiedStartupProfile.Load(
                             Path.Combine(AppContext.BaseDirectory, "ClockStartup"), gamePath), shutdown.Token);
+                        timing.Mark("profile-verified");
                         var launcher = new VerifiedGameLauncher(profile, launchReceiptStore);
                         var gate = fullRunMovies?.PrepareLaunch();
+                        timing.Mark("protected-saves-prepared");
                         try
                         {
                             using var handle = await launcher.LaunchInteractiveAsync(
                                 "interactive-" + Guid.NewGuid().ToString("N"),
                                 TimeSpan.FromSeconds(60), shutdown.Token, gate, restorePresentation.IsActive);
+                            timing.Mark("injector-returned");
                             if (gate != null)
                             {
                                 var deadline = DateTime.UtcNow.AddSeconds(10);
@@ -193,8 +197,10 @@ namespace HollowKnightTAS.Companion
                                 if (startupGame != null && restorePresentation.IsActive)
                                     restorePresentation.AttachTarget(startupGame);
                                 startupBoot!.Refresh();
+                                timing.Mark("native-gate-ready");
                             }
                             handle.ReleaseSupervision();
+                            timing.Complete();
                         }
                         catch
                         {
@@ -216,10 +222,12 @@ namespace HollowKnightTAS.Companion
                         if (!startupGame.HasExited) startupGame.Kill();
                     }, async () =>
                     {
+                        using var timing = new ReplayPerformanceTrace("restart");
                         if (startupGame == null || startupBoot == null || fullRunMovies == null
                             || (!startupBoot.IsWaiting && !fullRunMovies.IsTerminal))
                             throw new InvalidOperationException("重放重启需要受控游戏停在帧边界。");
                         fullRunMovies.VerifyOriginalSavesUnchanged();
+                        timing.Mark("source-save-audit");
                         var process = startupGame;
                         var path = process.MainModule?.FileName ?? throw new InvalidOperationException("游戏路径不可用。");
                         // A failed gate cannot service capture/style messages.
@@ -227,6 +235,7 @@ namespace HollowKnightTAS.Companion
                         // this exact App-owned process through the normal launcher.
                         if (startupBoot.FullRunFaultCode == 0)
                             await restorePresentation.BeginAsync(process);
+                        timing.Mark("source-cover-ready");
                         startupGame = null;
                         try
                         {
@@ -234,11 +243,14 @@ namespace HollowKnightTAS.Companion
                             await process.WaitForExitAsync();
                         }
                         finally { process.Dispose(); }
+                        timing.Mark("source-exited");
                         fullRunMovies.VerifyOriginalSavesUnchanged();
                         startupBoot.Dispose();
                         fullRunMovies.ClearAfterExit();
                         automationBroker.EndFullRunEndpoint();
+                        timing.Mark("source-cleanup-and-audit");
                         await launchGameAsync(path);
+                        timing.Complete();
                     }, async success =>
                     {
                         try { if (success) await restorePresentation.CompleteAsync(); }

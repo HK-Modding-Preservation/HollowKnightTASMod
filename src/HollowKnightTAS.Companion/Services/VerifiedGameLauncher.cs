@@ -560,8 +560,10 @@ namespace HollowKnightTAS.Companion.Services
             bootGate?.ConfigureInjector(start);
             start.Environment.Remove(RestorePresentation.HiddenLaunchVariable);
             if (hideWindow) start.Environment[RestorePresentation.HiddenLaunchVariable] = "1";
-            if (bootGate?.IsFullRun == true)
-                start.Environment["HKTAS_FULL_RUN_BOSS_TRACE"] = "1";
+            // Diagnostic traces are opt-in via the launching environment.
+            // Ordinary restores should not format/hash thousands of trace rows.
+            if (bootGate?.IsFullRun != true)
+                start.Environment.Remove("HKTAS_FULL_RUN_BOSS_TRACE");
 
             var job = new NativeHostJob();
             Process? injector = null;

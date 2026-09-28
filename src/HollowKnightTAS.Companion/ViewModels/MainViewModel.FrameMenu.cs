@@ -171,7 +171,9 @@ namespace HollowKnightTAS.Companion.ViewModels
         private async Task RestartDraftAtAsync(long frame, string? sourceMovie = null, CancellationToken cancellationToken = default, bool pauseWhenInputReadyZero = false,
             bool switchSequence = false, InitialSaveSnapshot? sourceSaves = null, bool saveCurrentBranch = true)
         {
+            using var timing = new ReplayPerformanceTrace("restore");
             if (saveCurrentBranch) await SaveCurrentBranchAsync(closing: true);
+            timing.Mark("branch-saved");
             if (switchSequence)
             {
                 SetSequenceInitialSaves(sourceSaves);
@@ -182,7 +184,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             try
             {
                 if (sourceMovie != null) MovieText = sourceMovie;
-                await RestartDraftCoreAsync(frame, cancellationToken, pauseWhenInputReadyZero);
+                await RestartDraftCoreAsync(frame, cancellationToken, pauseWhenInputReadyZero, timing);
                 SetRestoreProgress(1);
                 completed = true;
             }
@@ -191,9 +193,11 @@ namespace HollowKnightTAS.Companion.ViewModels
                 try { if (finishRestorePresentation != null) await finishRestorePresentation(completed); }
                 finally { SetRestorePresentationFrozen(false); }
             }
+            timing.Complete();
         }
 
-        private async Task RestartDraftCoreAsync(long frame, CancellationToken cancellationToken = default, bool pauseWhenInputReadyZero = false)
+        private async Task RestartDraftCoreAsync(long frame, CancellationToken cancellationToken = default, bool pauseWhenInputReadyZero = false,
+            ReplayPerformanceTrace? timing = null)
         {
             var candidate = GridAny().V2Document ?? throw new InvalidOperationException("需要有效的 v2 Movie。");
             if (candidate.Header.EnvironmentSha256 == "none" && sequenceInitialSaves != null
@@ -223,9 +227,12 @@ namespace HollowKnightTAS.Companion.ViewModels
             if (restartProtectedGame == null) throw new InvalidOperationException("受控重启入口不可用。");
             GridStatus = "正在恢复，请稍候…";
             cancellationToken.ThrowIfCancellationRequested();
+            timing?.Mark("movie-prepared");
             await restartProtectedGame();
+            timing?.Mark("restart-ready");
             cancellationToken.ThrowIfCancellationRequested();
             fullRunMovies!.ArmReplay(candidate, frame == 0 && !pauseWhenInputReadyZero ? -1 : frame);
+            timing?.Mark("replay-armed");
             restoreReplayStarted = true;
             currentFullRunMovieFrame = 0;
             RefreshInputGrid();
@@ -234,10 +241,16 @@ namespace HollowKnightTAS.Companion.ViewModels
                 var started = await fullRunMovies.RunAsync(0, cancellationToken);
                 if (started.Mode == "Fault") throw new InvalidOperationException(started.Error);
                 var deadline = DateTime.UtcNow.AddMinutes(10);
+                var progressObserved = false;
                 while (true)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     startupBoot!.Refresh();
+                    if (!progressObserved && currentFullRunMovieFrame > 0)
+                    {
+                        timing?.Mark("first-movie-progress-observed");
+                        progressObserved = true;
+                    }
                     if (startupBoot.FullRunFaultCode != 0) throw new InvalidOperationException("重放遇到原生错误：" + startupBoot.FullRunFaultCode);
                     if (startupBoot.IsWaiting) break;
                     if (DateTime.UtcNow >= deadline) throw new TimeoutException("重放等待超时，可手动暂停检查状态。");
@@ -249,6 +262,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 var observed = await ReadReadyFrameSnapshotAsync();
                 if (observed.Frame != frame) throw new InvalidOperationException($"重放停在 {observed.Frame}，未到达目标 {frame}。");
             }
+            timing?.Mark("target-verified");
             currentFullRunMovieFrame = frame;
             gridHasUserEdits = false;
             draftRequiresRestart = false;
