@@ -29,6 +29,7 @@ namespace HollowKnightTAS.Runtime
         private RuntimeFullRunSession? fullRunSession;
         private bool hooksRegistered;
         private ManualStartupService? manualStartup;
+        private ModStartupCompatibility? modStartup;
         private string startupMessage = "打开 Studio（重启游戏）";
         private UnityEngine.UI.Text? startupLabel;
 
@@ -37,6 +38,16 @@ namespace HollowKnightTAS.Runtime
         {
             settings ??= new TasGlobalSettings();
             settings.Normalize();
+            if (SavePathResolver.ProtectionRequested)
+            {
+                try { modStartup = new ModStartupCompatibility(); }
+                catch (Exception error)
+                {
+                    if (!NativeFullRunFrameClock.TryFaultEarly(43))
+                        Environment.FailFast("TAS mod startup guard failed.", error);
+                    throw;
+                }
+            }
         }
 
         public override string GetVersion()
@@ -79,6 +90,7 @@ namespace HollowKnightTAS.Runtime
                         HollowKnightTAS.Core.Movie.MovieProtocolV2.NativeProfileId);
                     fullRunSession = RuntimeFullRunBootstrap.Attach(token, clock,
                         protectedSaves, message => Log(message));
+                    modStartup?.FinishPreloading();
                 }
                 catch (Exception exception)
                 {
@@ -229,6 +241,8 @@ namespace HollowKnightTAS.Runtime
             fullRunSession = null;
             protectedSaves?.Dispose();
             protectedSaves = null;
+            modStartup?.Dispose();
+            modStartup = null;
             LogDebug("T01 hooks unregistered.");
         }
     }
