@@ -53,5 +53,21 @@ internal static partial class StudioScenarioHarness
         foreach (var name in new[] { "launch", "restart", "restore" })
             File.Copy(Path.Combine(reports, "last-" + name + ".json"), Path.Combine(output, name + ".json"), true);
         Require(!vm.IsRestorePresentationFrozen, "restore presentation released");
+        await Command(vm.StepCommand);
+        await Until(() => Field<long>(vm, "currentFullRunMovieFrame") == target + 1,
+            "continued Step progress notification", 10);
+        AtFrame(vm, boot, target + 1, "continued Step advances exactly one frame");
+        if (MovieFrames(vm.MovieText) > target + 20)
+        {
+            await vm.FrameMenuAsync("seek", target + 20);
+            AtFrame(vm, boot, target + 20, "visible future seek reaches exact target");
+            var futureImage = await (Task<System.Windows.Media.Imaging.BitmapSource>)capture.GetMethod("CaptureAsync")!
+                .Invoke(null, new object[] { Field<Process>(app, "startupGame").MainWindowHandle })!;
+            var futureEncoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            futureEncoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(futureImage));
+            using var stream = File.Create(Path.Combine(output, "after-seek.png"));
+            futureEncoder.Save(stream);
+        }
+        movies.VerifyOriginalSavesUnchanged();
     }
 }

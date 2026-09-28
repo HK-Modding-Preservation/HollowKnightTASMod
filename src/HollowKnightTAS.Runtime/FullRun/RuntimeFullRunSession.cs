@@ -143,6 +143,7 @@ namespace HollowKnightTAS.Runtime.FullRun
         private long randomSeedRequestNativeFrame = -1;
         private int randomSeedSceneHandle = -1;
         private bool randomSeedHandshakePending;
+        private readonly ReplayRenderSuppression restoreDrawing = new ReplayRenderSuppression();
 
         public RuntimeFullRunSession(NativeFullRunFrameClock clock,
             FullRunActionSetAdapter input, FullRunMouseBridge mouse,
@@ -269,6 +270,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             if (IsVideoExportActive) throw new InvalidOperationException("Finish or cancel video export before seeking the Movie.");
             if (!clock.IsPaused || clock.CurrentFrameIndex != expectedNativeFrame || target <= movieFrame)
                 throw new InvalidOperationException("Target requires a paused boundary and a future Movie frame.");
+            restoreDrawing.Dispose();
             pauseAtMovieFrame = target;
         }
 
@@ -464,6 +466,7 @@ namespace HollowKnightTAS.Runtime.FullRun
 
         private void OnNativeBeforeFrame(long completed)
         {
+            restoreDrawing.Active = false;
             if (!inputReady || (mode != "Recording" && mode != "Replay")) return;
             try
             {
@@ -526,6 +529,10 @@ namespace HollowKnightTAS.Runtime.FullRun
                 clock.SetFrameRate(ready ? activeFrameRate : 50);
                 if (ready) TraceMovieRng("before", replayMovie?.Runs[timingRunIndex].RngSeed);
                 frameInputEnabled = ready;
+                // Resume drawing before the target so temporal presentation can
+                // settle using only frames already belonging to the replay.
+                restoreDrawing.Active = ready && mode == "Replay" && !IsVideoExportActive
+                    && pauseAtMovieFrame > movieFrame + 32;
                 frameBoundary = boundary;
                 input.SetFrameInputEnabled(ready);
                 mouse.SetFrameInputEnabled(ready);
@@ -627,7 +634,27 @@ namespace HollowKnightTAS.Runtime.FullRun
                 if (mode == "Recording") journal!.CompleteFrame(movieFrame, activeFrameRate);
                 movieFrame++;
                 clock.ReportMovieFrameCompleted();
-                if (movieFrame == pauseAtMovieFrame) { pauseAtMovieFrame = -1; clock.RequestPause(); }
+                if (movieFrame == pauseAtMovieFrame)
+                {
+                    // The hidden-launch environment survives after the window is
+                    // revealed. Retire these hooks so later visible seeks never
+                    // inherit restore-only drawing suppression.
+                    restoreDrawing.Dispose();
+                    pauseAtMovieFrame = -1;
+                    clock.RequestPause();
+                    if (bossTraceEnabled)
+                    {
+                        try
+                        {
+                            File.WriteAllText(Path.Combine(sessionDirectory, "boss-trace.csv"),
+                                bossTrace.ToString(), new UTF8Encoding(false));
+                        }
+                        catch (Exception diagnosticError)
+                        {
+                            Modding.Logger.LogWarn("[HKTAS] Restore trace unavailable: " + diagnosticError.Message);
+                        }
+                    }
+                }
                 if (mode == "Replay" && movieFrame == replayLength)
                 {
                     if (editableReplay)
@@ -655,6 +682,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             }
             finally
             {
+                restoreDrawing.EndFrame();
                 CaptureVideoFrame(completed);
                 try
                 {
@@ -696,7 +724,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             inputReady = true;
             // The bootstrap PlayerLoop installs input without consuming Movie frame 0.
             // Honour a zero target here so full-video export can include its first input.
-            if (pauseAtMovieFrame == 0) { pauseAtMovieFrame = -1; clock.RequestPause(); }
+            if (pauseAtMovieFrame == 0) { restoreDrawing.Dispose(); pauseAtMovieFrame = -1; clock.RequestPause(); }
         }
 
         private System.Collections.IEnumerator OnReturnToMainMenu(
@@ -830,6 +858,7 @@ namespace HollowKnightTAS.Runtime.FullRun
         {
             if (disposed) return;
             disposed = true;
+            restoreDrawing.Dispose();
             videoCapture?.Dispose();
             observationQueue.Dispose();
             if (returnToMainMenuHooked)
