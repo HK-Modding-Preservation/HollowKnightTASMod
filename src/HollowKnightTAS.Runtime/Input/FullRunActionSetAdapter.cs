@@ -59,6 +59,10 @@ namespace HollowKnightTAS.Runtime.Input
                 var bindings = lease == null ? actions[index].UnfilteredBindings.ToArray()
                     : lease.OriginalBindings(index);
                 var keyboard = bindings.OfType<KeyBindingSource>().Select(value => value.Name).Distinct().ToArray();
+                // Machine-readable keyboard-only combos; labels may be localized or controller names.
+                result["inputKeyboard." + name] = string.Join(";", bindings.OfType<KeyBindingSource>().Select(value =>
+                    string.Join(",", Enumerable.Range(0, value.Control.IncludeCount).Select(i => value.Control.GetInclude(i).ToString())
+                        .Concat(Enumerable.Range(0, value.Control.ExcludeCount).Select(i => "!" + value.Control.GetExclude(i))))));
                 result["inputBinding." + name] = string.Join(" / ", keyboard.Length != 0
                     ? keyboard : bindings.Select(value => value.Name).Distinct().ToArray());
             }

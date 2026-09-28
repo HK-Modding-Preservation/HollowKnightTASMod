@@ -413,6 +413,7 @@ namespace HollowKnightTAS.Companion
                 return;
             }
             var transport = key == vm.ConfiguredAdvance ? vm.StepCommand : key == vm.ConfiguredPlay ? vm.PlayCommand : vm.TogglePauseCommand;
+            if (transport == vm.StepCommand) { vm.ExecuteStepShortcut(); return; }
             if (transport.CanExecute(null)) transport.Execute(null);
         }
 
@@ -455,6 +456,7 @@ namespace HollowKnightTAS.Companion
             };
             if (command == null) return;
             e.Handled = true;
+            if (command == viewModel.StepCommand) { viewModel.ExecuteStepShortcut(); return; }
             if ((!e.IsRepeat || command == viewModel.StepCommand) && command.CanExecute(null)) command.Execute(null);
         }
     }

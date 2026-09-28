@@ -12,6 +12,8 @@ namespace HollowKnightTAS.Companion.ViewModels
         private void UpdateInputBindingLabels(IReadOnlyDictionary<string, string> fields)
         {
             if (IsRestorePresentationFrozen) return;
+            keyboardBindings = fields.Where(pair => pair.Key.StartsWith("inputKeyboard.", StringComparison.Ordinal))
+                .ToDictionary(pair => pair.Key.Substring("inputKeyboard.".Length), pair => pair.Value);
             const string prefix = "inputBinding.";
             var labels = fields.Where(pair => pair.Key.StartsWith(prefix, StringComparison.Ordinal))
                 .ToDictionary(pair => pair.Key.Substring(prefix.Length), pair => pair.Value);

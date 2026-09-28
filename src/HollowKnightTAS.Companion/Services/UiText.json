@@ -1890,6 +1890,18 @@
     "En": "Enable global hotkeys"
   },
   {
+    "Key": "keyboardFrameEnabled",
+    "Source": "键盘逐帧输入",
+    "Zh": "键盘逐帧输入",
+    "En": "Keyboard frame input"
+  },
+  {
+    "Key": "keyboardFrameHelp",
+    "Source": "按逐帧快捷键时，用当前游戏键位覆盖下一帧输入；按住逐帧键连续填写，松开游戏键后填写松开状态。按钮步进仍按表格执行。在游戏窗口使用时需启用全局热键。每次打开 Studio 需重新开启。",
+    "Zh": "按逐帧快捷键时，用当前游戏键位覆盖下一帧输入；按住逐帧键连续填写，松开游戏键后填写松开状态。按钮步进仍按表格执行。在游戏窗口使用时需启用全局热键。每次打开 Studio 需重新开启。",
+    "En": "Step hotkeys replace the next frame with held game keys. Hold Step to fill successive frames; releasing a game key writes its released state. The Step button still uses the grid. Enable global hotkeys for game focus. Enable this mode again after reopening Studio."
+  },
+  {
     "Key": "globalHelp",
     "Source": "在游戏或其他窗口中使用播放／暂停、步进和 F1–F10 存读档。编辑快捷键仍仅在 Studio 内生效。",
     "Zh": "在游戏或其他窗口中使用播放／暂停、步进和 F1–F10 存读档。编辑快捷键仍仅在 Studio 内生效。",

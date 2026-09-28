@@ -293,11 +293,14 @@ namespace HollowKnightTAS.Companion.ViewModels
                 Command(
                     async () =>
                     {
+                        var keyboardFrame = pendingKeyboardFrame;
+                        pendingKeyboardFrame = null;
                         if (this.startupBoot?.IsPending == true)
                         {
                             if (fullRunMovies?.IsPending == true)
                             {
                                 if (fullRunMovies.Mode == "Unarmed" && !draftRequiresRestart) NewFullRunMovie();
+                                if (keyboardFrame != null) await WriteKeyboardFrameAsync(keyboardFrame);
                                 await ApplyPendingInputsAsync();
                                 var boundary = await fullRunMovies.StepAsync(
                                     this.startupBoot.NativeCompletedFrames, CancellationToken.None);
