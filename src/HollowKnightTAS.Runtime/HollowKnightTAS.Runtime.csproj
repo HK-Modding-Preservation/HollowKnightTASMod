@@ -34,6 +34,10 @@
       <HintPath>$(HKManagedDir)\UnityEngine.Physics2DModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>$(HKManagedDir)\UnityEngine.ParticleSystemModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.InputLegacyModule">
       <HintPath>$(HKManagedDir)\UnityEngine.InputLegacyModule.dll</HintPath>
       <Private>false</Private>

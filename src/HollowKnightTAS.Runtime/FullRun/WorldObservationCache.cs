@@ -79,7 +79,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             var candidates = new JObject { ["id"] = id, ["kind"] = kind };
             string[] fields = { "id", "kind", "name", "path", "scene", "activeSelf", "activeInHierarchy",
                 "transform", "hero", "rigidbodies", "health", "damageHero", "layer", "layerName", "tag",
-                "parentId", "siblingIndex", "fsms", "colliders", "components", "renderers", "errors" };
+                "parentId", "siblingIndex", "fsms", "colliders", "components", "renderers", "particles", "errors" };
             foreach (var field in fields.Skip(2))
                 if (source[field] != null) candidates[field] = source[field]!.DeepClone();
             if (source["hero"] is JObject hero)

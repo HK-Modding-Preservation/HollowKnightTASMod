@@ -53,6 +53,11 @@ internal static partial class StudioScenarioHarness
         foreach (var name in new[] { "launch", "restart", "restore" })
             File.Copy(Path.Combine(reports, "last-" + name + ".json"), Path.Combine(output, name + ".json"), true);
         Require(!vm.IsRestorePresentationFrozen, "restore presentation released");
+        if (args.Contains("--verify-draw-state"))
+        {
+            await VerifyDrawContinuationAsync(vm, boot, movies, target);
+            return;
+        }
         await Command(vm.StepCommand);
         await Until(() => Field<long>(vm, "currentFullRunMovieFrame") == target + 1,
             "continued Step progress notification", 10);

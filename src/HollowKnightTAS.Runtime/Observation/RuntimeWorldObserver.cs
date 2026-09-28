@@ -312,6 +312,7 @@ namespace HollowKnightTAS.Runtime.Observation
                 ? ObservationData.Map("index", index, "missingScript", true) : ComponentInfo(component, index)).ToArray();
             var renderers = new List<object>(); var bodies = new List<object>(); var health = new List<object>();
             var damage = new List<object>(); var colliders = new List<object>(); var machines = new List<object>();
+            var particles = new List<object>();
             var errors = new List<object>();
             for (int index = 0; index < components.Length; index++)
             {
@@ -333,11 +334,27 @@ namespace HollowKnightTAS.Runtime.Observation
                         "damageDealt", hazard.damageDealt, "hazardType", hazard.hazardType, "shadowDashHazard", hazard.shadowDashHazard));
                     if (component is Collider2D collider) colliders.Add(geometry.Capture(collider, index, camera, Classify(collider, hero)));
                     if (component is PlayMakerFSM fsm) machines.Add(fsms.Capture(fsm, index, false));
+                    if (component is ParticleSystem particle)
+                    {
+                        // Known read-only native getters; never simulate particles or
+                        // replace their seed while inspecting a paused boundary.
+                        var main = particle.main;
+                        var collision = particle.collision;
+                        particles.Add(ObservationData.Map("componentIndex", index,
+                            "particleCount", particle.particleCount, "isPlaying", particle.isPlaying,
+                            "randomSeed", particle.randomSeed, "useAutoRandomSeed", particle.useAutoRandomSeed,
+                            "cullingMode", main.cullingMode.ToString(), "simulationSpace", main.simulationSpace.ToString(),
+                            "collisionEnabled", collision.enabled, "collisionType", collision.type.ToString(),
+                            "collisionMode", collision.mode.ToString(), "collidesWith", collision.collidesWith.value,
+                            "sendCollisionMessages", collision.sendCollisionMessages, "colliderForce", collision.colliderForce,
+                            "triggerEnabled", particle.trigger.enabled, "subEmitterCount", particle.subEmitters.subEmittersCount));
+                    }
                 }
                 catch (Exception error) { errors.Add(ObservationData.Map("componentIndex", index, "type", component.GetType().FullName, "error", ObservationData.Error(error))); }
             }
             result["renderers"] = renderers; result["rigidbodies"] = bodies; result["health"] = health;
             result["damageHero"] = damage; result["colliders"] = colliders; result["fsms"] = machines; result["errors"] = errors;
+            result["particles"] = particles;
             if (hero != null && go == hero.gameObject) result["hero"] = CaptureHero(hero, player);
             return result;
         }
