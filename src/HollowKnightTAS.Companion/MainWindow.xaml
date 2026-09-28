@@ -282,6 +282,10 @@
           <TextBlock Text="{ui:Text sequenceSaveHelp}" TextWrapping="Wrap" Margin="0,8" />
           <TextBlock Text="{Binding SequenceSaveStatus}" TextWrapping="Wrap" />
           <TextBlock Text="{ui:TextBinding SequenceBindingStatus}" TextWrapping="Wrap" />
+          <Separator Margin="0,24,0,12" />
+          <Button Content="{ui:Text exportDiagnostics}" Command="{Binding ExportDiagnosticLogsCommand}" HorizontalAlignment="Left" AutomationProperties.AutomationId="HktasStudio.ExportDiagnosticLogs" />
+          <TextBlock Text="{ui:Text exportDiagnosticsHelp}" TextWrapping="Wrap" Margin="0,8" />
+          <TextBlock Text="{ui:TextBinding DiagnosticExportStatus}" TextWrapping="Wrap" AutomationProperties.AutomationId="HktasStudio.DiagnosticExportStatus" />
         </StackPanel></ScrollViewer>
       </TabItem>
     </TabControl>

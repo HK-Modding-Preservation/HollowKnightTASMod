@@ -569,6 +569,7 @@ namespace HollowKnightTAS.Companion.Services
             Process? injector = null;
             try
             {
+                DiagnosticLogExporter.PreserveGameLogs();
                 injector = Process.Start(start)
                            ?? throw new InvalidOperationException(
                                "Verified ClockInjector did not start.");

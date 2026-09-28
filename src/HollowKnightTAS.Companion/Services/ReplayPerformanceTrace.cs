@@ -7,11 +7,12 @@ using System.Text.Json;
 namespace HollowKnightTAS.Companion.Services;
 
 // Wall-clock timing only: Unity's virtual clock cannot measure replay throughput.
-// Keep one report per operation type; diagnostics must never prevent recovery.
+// Retain bounded history plus the latest report per operation; diagnostics must never prevent recovery.
 public sealed class ReplayPerformanceTrace : IDisposable
 {
     private readonly string operation;
     private readonly string directory;
+    private readonly bool applyRetention;
     private readonly Stopwatch clock = Stopwatch.StartNew();
     private readonly List<object> phases = new();
     private double previous;
@@ -23,6 +24,7 @@ public sealed class ReplayPerformanceTrace : IDisposable
         if (operation != "launch" && operation != "restart" && operation != "restore")
             throw new ArgumentOutOfRangeException(nameof(operation));
         this.operation = operation;
+        applyRetention = directory == null;
         this.directory = directory ?? Path.Combine(Environment.GetFolderPath(
             Environment.SpecialFolder.LocalApplicationData), "HollowKnightTAS", "performance");
     }
@@ -41,15 +43,21 @@ public sealed class ReplayPerformanceTrace : IDisposable
         if (disposed) return;
         disposed = true;
         if (!completed) Mark("incomplete");
+        lock (DiagnosticHistoryRetention.SyncRoot)
         try
         {
             Directory.CreateDirectory(directory);
             var path = Path.Combine(directory, "last-" + operation + ".json");
-            File.WriteAllText(path, JsonSerializer.Serialize(new
+            var report = JsonSerializer.Serialize(new
             {
                 operation, completed, utc = DateTimeOffset.UtcNow,
                 elapsedMs = clock.Elapsed.TotalMilliseconds, phases
-            }, new JsonSerializerOptions { WriteIndented = true }));
+            }, new JsonSerializerOptions { WriteIndented = true });
+            var history = Path.Combine(directory, "history");
+            Directory.CreateDirectory(history);
+            File.WriteAllText(Path.Combine(history, operation + "-" + DateTime.UtcNow.ToString("yyyyMMddTHHmmssfffffffZ") + "-" + Guid.NewGuid().ToString("N") + ".json"), report);
+            File.WriteAllText(path, report);
+            if (applyRetention) DiagnosticHistoryRetention.Apply(DiagnosticLogExporter.LocalRoot);
         }
         catch (Exception exception)
         {

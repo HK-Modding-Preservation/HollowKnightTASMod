@@ -2933,5 +2933,41 @@
     "Source": "动作尚未加载，观察不会触发初始化。",
     "Zh": "动作尚未加载，观察不会触发初始化。",
     "En": "Actions have not been loaded. Observation does not initialize them."
-  }
+  },
+{
+  "Key": "exportDiagnostics",
+  "Source": "导出诊断日志",
+  "Zh": "导出诊断日志",
+  "En": "Export diagnostic logs"
+},
+{
+  "Key": "exportDiagnosticsHelp",
+  "Source": "将保留的历史运行日志打包为 ZIP，可在重启后导出。Studio 日志副本与耗时历史保留 7 天，合计最多 256 MiB。",
+  "Zh": "将保留的历史运行日志打包为 ZIP，可在重启后导出。Studio 日志副本与耗时历史保留 7 天，合计最多 256 MiB。",
+  "En": "Export retained logs from current and previous runs as a ZIP, including after restarts. Studio log copies and timing history are kept for 7 days, up to 256 MiB combined."
+},
+{
+  "Key": "diagnosticFolder",
+  "Source": "选择诊断日志导出目录",
+  "Zh": "选择诊断日志导出目录",
+  "En": "Choose diagnostic log export folder"
+},
+{
+  "Key": "diagnosticBusy",
+  "Source": "正在打包诊断日志…",
+  "Zh": "正在打包诊断日志…",
+  "En": "Packaging diagnostic logs…"
+},
+{
+  "Key": "diagnosticDone",
+  "Source": "已导出 {0} 个文件，{1} 项提示：{2}",
+  "Zh": "已导出 {0} 个文件，{1} 项提示：{2}",
+  "En": "Exported {0} files, {1} notices: {2}"
+},
+{
+  "Key": "diagnosticFailed",
+  "Source": "诊断日志导出失败：{0}",
+  "Zh": "诊断日志导出失败：{0}",
+  "En": "Diagnostic export failed: {0}"
+}
 ]

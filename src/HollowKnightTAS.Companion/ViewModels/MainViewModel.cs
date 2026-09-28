@@ -173,6 +173,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             InitializeQuickSlots();
             InitializeShortcutSettings();
             InitializeSequenceSettings();
+            ExportDiagnosticLogsCommand = new AsyncRelayCommand(ExportDiagnosticLogsAsync);
             InitializeFullRunSettings();
             InitializeColliderOverlay();
             InitializeInfoOverlay();

@@ -58,6 +58,7 @@ namespace HollowKnightTAS.Companion
                     return;
                 }
 
+                DiagnosticLogExporter.PreserveGameLogs();
                 var coldRestoreRoot = Path.Combine(
                     Environment.GetFolderPath(
                         Environment.SpecialFolder.LocalApplicationData),
@@ -340,6 +341,7 @@ namespace HollowKnightTAS.Companion
             sessions?.Dispose();
             singleInstance?.Dispose();
             shutdown.Dispose();
+            DiagnosticLogExporter.PreserveGameLogs();
             base.OnExit(e);
         }
 
