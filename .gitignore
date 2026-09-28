@@ -27,6 +27,7 @@ __pycache__/
 !/docs/USER-MANUAL.en.md
 !/docs/AI-CONTROL.en.md
 !/docs/BUILD.en.md
+!/docs/HELPER-MOD-COMPATIBILITY.md
 /packaging/*.md
 /scripts/*/README.md
 

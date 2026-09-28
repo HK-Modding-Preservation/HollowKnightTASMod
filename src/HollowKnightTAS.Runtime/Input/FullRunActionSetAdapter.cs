@@ -10,6 +10,7 @@ namespace HollowKnightTAS.Runtime.Input
     public sealed class FullRunActionSetAdapter : IDisposable
     {
         private readonly List<ActionSetLease> leases = new List<ActionSetLease>();
+        private readonly CustomKnightInputGuard customKnightInputs = new CustomKnightInputGuard();
         private MovieV2Document? movie;
         private long[]? runStarts;
         private IReadOnlyList<GameInputSample> expected = Array.Empty<GameInputSample>();
@@ -246,6 +247,14 @@ namespace HollowKnightTAS.Runtime.Input
                     original(self, updateTick, deltaTime);
                     return;
                 }
+                // Cosmetic hotkeys are deliberately neutral during both recording and replay.
+                // They are not gameplay channels and must not consume Movie input samples.
+                if (customKnightInputs.TryPrepare(self))
+                {
+                    originalCalled = true;
+                    original(self, updateTick, deltaTime);
+                    return;
+                }
                 var channel = Identify(self);
                 var actions = GetActions(self, channel);
                 if (suspended)
@@ -434,6 +443,8 @@ namespace HollowKnightTAS.Runtime.Input
             disposed = true;
             if (hooked) On.InControl.PlayerActionSet.Update -= OnPlayerActionSetUpdate;
             var errors = new List<string>();
+            try { customKnightInputs.Dispose(); }
+            catch (Exception exception) { errors.Add(exception.Message); }
             foreach (var lease in leases)
                 try { lease.Restore(); }
                 catch (Exception exception) { errors.Add(exception.Message); }

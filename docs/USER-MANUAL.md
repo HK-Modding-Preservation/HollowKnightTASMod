@@ -17,6 +17,8 @@ HollowKnightTAS Studio 用来录制、编辑和回放《空洞骑士》的逐帧
 
 其他 Mod 可以一起启用，兼容性由使用者确认。回放会核对实际运行环境，包括游戏及 Mod 身份、画面等设置；环境不匹配时应使用匹配环境重新运行。
 
+QoL、DebugMod、GodSeekerPlus、Benchwarp、SpeedRunQoL 和 Custom Knight 的禁用及功能关闭清单，见[TAS 辅助 Mod 兼容清单](HELPER-MOD-COMPATIBILITY.md)。
+
 ## 游戏信息显示
 
 Studio 的「信息显示」页默认开启画面叠加：Movie 帧、房间内部名、坐标、速度、普通冲刺与暗影冲刺冷却、生命和灵魂。Runtime 连接后显示，播放与单步时更新，暂停时保留；角色不可用或加载中显示 `—`。冷却的「就绪」只表示计时结束，其他动作限制仍然有效。
@@ -124,6 +126,6 @@ Ctrl+S 或「保存序列」首次选择文件路径，之后覆盖当前文件�
 - 配套文件校验失败：重新安装完整的同一发布包，保留目录结构。
 - 序列环境不匹配：恢复录制时的游戏、Mod 和画面设置。不要通过修改环境指纹跳过校验。
 - 回档或导出失败：保留错误信息并检查当前操作状态，避免重复提交。
-- 需要日志时查看游戏用户目录中的 `ModLog.txt` 和 `Player.log`，Windows 通常位于 `%USERPROFILE%/AppData/LocalLow/Team Cherry/Hollow Knight`。
+- 反馈问题：在设置页底部点击“导出诊断日志”，选择目录后将 ZIP 连同复现步骤和帧号发送给维护者。包含保留的历史运行日志；Studio 日志副本与耗时历史保留 7 天、合计最多 256 MiB。详见[诊断日志说明](DIAGNOSTIC-LOGS.md)。
 
 AI 和脚本接口见 [AI 控制指南](AI-CONTROL.md)。

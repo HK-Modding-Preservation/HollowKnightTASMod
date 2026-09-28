@@ -124,6 +124,6 @@ Setting includes language, FPS, mouse mode, sequence directory, autosave interva
 - Companion verification fails: reinstall the complete matching release and preserve its directory structure.
 - A sequence reports an environment mismatch: restore the game, Mods and display settings used for recording. Do not edit environment fingerprints to bypass validation.
 - Restore or export fails: retain the error and check the current operation status before issuing another request.
-- For logs, check `ModLog.txt` and `Player.log` in the game user directory, normally `%USERPROFILE%/AppData/LocalLow/Team Cherry/Hollow Knight` on Windows.
+- To report a problem, click **Export diagnostic logs** at the bottom of Settings, choose a folder, and send the ZIP with reproduction steps and the affected frame. The ZIP includes retained logs from previous runs. Studio log copies and timing history are retained for 7 days, up to 256 MiB combined.
 
 See the [AI control guide](AI-CONTROL.en.md) for automation.
