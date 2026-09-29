@@ -140,7 +140,7 @@ namespace HollowKnightTAS.Companion.Services
             Height = height * scale;
             if (handle != IntPtr.Zero)
                 SetWindowPos(handle, IntPtr.Zero, nativeLeft, nativeTop,
-                    nativeWidth, nativeHeight, SwpNoActivate);
+                    nativeWidth, nativeHeight, SwpNoActivate | SwpNoZOrder | SwpNoOwnerZOrder);
         }
 
         public void SetOwner(IntPtr owner)
@@ -154,7 +154,7 @@ namespace HollowKnightTAS.Companion.Services
 
         public void ShowOverlay()
         {
-            if (!IsVisible) Show();
+            OverlayWindowOrder.Show(this, gameOwner);
             if (handle == IntPtr.Zero)
                 handle = new WindowInteropHelper(this).Handle;
             if (handle != IntPtr.Zero)
@@ -163,7 +163,8 @@ namespace HollowKnightTAS.Companion.Services
                     hasNativeBounds ? nativeTop : 0,
                     hasNativeBounds ? nativeWidth : 0,
                     hasNativeBounds ? nativeHeight : 0,
-                    SwpNoActivate | (hasNativeBounds ? 0u : SwpNoMove | SwpNoSize) | SwpShowWindow);
+                    SwpNoActivate | SwpNoZOrder | SwpNoOwnerZOrder | (hasNativeBounds ? 0u : SwpNoMove | SwpNoSize) | SwpShowWindow);
+            OverlayWindowOrder.FollowOwner(handle, gameOwner);
         }
 
         private void ConfigureNativeWindow()
@@ -179,6 +180,8 @@ namespace HollowKnightTAS.Companion.Services
         private const long WsExNoActivate = 0x08000000;
         private const long WsExToolWindow = 0x80;
         private const uint SwpNoActivate = 0x0010;
+        private const uint SwpNoZOrder = 0x0004;
+        private const uint SwpNoOwnerZOrder = 0x0200;
         private const uint SwpNoSize = 0x0001;
         private const uint SwpNoMove = 0x0002;
         private const uint SwpShowWindow = 0x0040;

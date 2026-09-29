@@ -47,7 +47,7 @@ internal static partial class StudioScenarioHarness
     {
         output = args.Single(a => a.StartsWith("--scenario-output=")).Split('=', 2)[1];
         Directory.CreateDirectory(output);
-        if (args.Contains("--info-overlay"))
+        if (args.Contains("--info-overlay") || args.Contains("--overlay-stacking"))
             typeof(MainViewModel).GetProperty("InfoOverlaySettingPathOverride", BindingFlags.Static | BindingFlags.NonPublic)!
                 .SetValue(null, Path.Combine(output, "info-settings.json"));
         videoExportScenarios = args.Contains("--video-export");
@@ -63,7 +63,8 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (args.Contains("--automation-sync")) await RunAutomationSyncAsync();
+                if (args.Contains("--overlay-stacking")) await RunOverlayStackingAsync();
+                else if (args.Contains("--automation-sync")) await RunAutomationSyncAsync();
                 else if (args.Contains("--fractional-fps")) await RunFractionalFpsAsync(args);
                 else if (args.Contains("--keyboard-input")) await RunKeyboardInputAsync();
                 else if (args.Contains("--replay-performance")) await RunReplayPerformanceAsync(args);
