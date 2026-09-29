@@ -147,6 +147,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             this.launchGame = launchGame;
             this.startupBoot = startupBoot;
             this.fullRunMovies = fullRunMovies;
+            automationBroker.StudioFullRunCommand = DispatchStudioFullRunCommandAsync;
             if (startupBoot != null) startupBoot.Changed += (_, _) => Dispatch(() =>
             {
                 OnPropertyChanged(nameof(CanLaunchStandaloneGame));

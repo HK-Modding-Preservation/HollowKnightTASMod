@@ -39,6 +39,8 @@ namespace HollowKnightTAS.Companion
                         e.Args,
                         shutdown.Token);
                 singleInstance = new SingleInstanceCoordinator();
+                var launchArgument = e.Args.FirstOrDefault(value =>
+                    value.StartsWith("--launch-game=", StringComparison.OrdinalIgnoreCase));
                 if (!singleInstance.IsPrimary)
                 {
                     if (bootstrap != null)
@@ -49,6 +51,12 @@ namespace HollowKnightTAS.Companion
                                 TimeSpan.FromSeconds(5),
                                 shutdown.Token);
                         Shutdown(forwarded ? 0 : 3);
+                    }
+                    else if (launchArgument != null)
+                    {
+                        var launched = await singleInstance.ForwardLaunchAsync(
+                            launchArgument.Substring("--launch-game=".Length), shutdown.Token);
+                        Shutdown(launched ? 0 : 5);
                     }
                     else
                     {
@@ -160,6 +168,9 @@ namespace HollowKnightTAS.Companion
                 }
                 Func<string, Task> launchGameAsync = async gamePath =>
                     {
+                        // A controlled game always has a visible editor, including
+                        // sessions started by automation from a hidden Studio host.
+                        if (MainWindow != null && !MainWindow.IsVisible) MainWindow.Show();
                         using var timing = new ReplayPerformanceTrace("launch");
                         var existingGames = System.Diagnostics.Process.GetProcessesByName("hollow_knight");
                         try
@@ -272,6 +283,7 @@ namespace HollowKnightTAS.Companion
                     DataContext = viewModel
                 };
                 MainWindow = window;
+                controlServer.LaunchGameAsync = path => Dispatcher.InvokeAsync(() => launchGameAsync(path)).Task.Unwrap();
                 window.Closed += OnMainWindowClosed;
                 if (!e.Args.Any(
                         value => string.Equals(
@@ -282,6 +294,9 @@ namespace HollowKnightTAS.Companion
                     window.Show();
                 }
                 automaticStartup.Check();
+
+                if (launchArgument != null)
+                    await launchGameAsync(launchArgument.Substring("--launch-game=".Length));
 
                 var exitSeconds = ReadPositiveIntArgument(
                     e.Args,

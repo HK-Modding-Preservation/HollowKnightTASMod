@@ -4,6 +4,10 @@
 
 AI、脚本和 Studio 共用受保护的游戏控制路径。先按[玩家指南](USER-MANUAL.md)安装完整配套包，并通过 Studio 启动 TAS 游戏。普通游戏不提供控制会话。
 
+AI 可运行 `Companion/win-x64/HollowKnightTAS.Companion.exe --launch-game="游戏程序完整路径"`。此入口显示 Studio 并启动受保护游戏；Studio 已打开时，请求转交给现有窗口。普通游戏尚未退出时会拒绝启动。
+
+人工与 AI 可在同一会话轮流编辑，无需重启 Studio。暂停后，AI 用 `fullRunSnapshot` 读取包含人工未应用编辑的 Studio 草稿，再提交 `fullRunUpdateMovie`；成功返回前，表格及撤销记录已同步。AI 步进或播放前会应用人工尚未提交的未来帧输入。若人工在 AI 读取后又改了草稿，返回 `StudioDraftChanged`，需重新读取；界面正在保存或恢复时返回 `StudioBusy`。过去帧修改仍需重放，热更新不能改变已执行的游戏状态。
+
 ## 接入与权限
 
 工具位于安装目录的 `Companion/win-x64/Tools`：

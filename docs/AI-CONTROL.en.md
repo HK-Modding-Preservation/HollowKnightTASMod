@@ -4,6 +4,10 @@
 
 AI clients, scripts and Studio share the protected game-control path. Install the complete bundle using the [player guide](USER-MANUAL.en.md), then open Studio from the game's title menu to start a TAS session. Normal play does not expose a control session.
 
+AI can launch `Companion/win-x64/HollowKnightTAS.Companion.exe --launch-game="full path to the game executable"`. This shows Studio and starts the protected game. If Studio is already open, the request goes to that window. An existing ordinary game must be closed first.
+
+Human and AI editing can alternate without restarting Studio. While paused, `fullRunSnapshot` includes pending Studio edits; a successful `fullRunUpdateMovie` updates the grid and undo history before returning. AI step/play applies pending human future inputs first. `StudioDraftChanged` means the human edited after the AI snapshot: read again before updating. `StudioBusy` means a Studio save or edit operation is in progress. Past-input changes still require replay.
+
 ## Connect and acquire control
 
 Tools are installed under `Companion/win-x64/Tools`:

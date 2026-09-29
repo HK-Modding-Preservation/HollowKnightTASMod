@@ -32,6 +32,20 @@ namespace HollowKnightTAS.Companion.Services
         public string MutexName { get; }
         public string ControlPipeName { get; }
 
+        public async Task<bool> ForwardLaunchAsync(string gamePath, CancellationToken cancellationToken)
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(60));
+            using var client = new NamedPipeClientStream(".", ControlPipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+            await client.ConnectAsync(timeout.Token);
+            await IpcCodec.WriteFrameAsync(client, new IpcEnvelope(1, "studio-launch", 0, "launchStudioGame",
+                IpcPayloadCodec.Serialize(new System.Collections.Generic.Dictionary<string, string> { ["gamePath"] = gamePath })), timeout.Token);
+            var response = await IpcCodec.ReadFrameAsync(client, timeout.Token);
+            var data = IpcPayloadCodec.TryDeserialize(response.PayloadUtf8);
+            return response.MessageType == IpcMessageTypes.ControlAck && data.Success
+                && data.Fields!.TryGetValue("accepted", out var accepted) && accepted == "true";
+        }
+
         public async Task<bool> ForwardRegistrationAsync(
             CompanionSessionRegistration registration,
             TimeSpan timeout,

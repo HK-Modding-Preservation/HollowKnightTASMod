@@ -9,4 +9,5 @@
     <StartupObject>StudioScenarioHarness</StartupObject>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/HollowKnightTAS.Companion/HollowKnightTAS.Companion.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../src/HollowKnightTAS.Automation.Client/HollowKnightTAS.Automation.Client.csproj" /></ItemGroup>
 </Project>

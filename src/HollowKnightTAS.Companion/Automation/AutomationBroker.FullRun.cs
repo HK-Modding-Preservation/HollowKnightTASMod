@@ -13,6 +13,12 @@ namespace HollowKnightTAS.Companion.Automation
 {
     public sealed partial class AutomationBroker
     {
+        // Installed by Studio. Only authenticated external commands enter this bridge;
+        // in-process UI requests must not recursively re-enter it.
+        public Func<AutomationCommandEnvelope,
+            Func<AutomationCommandEnvelope, Task<AutomationResultEnvelope>>,
+            Task<AutomationResultEnvelope>>? StudioFullRunCommand { get; set; }
+
         private async Task<AutomationResultEnvelope> RouteFullRunAsync(
             AutomationBootstrapDescriptor binding, string clientId,
             string connectionId, AutomationCommandEnvelope command,
@@ -50,6 +56,19 @@ namespace HollowKnightTAS.Companion.Automation
                 return Result(command, false, "LeaseRequired",
                     "A matching unexpired exclusive control lease is required.");
 
+            if (connectionId != "companion-ui-inproc" && StudioFullRunCommand != null)
+                return await StudioFullRunCommand(command,
+                    next => RouteFullRunCoreAsync(binding, next, cancellationToken));
+            return await RouteFullRunCoreAsync(binding, command, cancellationToken);
+        }
+
+        private async Task<AutomationResultEnvelope> RouteFullRunCoreAsync(
+            AutomationBootstrapDescriptor binding, AutomationCommandEnvelope command,
+            CancellationToken cancellationToken)
+        {
+            var coordinator = fullRunMovies!;
+            var catalog = capabilityCatalog
+                ?? new AutomationCapabilityCatalog(binding.Mode, false, fullRunOnly: true);
             var gate = coordinator.Gate
                 ?? throw new InvalidOperationException("Full-run gate is unavailable.");
             if (command.CommandId == AutomationCommandIds.GetStatus

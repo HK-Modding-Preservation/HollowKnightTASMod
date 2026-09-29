@@ -30,6 +30,7 @@ namespace HollowKnightTAS.Companion.Services
         }
 
         public event EventHandler? ExitRequested;
+        public Func<string, Task>? LaunchGameAsync { get; set; }
 
         public string PipeName => pipeName;
 
@@ -106,7 +107,25 @@ namespace HollowKnightTAS.Companion.Services
                 var requestExit = false;
                 var detail = "Invalid control request.";
                 var responseType = IpcMessageTypes.ControlAck;
-                if (request.Sequence == 0
+                if (request.Sequence == 0 && request.MessageType == "launchStudioGame")
+                {
+                    // This control pipe is CurrentUserOnly. Launch still goes through
+                    // the same verified profile and protected-save path as the UI.
+                    var data = IpcPayloadCodec.TryDeserialize(request.PayloadUtf8);
+                    if (data.Success && data.Fields!.Count == 1
+                        && data.Fields.TryGetValue("gamePath", out var gamePath) && LaunchGameAsync != null)
+                    {
+                        try
+                        {
+                            timeout.CancelAfter(TimeSpan.FromSeconds(60));
+                            await LaunchGameAsync(gamePath);
+                            accepted = true;
+                            detail = "Studio game launched.";
+                        }
+                        catch (Exception error) { detail = error.Message; }
+                    }
+                }
+                else if (request.Sequence == 0
                     && CompanionSessionRegistration.TryParse(
                         request.PayloadUtf8,
                         out var registration,
