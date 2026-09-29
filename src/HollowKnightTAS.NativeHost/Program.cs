@@ -19,6 +19,11 @@ namespace HollowKnightTAS.NativeHost
         private const int MaximumRequestCharacters = 64 * 1024;
         private const int RequiredAttachCycles = 100;
 
+        // The executable stays in Native/, while its managed assembly and runtime
+        // are shared with Studio one directory above it.
+        private static string HostDirectory => Path.GetDirectoryName(
+            Environment.ProcessPath ?? throw new InvalidOperationException("NativeHost image is unavailable."))!;
+
         private static int Main(string[] arguments)
         {
             Console.InputEncoding = new UTF8Encoding(false, true);
@@ -363,7 +368,7 @@ namespace HollowKnightTAS.NativeHost
                         "NativeHost parent image is unavailable."));
                 var expectedPath = Path.GetFullPath(
                     Path.Combine(
-                        AppContext.BaseDirectory,
+                        HostDirectory,
                         "..",
                         "HollowKnightTAS.Companion.exe"));
                 if (!string.Equals(
@@ -381,7 +386,7 @@ namespace HollowKnightTAS.NativeHost
         private static void ValidateSignedBuildWhitelist()
         {
             var path = Path.Combine(
-                AppContext.BaseDirectory,
+                HostDirectory,
                 "native-build-whitelist-v1.json");
             var bytes = File.ReadAllBytes(path);
             if (bytes.Length == 0 || bytes.Length > 64 * 1024)

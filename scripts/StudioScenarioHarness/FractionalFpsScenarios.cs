@@ -77,6 +77,7 @@ internal static partial class StudioScenarioHarness
             await Task.Delay(400);
             var paused = await State("paused");
             Require(boot.NativeCompletedFrames == pausedNative && paused["movieFrame"] == "160", "pause preserves native and Movie counts");
+            if (args.Contains("--package-smoke")) await RunPackageSmokeAsync();
             var package = Path.Combine(output, "recorded-99.999.hktaspack");
             await SequencePackage.WriteAsync(package, recorded.Movie, movies.SequenceInitialSaves!);
             await File.WriteAllTextAsync(Path.Combine(output, "recorded-99.999.hktas"), recorded.Movie);
@@ -99,7 +100,8 @@ internal static partial class StudioScenarioHarness
             await SequencePackage.WriteAsync(mixedPackage, mixed, movies.SequenceInitialSaves!);
             await File.WriteAllTextAsync(Path.Combine(output, "mixed.hktas"), mixed);
             await vm.OpenMovieFileAsync(mixedPackage);
-            var ffmpeg = args.Single(a => a.StartsWith("--ffmpeg=", StringComparison.Ordinal)).Split('=', 2)[1];
+            var ffmpeg = args.SingleOrDefault(a => a.StartsWith("--ffmpeg=", StringComparison.Ordinal))?.Split('=', 2)[1]
+                ?? BundledFfmpeg.Resolve();
             var video = Path.Combine(output, "mixed.mp4");
             picker.SetValue(vm, (Func<(string Ffmpeg, string Output)?>)(() => (ffmpeg, video)));
             await Command(vm.StartVideoExportCommand).WaitAsync(TimeSpan.FromMinutes(2));

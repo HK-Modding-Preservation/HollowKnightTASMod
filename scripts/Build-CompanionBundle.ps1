@@ -244,8 +244,7 @@ Copy-Item -Path (Join-Path $publishRoot '*') `
     -r win-x64 `
     --self-contained true `
     -p:PublishTrimmed=false `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:PublishSingleFile=false `
     -p:UseAppHost=true `
     -o $nativePublishRoot `
     --nologo
@@ -253,10 +252,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "NativeHost publish failed with exit code $LASTEXITCODE."
 }
 
-Copy-Item -Path (Join-Path $nativePublishRoot '*') `
-    -Destination $nativeStage `
-    -Recurse `
-    -Force
+& (Join-Path $PSScriptRoot 'Stage-SharedDotnetApp.ps1') -Project $nativeProject `
+    -PublishDirectory $nativePublishRoot -SharedDirectory $companionStage `
+    -EntrypointDirectory $nativeStage -ApplicationName 'HollowKnightTAS.NativeHost' -Configuration $Configuration
 Copy-Item -LiteralPath $nativeWhitelist `
     -Destination (
         Join-Path $nativeStage 'native-build-whitelist-v1.json'
@@ -268,8 +266,7 @@ Copy-Item -LiteralPath $nativeWhitelist `
     -r win-x64 `
     --self-contained true `
     -p:PublishTrimmed=false `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:PublishSingleFile=false `
     -p:UseAppHost=true `
     -o $agentPublishRoot `
     --nologo
@@ -277,17 +274,16 @@ if ($LASTEXITCODE -ne 0) {
     throw "AgentBridge publish failed with exit code $LASTEXITCODE."
 }
 
-Copy-Item -LiteralPath (
-    Join-Path $agentPublishRoot 'HollowKnightTAS.AgentBridge.exe'
-) -Destination $toolsStage -Force
+& (Join-Path $PSScriptRoot 'Stage-SharedDotnetApp.ps1') -Project $agentProject `
+    -PublishDirectory $agentPublishRoot -SharedDirectory $companionStage `
+    -EntrypointDirectory $toolsStage -ApplicationName 'HollowKnightTAS.AgentBridge' -Configuration $Configuration
 
 & dotnet publish $cliProject `
     -c $Configuration `
     -r win-x64 `
     --self-contained true `
     -p:PublishTrimmed=false `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
+    -p:PublishSingleFile=false `
     -p:UseAppHost=true `
     -o $cliPublishRoot `
     --nologo
@@ -295,9 +291,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "CLI publish failed with exit code $LASTEXITCODE."
 }
 
-Copy-Item -LiteralPath (
-    Join-Path $cliPublishRoot 'HollowKnightTAS.Cli.exe'
-) -Destination $toolsStage -Force
+& (Join-Path $PSScriptRoot 'Stage-SharedDotnetApp.ps1') -Project $cliProject `
+    -PublishDirectory $cliPublishRoot -SharedDirectory $companionStage `
+    -EntrypointDirectory $toolsStage -ApplicationName 'HollowKnightTAS.Cli' -Configuration $Configuration
 
 & dotnet publish $sdkProject `
     -c $Configuration `

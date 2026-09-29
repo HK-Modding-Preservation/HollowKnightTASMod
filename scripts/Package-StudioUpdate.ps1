@@ -55,9 +55,7 @@ foreach ($file in $manifest.files) {
     Add-PackageFile $name $path ([string]$file.sha256)
 }
 Add-PackageFile 'docs/USER-MANUAL.md' (Join-Path $PSScriptRoot '../docs/USER-MANUAL.md')
-Add-PackageFile 'docs/DIAGNOSTIC-LOGS.md' (Join-Path $PSScriptRoot '../docs/DIAGNOSTIC-LOGS.md')
 Add-PackageFile 'docs/HELPER-MOD-COMPATIBILITY.md' (Join-Path $PSScriptRoot '../docs/HELPER-MOD-COMPATIBILITY.md')
-Add-PackageFile 'docs/BOSS-MOD-COMPATIBILITY.md' (Join-Path $PSScriptRoot '../docs/BOSS-MOD-COMPATIBILITY.md')
 Add-PackageFile 'docs/AI-CONTROL.md' (Join-Path $PSScriptRoot '../docs/AI-CONTROL.md')
 Add-PackageFile 'docs/USER-MANUAL.en.md' (Join-Path $PSScriptRoot '../docs/USER-MANUAL.en.md')
 Add-PackageFile 'docs/AI-CONTROL.en.md' (Join-Path $PSScriptRoot '../docs/AI-CONTROL.en.md')

@@ -110,7 +110,7 @@ dotnet run --project src/HollowKnightTAS.BundleTool -c Release -- print-public .
 
 ## 带文档的发布包
 
-`scripts/Package-StudioUpdate.ps1` 从现有安装生成包含三个指南各自中英文版本的 zip，不重新编译。先取得并核对目标安装的 Runtime、Core 和 manifest 的小写 SHA-256，再传入：
+`scripts/Package-StudioUpdate.ps1` 从现有安装生成 zip，不重新编译。包内文档为中英文人工操作指南、中英文 AI 操作指南，以及辅助 Mod 兼容清单，共五份。先取得并核对目标安装的 Runtime、Core 和 manifest 的小写 SHA-256，再传入：
 
 ```powershell
 ./scripts/Package-StudioUpdate.ps1 `
@@ -124,5 +124,9 @@ dotnet run --project src/HollowKnightTAS.BundleTool -c Release -- print-public .
 默认使用 Release BundleTool 和本地公钥，必要时传 `-BundleToolPath`、`-PublicKeyPath`。输出路径必须不存在。打包时验证安装签名和每个文件的哈希，生成后读取 zip 再逐项核对。`-VerifyOnly` 检查已存在的目标包与当前输入是否一致。
 
 修改 Runtime、Core、原生时钟、游戏或其他 Mod 可能改变环境身份。分发时使用成套二进制，保留与序列匹配的安装；重新编译后不应直接声称原有序列兼容。
+
+Studio、NativeHost、CLI 和 AgentBridge 共享 `Companion/win-x64` 下的内置 .NET 运行时，辅助 EXE 仍保留原路径。`Stage-SharedDotnetApp.ps1` 使用 SDK apphost writer 将辅助 EXE 绑定到上一级的托管 DLL；所有程序仍以自包含方式发布，不要求玩家安装 .NET。合并时检查运行时版本与重复文件哈希；WindowsDesktop 提供的 `Microsoft.VisualBasic.dll`、`System.Drawing.dll`、`WindowsBase.dll` 保留 Studio 版本。
+
+`python scripts/Test-SharedBundle.py <Mod目录> <证据目录>` 在空 PATH、无效 DOTNET_ROOT 和独立工作目录下检查程序启动及实际加载的运行时。运行前关闭游戏和 Studio。有效 CLI/MCP 会话、录制、冷回放及音视频导出由 `StudioScenarioHarness --fractional-fps --package-smoke` 实机检查。
 
 [玩家安装与使用](USER-MANUAL.md) · [AI 控制指南](AI-CONTROL.md)

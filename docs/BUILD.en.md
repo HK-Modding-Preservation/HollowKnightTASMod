@@ -110,7 +110,7 @@ The build runs `scripts/Stage-BundledFfmpeg.ps1` to download the pinned FFmpeg 8
 
 ## Package a release with documentation
 
-`scripts/Package-StudioUpdate.ps1` packages an existing installation with Chinese and English versions of all three guides, without recompiling. Obtain and verify the lowercase SHA-256 hashes of the target installation's Runtime, Core and manifest, then pass them to the script:
+`scripts/Package-StudioUpdate.ps1` packages an existing installation without recompiling. It includes five documents: Chinese and English player guides, Chinese and English AI control guides, and the helper Mod compatibility list. Obtain and verify the lowercase SHA-256 hashes of the target installation's Runtime, Core and manifest, then pass them to the script:
 
 ```powershell
 ./scripts/Package-StudioUpdate.ps1 `
