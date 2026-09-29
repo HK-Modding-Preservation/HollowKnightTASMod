@@ -11,8 +11,6 @@
 ## 需要关闭部分功能
 
 ### Custom Knight 3.5.0.0
-
-- `Preloads` 可以开启，录制与回放保持一致。
 - 关闭 `GenerateDefaultSkin`、`SwapperEnabled`、`EnableParticleSwap`、`EnablePauseMenu`、`EnableSaveHuds`。
 - 开启 `DisableDirectorySwaps`。
 - 录制前选好固定皮肤；TAS 会自动屏蔽换皮和重载快捷键，无需清空绑定。
@@ -32,8 +30,6 @@
 - 关闭 `NoDiveInvincibility`、`NoNailAttack`、`NoNailDamage`、`NoSpellDamage`。
 
 ### Benchwarp 3.2.6.1
-
-- `NoPreload=false`（开启预加载）可以使用，录制与回放保持一致。
 - 关闭 `ShowMenu`、`EnableDeploy`、`DoorWarp`、`EnableHotkeys`、`LegacyHotkeys`、`UnlockAllBenches`、`ModifyVanillaBenchStyles`。
 - 录制起点不能保留部署椅子重生状态；先回真实椅子存档，无法确认时禁用整个 Mod。
 
@@ -43,5 +39,3 @@
 - 不启用房间/位置/复制状态加载、斗兽场波次跳转、碰撞修改、梦门无敌、遮幕隐藏和视觉状态切换。
 
 以上为已测片段使用配置，不代表全部场景均已验证。
-
-Custom Knight 和 Benchwarp 开启预加载后，各自通过两次 3800 帧严格冷回放及四检查点对比。切换预加载设置或增减 Mod 后，旧序列可能失配，需要按新环境重新录制。`GenerateDefaultSkin` 不在本轮放开范围。

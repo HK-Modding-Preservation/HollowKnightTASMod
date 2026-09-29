@@ -63,7 +63,8 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (args.Contains("--keyboard-input")) await RunKeyboardInputAsync();
+                if (args.Contains("--fractional-fps")) await RunFractionalFpsAsync(args);
+                else if (args.Contains("--keyboard-input")) await RunKeyboardInputAsync();
                 else if (args.Contains("--replay-performance")) await RunReplayPerformanceAsync(args);
                 else if (fsmScenarios) await RunBossFsmAsync(args);
                 else if (args.Contains("--info-overlay")) await RunInfoOverlayAsync(args);
