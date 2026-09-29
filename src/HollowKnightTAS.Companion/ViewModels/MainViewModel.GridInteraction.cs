@@ -41,8 +41,10 @@ namespace HollowKnightTAS.Companion.ViewModels
             get => defaultFrameRate;
             set
             {
+                var valid = MovieFrameRate.TryParse(value, out var fps);
+                if (valid) value = fps.ToString("0.######", CultureInfo.InvariantCulture);
                 Set(ref defaultFrameRate, value);
-                if (int.TryParse(value, out var fps) && fps >= 1 && fps <= 1000)
+                if (valid)
                 {
                     try { System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(FrameRateSettingPath)!); System.IO.File.WriteAllText(FrameRateSettingPath, value); }
                     catch (Exception ex) { GridStatus = "默认 FPS 保存失败：" + ex.Message; }
@@ -75,11 +77,9 @@ namespace HollowKnightTAS.Companion.ViewModels
             }
             catch (Exception ex) { GridStatus = ex.Message; }
         });
-        private static int ParseFrameRate(string text)
+        private static decimal ParseFrameRate(string text)
         {
-            if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var fps) || fps < 1 || fps > 1000)
-                throw new InvalidOperationException("FPS 必须是 1–1000 的整数。");
-            return fps;
+            return MovieFrameRate.Parse(text);
         }
         private void EditGridDocument(MovieV2Document movie)
         {

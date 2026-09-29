@@ -72,7 +72,7 @@ namespace HollowKnightTAS.Companion.Services
             return nextGate;
         }
 
-        public void ArmRecording(bool gameMouseEnabled, int framesPerSecond = 50)
+        public void ArmRecording(bool gameMouseEnabled, decimal framesPerSecond = 50)
         {
             var readyGate = RequireFrameZero();
             var store = bootstrap ?? throw new InvalidOperationException("Bootstrap store is missing.");

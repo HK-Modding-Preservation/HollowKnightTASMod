@@ -18,6 +18,8 @@ namespace HollowKnightTAS.Runtime.Timing
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate int NativeFault(int code);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate int NativeFrameRate(int numerator, int denominator);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate int NativeCopyHash([Out] byte[] output, uint capacity);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -32,7 +34,7 @@ namespace HollowKnightTAS.Runtime.Timing
         private readonly NativeInt reportMovieFrameCompleted;
         private readonly NativeInt requestPause;
         private readonly NativeInt finish;
-        private NativeFault setFrameRate = null!;
+        private NativeFrameRate setFrameRate = null!;
         private NativeFrame stepTicks = null!;
         private NativeFrame frequency = null!;
         public double StepSeconds => (double)stepTicks() / frequency();
@@ -103,7 +105,7 @@ namespace HollowKnightTAS.Runtime.Timing
                 Load<NativeInt>("HktasClockBridge_FinishFullRun"),
                 Load<NativeFault>("HktasClockBridge_FaultFullRun"),
                 Load<NativeCopyHash>("HktasClockBridge_CopyFullRunDescriptorHash"));
-            clock.setFrameRate = Load<NativeFault>("HktasClockBridge_SetFullRunFrameRate");
+            clock.setFrameRate = Load<NativeFrameRate>("HktasClockBridge_SetFullRunFrameRateRatio");
             clock.setObservationCallback = Load<NativeSetCallback>("HktasClockBridge_SetObservationCallback");
             clock.requestObservation = Load<NativeInt>("HktasClockBridge_RequestObservation");
             clock.stepTicks = Load<NativeFrame>("HktasClockBridge_GetDeterministicClockStepTicks");
@@ -124,9 +126,10 @@ namespace HollowKnightTAS.Runtime.Timing
             }
         }
 
-        public void SetFrameRate(int fps)
+        public void SetFrameRate(decimal fps)
         {
-            if (setFrameRate(fps) != 1) throw new InvalidOperationException("Native frame rate rejected.");
+            MovieFrameRate.ToRatio(fps, out var numerator, out var denominator);
+            if (setFrameRate(numerator, denominator) != 1) throw new InvalidOperationException("Native frame rate rejected.");
         }
 
         public bool IsPaused => getMode() == 0 || getMode() == 4;

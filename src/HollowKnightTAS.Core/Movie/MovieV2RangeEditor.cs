@@ -29,9 +29,9 @@ namespace HollowKnightTAS.Core.Movie
             return Transform(movie, frame, total - frame, r => r);
         }
 
-        public static MovieV2Document SetFrameRate(MovieV2Document movie, long start, long count, int fps)
+        public static MovieV2Document SetFrameRate(MovieV2Document movie, long start, long count, decimal fps)
         {
-            if (fps < 1 || fps > 1000) throw new ArgumentOutOfRangeException(nameof(fps));
+            if (!MovieFrameRate.IsValid(fps)) throw new ArgumentOutOfRangeException(nameof(fps));
             return Transform(movie, start, count, r => new NativeFrameRun(r.RepeatCount, r.Samples, r.Span, fps, r.Authored, r.RngSeed));
         }
 

@@ -19,7 +19,7 @@ namespace HollowKnightTAS.Core.Tests.Media
         {
             WithEncoderTools((ffmpeg, ffprobe, directory) =>
             {
-                var durations = new[] { (50, 5), (60, 6), (120, 12), (1000, 100), (59, 59), (1, 1) }
+                var durations = new[] { (50d, 5), (60d, 6), (120d, 12), (1000d, 100), (59d, 59), (99.999d, 100), (60.001d, 60), (1d, 1) }
                     .SelectMany(pair => Enumerable.Repeat(1d / pair.Item1, pair.Item2)).ToArray();
                 var output = Path.Combine(directory, "mixed.mp4");
                 var format = new VideoExportFormat(65, 33, 50);

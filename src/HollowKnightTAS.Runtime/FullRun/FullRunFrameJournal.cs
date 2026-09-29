@@ -39,9 +39,10 @@ namespace HollowKnightTAS.Runtime.FullRun
             activeTicks.Add(inputTick);
         }
 
-        public void CompleteFrame(long frameIndex, int framesPerSecond = 50)
+        public void CompleteFrame(long frameIndex, decimal framesPerSecond = 50)
         {
             RequireActive(frameIndex);
+            if (!MovieFrameRate.IsValid(framesPerSecond)) throw new ArgumentOutOfRangeException(nameof(framesPerSecond));
             pending.Add(new FrameRecord(frameIndex, active.ToArray(), activeTicks.ToArray(), framesPerSecond));
             active.Clear();
             activeTicks.Clear();
@@ -58,7 +59,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             var runs = new List<NativeFrameRun>();
             IReadOnlyList<GameInputSample>? previous = null;
             long repeat = 0;
-            int previousFps = 50;
+            decimal previousFps = 50;
             long readFrames = 0;
             foreach (var segment in segments)
             {
@@ -103,13 +104,15 @@ namespace HollowKnightTAS.Runtime.FullRun
                     FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
                 using (var writer = new BinaryWriter(stream))
                 {
-                    writer.Write(0x334a5448); // HTJ2
+                    writer.Write(0x344a5448); // HTJ4: rational FPS
                     writer.Write(first);
                     writer.Write(pending.Count);
                     foreach (var frame in pending)
                     {
                         writer.Write(frame.FrameIndex);
-                        writer.Write(frame.FramesPerSecond);
+                        MovieFrameRate.ToRatio(frame.FramesPerSecond, out var numerator, out var denominator);
+                        writer.Write(numerator);
+                        writer.Write(denominator);
                         writer.Write(frame.Samples.Length);
                         for (var index = 0; index < frame.Samples.Length; index++)
                         {
@@ -154,7 +157,8 @@ namespace HollowKnightTAS.Runtime.FullRun
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (var reader = new BinaryReader(stream))
             {
-                if (stream.Length > MaximumSegmentBytes || reader.ReadInt32() != 0x334a5448)
+                var magic = reader.ReadInt32();
+                if (stream.Length > MaximumSegmentBytes || (magic != 0x334a5448 && magic != 0x344a5448))
                     throw new InvalidDataException("Full-run input segment is invalid.");
                 var first = reader.ReadInt64();
                 var count = reader.ReadInt32();
@@ -163,8 +167,9 @@ namespace HollowKnightTAS.Runtime.FullRun
                 for (var frameIndex = 0; frameIndex < count; frameIndex++)
                 {
                     var frame = reader.ReadInt64();
-                    var fps = reader.ReadInt32();
-                    if (fps < 1 || fps > 1000) throw new InvalidDataException("Invalid journal FPS.");
+                    var numerator = reader.ReadInt32();
+                    var denominator = magic == 0x344a5448 ? reader.ReadInt32() : 1;
+                    var fps = MovieFrameRate.FromRatio(numerator, denominator);
                     var sampleCount = reader.ReadInt32();
                     if (frame != first + frameIndex || sampleCount < 0
                         || sampleCount > MovieProtocolV2.MaximumSamplesPerFrame)
@@ -237,14 +242,14 @@ namespace HollowKnightTAS.Runtime.FullRun
 
         private sealed class FrameRecord
         {
-            public FrameRecord(long frameIndex, GameInputSample[] samples, ulong[] ticks, int framesPerSecond)
+            public FrameRecord(long frameIndex, GameInputSample[] samples, ulong[] ticks, decimal framesPerSecond)
             {
                 FramesPerSecond = framesPerSecond;
                 FrameIndex = frameIndex;
                 Samples = samples;
                 Ticks = ticks;
             }
-            public int FramesPerSecond { get; }
+            public decimal FramesPerSecond { get; }
             public long FrameIndex { get; }
             public GameInputSample[] Samples { get; }
             public ulong[] Ticks { get; }

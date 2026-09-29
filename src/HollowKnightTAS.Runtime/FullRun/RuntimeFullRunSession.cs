@@ -251,16 +251,16 @@ namespace HollowKnightTAS.Runtime.FullRun
         public bool MouseEnabled => mouseEnabled;
         public string Mode => mode;
         public double ClockStepSeconds => clock.StepSeconds;
-        public int ActiveFrameRate => activeFrameRate;
+        public decimal ActiveFrameRate => activeFrameRate;
 
-        private int recordingFrameRate = 50;
-        private int activeFrameRate = 50;
+        private decimal recordingFrameRate = 50;
+        private decimal activeFrameRate = 50;
         private long pauseAtMovieFrame = -1;
         private int timingRunIndex;
         private long timingRunStart;
-        public void ConfigureTiming(int fps, long target)
+        public void ConfigureTiming(decimal fps, long target)
         {
-            if (fps < 1 || fps > 1000 || target < -1 || target > MovieProtocolV2.MaximumExpandedFrames)
+            if (!MovieFrameRate.IsValid(fps) || target < -1 || target > MovieProtocolV2.MaximumExpandedFrames)
                 throw new ArgumentOutOfRangeException(nameof(fps));
             recordingFrameRate = fps;
             pauseAtMovieFrame = target;

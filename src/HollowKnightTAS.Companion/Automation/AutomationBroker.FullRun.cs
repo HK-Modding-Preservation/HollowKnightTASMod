@@ -241,7 +241,7 @@ namespace HollowKnightTAS.Companion.Automation
             if (command.CommandId == AutomationCommandIds.BeginFullRunRecording)
             {
                 coordinator.ArmRecording(command.Arguments["mouseEnabled"] == "true",
-                    command.Arguments.TryGetValue("fps", out var fps) ? int.Parse(fps, CultureInfo.InvariantCulture) : 50);
+                    command.Arguments.TryGetValue("fps", out var fps) ? HollowKnightTAS.Core.Movie.MovieFrameRate.Parse(fps) : 50);
                 return Result(command, true, "Ok", "Recording armed at native frame 0.",
                     Fields("mode", coordinator.Mode, "nativeFrame", "0"));
             }

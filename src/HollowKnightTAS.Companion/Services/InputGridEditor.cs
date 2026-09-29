@@ -56,7 +56,7 @@ namespace HollowKnightTAS.Companion.Services
         }
         public override bool Equals(object? obj) => obj is InputGridRow row && row.Tick == Tick;
         public override int GetHashCode() => Tick.GetHashCode();
-        public int FramesPerSecond { get; } = 50;
+        public decimal FramesPerSecond { get; } = 50;
         public int? RngSeed { get; }
         public bool HasAction(string action) => action == "Submit" ? Submit : action == "Cancel" ? Cancel : Enum.TryParse<TasAction>(action, out var parsed) && Has(parsed);
         public long Tick { get; }
@@ -101,7 +101,7 @@ namespace HollowKnightTAS.Companion.Services
 
     public sealed class V2InputGridRow
     {
-        public V2InputGridRow(long nativeFrame, IReadOnlyList<GameInputSample> samples, long currentFrame, int framesPerSecond = 50, int? rngSeed = null)
+        public V2InputGridRow(long nativeFrame, IReadOnlyList<GameInputSample> samples, long currentFrame, decimal framesPerSecond = 50, int? rngSeed = null)
         {
             RngSeed = rngSeed;
             FramesPerSecond = framesPerSecond;
@@ -109,7 +109,7 @@ namespace HollowKnightTAS.Companion.Services
             Samples = samples;
             Current = nativeFrame == currentFrame ? "▶" : "";
         }
-        public int FramesPerSecond { get; }
+        public decimal FramesPerSecond { get; }
         public int? RngSeed { get; }
         public long NativeFrame { get; }
         public IReadOnlyList<GameInputSample> Samples { get; }

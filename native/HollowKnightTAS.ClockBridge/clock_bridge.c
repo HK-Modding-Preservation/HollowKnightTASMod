@@ -48,6 +48,9 @@ static BOOL g_deterministic_clock_enabled;
 static LARGE_INTEGER g_deterministic_clock_anchor;
 static LONGLONG g_deterministic_clock_frequency;
 static LONGLONG g_deterministic_clock_step_ticks;
+#include "fractional_frame_clock.h"
+static hktas_fractional_clock g_fractional_clock;
+static BOOL g_fractional_clock_configured;
 static LONG g_deterministic_clock_last_advance_sequence;
 static volatile LONG g_deterministic_clock_frame_advance_count;
 static BOOL g_query_performance_counter_hook_installed;
@@ -63,13 +66,18 @@ static volatile LONG *g_boot_frame_state; /* completed, waiting, thread, hooked 
 static void advance_boot_frame_clock(void)
 {
     AcquireSRWLockExclusive(&g_clock_lock);
+    if (g_fractional_clock_configured)
+        g_deterministic_clock_step_ticks = hktas_fractional_peek(&g_fractional_clock);
     /* The managed payload adopts this same anchor later. Once adopted,
      * only its existing completed-frame clock path may advance it. */
     if ((g_v2_gate_enabled || g_startup_handoff_adopt_count == 0)
         && g_deterministic_clock_enabled
         && g_deterministic_clock_step_ticks > 0
         && g_deterministic_clock_anchor.QuadPart <= LLONG_MAX - g_deterministic_clock_step_ticks)
+    {
         g_deterministic_clock_anchor.QuadPart += g_deterministic_clock_step_ticks;
+        if (g_fractional_clock_configured) hktas_fractional_consume(&g_fractional_clock);
+    }
     ReleaseSRWLockExclusive(&g_clock_lock);
 }
 
@@ -1201,11 +1209,22 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
     return TRUE;
 }
 
-__declspec(dllexport) LONG __cdecl HktasClockBridge_SetFullRunFrameRate(LONG fps)
+__declspec(dllexport) LONG __cdecl HktasClockBridge_SetFullRunFrameRateRatio(LONG numerator, LONG denominator)
 {
-    if (fps < 1 || fps > 1000 || !g_deterministic_clock_enabled) return 0;
     AcquireSRWLockExclusive(&g_clock_lock);
-    g_deterministic_clock_step_ticks = (g_deterministic_clock_frequency + fps / 2) / fps;
+    if (!g_deterministic_clock_enabled || !hktas_fractional_configure(
+        &g_fractional_clock, g_deterministic_clock_frequency, numerator, denominator))
+    {
+        ReleaseSRWLockExclusive(&g_clock_lock);
+        return 0;
+    }
+    g_fractional_clock_configured = TRUE;
+    g_deterministic_clock_step_ticks = hktas_fractional_peek(&g_fractional_clock);
     ReleaseSRWLockExclusive(&g_clock_lock);
     return 1;
+}
+
+__declspec(dllexport) LONG __cdecl HktasClockBridge_SetFullRunFrameRate(LONG fps)
+{
+    return HktasClockBridge_SetFullRunFrameRateRatio(fps, 1);
 }

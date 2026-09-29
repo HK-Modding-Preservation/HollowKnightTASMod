@@ -83,7 +83,7 @@ namespace HollowKnightTAS.Core.Movie
     {
         private readonly IReadOnlyList<GameInputSample> samples;
 
-        public NativeFrameRun(long repeatCount, IReadOnlyList<GameInputSample> samples, MovieSourceSpan span, int framesPerSecond = 50, bool authored = false, int? rngSeed = null)
+        public NativeFrameRun(long repeatCount, IReadOnlyList<GameInputSample> samples, MovieSourceSpan span, decimal framesPerSecond = 50, bool authored = false, int? rngSeed = null)
         {
             RngSeed = rngSeed;
             FramesPerSecond = framesPerSecond;
@@ -97,7 +97,7 @@ namespace HollowKnightTAS.Core.Movie
             Span = span;
         }
 
-        public int FramesPerSecond { get; }
+        public decimal FramesPerSecond { get; }
         public bool Authored { get; }
         // Applied once before this Movie frame. Seeded runs must have RepeatCount == 1.
         public int? RngSeed { get; }

@@ -89,7 +89,7 @@ namespace HollowKnightTAS.Core.Movie
 
             long expandedFrames = 0;
             long pendingCount = 0;
-            int pendingFps = 50;
+            decimal pendingFps = 50;
             bool pendingAuthored = false;
             int? pendingRngSeed = null;
             IReadOnlyList<GameInputSample>? pendingSamples = null;
@@ -190,7 +190,7 @@ namespace HollowKnightTAS.Core.Movie
 
         private static NativeFrameRun ReadRun(JsonValue json, string sourceName, int lineNumber)
         {
-            var fields = ObjectFields(json, "repeatCount", "samples", "fps?", "authored?", "rngSeed?");
+            var fields = ObjectFields(json, "repeatCount", "samples", "fps?", "fpsDenominator?", "authored?", "rngSeed?");
             var count = Integer(fields, "repeatCount", 1, MovieProtocolV2.MaximumExpandedFrames);
             if (fields.ContainsKey("rngSeed") && count != 1)
                 throw new FormatFault(MovieDiagnosticCodes.InvalidCommand, json.Column, "An RNG seed requires repeatCount = 1.");
@@ -202,9 +202,22 @@ namespace HollowKnightTAS.Core.Movie
             var samples = new List<GameInputSample>(array.Items.Count);
             foreach (var item in array.Items) samples.Add(ReadSample(item));
             return new NativeFrameRun(count, samples, new MovieSourceSpan(sourceName, lineNumber, 1, json.Length),
-                fields.ContainsKey("fps") ? (int)Integer(fields, "fps", 1, 1000) : 50,
+                ReadFrameRate(fields),
                 fields.ContainsKey("authored") && Boolean(fields, "authored"),
                 fields.ContainsKey("rngSeed") ? (int?)Integer(fields, "rngSeed", int.MinValue, int.MaxValue) : null);
+        }
+
+        private static decimal ReadFrameRate(Dictionary<string, JsonValue> fields)
+        {
+            if (!fields.ContainsKey("fps") && !fields.ContainsKey("fpsDenominator")) return 50;
+            if (!fields.ContainsKey("fps"))
+                throw new FormatFault(MovieDiagnosticCodes.InvalidCommand, 1, "fpsDenominator requires fps.");
+            var numerator = (int)Integer(fields, "fps", 1, 1000 * MovieFrameRate.Scale);
+            var denominator = fields.ContainsKey("fpsDenominator")
+                ? (int)Integer(fields, "fpsDenominator", 1, MovieFrameRate.Scale) : 1;
+            try { return MovieFrameRate.FromRatio(numerator, denominator); }
+            catch (ArgumentOutOfRangeException)
+            { throw new FormatFault(MovieDiagnosticCodes.InvalidCommand, 1, "Invalid FPS ratio or precision (1-1000, up to 6 decimal places)."); }
         }
 
         private static GameInputSample ReadSample(JsonValue json)
@@ -330,7 +343,7 @@ namespace HollowKnightTAS.Core.Movie
                 throw new InvalidDataException("Invalid native-frame run count.");
             if (run.RngSeed.HasValue && run.RepeatCount != 1)
                 throw new InvalidDataException("An RNG seed requires repeatCount = 1.");
-            if (run.FramesPerSecond < 1 || run.FramesPerSecond > 1000)
+            if (!MovieFrameRate.IsValid(run.FramesPerSecond))
                 throw new InvalidDataException("Frame rate must be between 1 and 1000 FPS.");
             if (run.Samples.Count > MovieProtocolV2.MaximumSamplesPerFrame)
                 throw new InvalidDataException("Too many samples in one native frame.");
@@ -359,11 +372,13 @@ namespace HollowKnightTAS.Core.Movie
                 throw new InvalidDataException("Canonical v2 movie exceeds the source byte limit.");
         }
 
-        private static void AppendRun(StringBuilder builder, long count, IReadOnlyList<GameInputSample> samples, int fps, bool authored, int? rngSeed)
+        private static void AppendRun(StringBuilder builder, long count, IReadOnlyList<GameInputSample> samples, decimal fps, bool authored, int? rngSeed)
         {
             var start = builder.Length;
             builder.Append("{\"repeatCount\":").Append(count.ToString(CultureInfo.InvariantCulture));
-            if (fps != 50) builder.Append(",\"fps\":").Append(fps.ToString(CultureInfo.InvariantCulture));
+            MovieFrameRate.ToRatio(fps, out var numerator, out var denominator);
+            if (fps != 50) builder.Append(",\"fps\":").Append(numerator.ToString(CultureInfo.InvariantCulture));
+            if (denominator != 1) builder.Append(",\"fpsDenominator\":").Append(denominator.ToString(CultureInfo.InvariantCulture));
             if (authored) builder.Append(",\"authored\":true");
             if (rngSeed.HasValue) builder.Append(",\"rngSeed\":").Append(rngSeed.Value.ToString(CultureInfo.InvariantCulture));
             builder.Append(",\"samples\":[");

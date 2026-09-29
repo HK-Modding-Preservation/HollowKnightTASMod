@@ -129,7 +129,7 @@
             <DataGrid.Columns>
               <DataGridTextColumn Header="" Binding="{Binding Current}" Width="28" />
               <DataGridTextColumn Header="{ui:Text t23}" Binding="{Binding Tick}" Width="75" />
-              <DataGridTextColumn Header="{ui:Text t24}" Binding="{Binding FramesPerSecond}" Width="45" />
+              <DataGridTextColumn Header="{ui:Text t24}" Binding="{Binding FramesPerSecond, StringFormat={}{0:0.######}}" Width="85" />
               <DataGridTextColumn Header="{ui:Text rngSeedColumn}" Binding="{Binding RngSeed}" SortMemberPath="RngSeed" Width="115" />
               <DataGridCheckBoxColumn Header="{ui:Text t25}" SortMemberPath="Submit" Binding="{Binding Submit, Mode=OneWay}" Width="65" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
               <DataGridCheckBoxColumn Header="{ui:Text t26}" SortMemberPath="Cancel" Binding="{Binding Cancel, Mode=OneWay}" Width="65" ElementStyle="{StaticResource TasGridCheckBoxStyle}" />
@@ -245,7 +245,7 @@
           <TextBlock Text="{ui:Text t63}" FontSize="20" Margin="0,0,0,16" />
           <WrapPanel Margin="0,0,0,14"><TextBlock Text="{ui:Text t64}" Width="140" VerticalAlignment="Center" /><ComboBox Width="180" ItemsSource="{Binding Languages, Source={x:Static ui:UiText.Current}}" SelectedIndex="{Binding LanguageIndex, Source={x:Static ui:UiText.Current}, Mode=TwoWay}" AutomationProperties.AutomationId="HktasStudio.Language" /></WrapPanel>
           <TextBlock Text="{Binding SettingsError, Source={x:Static ui:UiText.Current}}" TextWrapping="Wrap" />
-          <WrapPanel Margin="0,0,0,14"><TextBlock Text="{ui:Text t65}" Width="140" VerticalAlignment="Center" /><TextBlock Text="{Binding DefaultFrameRate}" Width="60" VerticalAlignment="Center" /><Button Content="{ui:Text t66}" Click="OnDefaultFrameRate" /></WrapPanel>
+          <WrapPanel Margin="0,0,0,14"><TextBlock Text="{ui:Text t65}" Width="140" VerticalAlignment="Center" /><TextBlock Text="{Binding DefaultFrameRate}" Width="100" VerticalAlignment="Center" /><Button Content="{ui:Text t66}" Click="OnDefaultFrameRate" /></WrapPanel>
           <CheckBox Content="{ui:Text t67}" IsChecked="{Binding GameMouseEnabled, Mode=TwoWay}" Margin="0,0,0,10" AutomationProperties.AutomationId="HktasStudio.GameMouseEnabled" />
           <TextBlock Text="{ui:Text t68}" TextWrapping="Wrap" Margin="0,0,0,24" />
           <CheckBox Content="{ui:Text colliderOverlayEnabled}" IsChecked="{Binding ColliderOverlayEnabled, Mode=TwoWay}" Margin="0,0,0,6" AutomationProperties.AutomationId="HktasStudio.ColliderOverlayEnabled" />

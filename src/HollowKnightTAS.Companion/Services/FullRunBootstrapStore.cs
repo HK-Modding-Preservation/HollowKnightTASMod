@@ -33,7 +33,7 @@ namespace HollowKnightTAS.Companion.Services
         }
 
         public FullRunBootDescriptor StageRecording(string gateToken, string runId,
-            bool mouseEnabled, int framesPerSecond = 50)
+            bool mouseEnabled, decimal framesPerSecond = 50)
         {
             RequireFresh();
             pendingMovie = null;
