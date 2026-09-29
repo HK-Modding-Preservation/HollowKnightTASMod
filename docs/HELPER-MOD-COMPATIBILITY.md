@@ -12,7 +12,8 @@
 
 ### Custom Knight 3.5.0.0
 
-- 关闭 `Preloads`、`GenerateDefaultSkin`、`SwapperEnabled`、`EnableParticleSwap`、`EnablePauseMenu`、`EnableSaveHuds`。
+- `Preloads` 可以开启，录制与回放保持一致。
+- 关闭 `GenerateDefaultSkin`、`SwapperEnabled`、`EnableParticleSwap`、`EnablePauseMenu`、`EnableSaveHuds`。
 - 开启 `DisableDirectorySwaps`。
 - 录制前选好固定皮肤；TAS 会自动屏蔽换皮和重载快捷键，无需清空绑定。
 
@@ -32,7 +33,7 @@
 
 ### Benchwarp 3.2.6.1
 
-- **开启 `NoPreload`**，即关闭预加载。
+- `NoPreload=false`（开启预加载）可以使用，录制与回放保持一致。
 - 关闭 `ShowMenu`、`EnableDeploy`、`DoorWarp`、`EnableHotkeys`、`LegacyHotkeys`、`UnlockAllBenches`、`ModifyVanillaBenchStyles`。
 - 录制起点不能保留部署椅子重生状态；先回真实椅子存档，无法确认时禁用整个 Mod。
 
@@ -43,4 +44,4 @@
 
 以上为已测片段使用配置，不代表全部场景均已验证。
 
-预加载新增兼容见 [ModBoss 清单](BOSS-MOD-COMPATIBILITY.md)。上表仍保留辅助 Mod 已实测的配置，不把通用启动修复当作所有功能已验证。
+Custom Knight 和 Benchwarp 开启预加载后，各自通过两次 3800 帧严格冷回放及四检查点对比。切换预加载设置或增减 Mod 后，旧序列可能失配，需要按新环境重新录制。`GenerateDefaultSkin` 不在本轮放开范围。
