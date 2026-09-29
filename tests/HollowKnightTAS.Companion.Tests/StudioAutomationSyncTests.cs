@@ -98,6 +98,20 @@ public sealed class StudioAutomationSyncTests
     }
 
     [TestMethod]
+    public async Task ExternalUpdateDrainsBackgroundSaveWhileHoldingEditor()
+    {
+        using var h = new Harness();
+        h.Set("savingBranch", true);
+        var pending = h.Update(h.Original);
+        Assert.IsFalse(pending.IsCompleted);
+        Assert.IsFalse(h.Vm.IsInputGridInteractive);
+        h.Set("savingBranch", false);
+        var result = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.IsTrue(result.Success, result.Detail);
+        Assert.IsTrue(h.Vm.IsInputGridInteractive);
+    }
+
+    [TestMethod]
     public async Task FailedAutomaticDraftApplyKeepsOriginalRequestIdentityAndPendingEdits()
     {
         using var h = new Harness();

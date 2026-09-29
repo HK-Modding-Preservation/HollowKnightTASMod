@@ -49,29 +49,39 @@ internal static partial class StudioScenarioHarness
             finally
             {
                 if (lease.Length != 0)
-                    await ai.ExecuteAsync(ai.CreateCommand(AutomationCommandIds.ReleaseControl, scope, leaseId: lease), CancellationToken.None);
+                {
+                    var released = await ai.ExecuteAsync(ai.CreateCommand(AutomationCommandIds.ReleaseControl, scope, leaseId: lease), CancellationToken.None);
+                    Require(released.Success, "release lease " + released.Detail);
+                }
             }
         }
         Dictionary<string, string> Frame() => new() { ["expectedNativeFrame"] = boot.NativeCompletedFrames.ToString() };
         var begin = Frame(); begin["mouseEnabled"] = "false";
-        await Call(AutomationCommandIds.BeginFullRunRecording, AutomationScope.ControlPlayback, begin);
+        await Call(AutomationCommandIds.BeginFullRunRecording, AutomationScope.ControlRecording, begin);
         Require(vm.InputRows.Count == 500, "AI recording initializes Studio grid");
         await Call(AutomationCommandIds.FullRunStep, AutomationScope.ControlStep, Frame());
         await Until(() => vm.SelectedSession?.Client.IsConnected == true, "runtime connected", 120);
         // Establish title-screen progress using the ordinary human transport path.
         await vm.FrameMenuAsync("seek", 120);
+        Require(Field<long>(vm, "currentFullRunMovieFrame") == 120, "human seek 120: " + vm.GridStatus);
         var native = boot.NativeCompletedFrames;
         vm.PaintGrid(130, 130, "Attack", true);
         var snapshot = await Call(AutomationCommandIds.FullRunSnapshot, AutomationScope.MovieRead);
         var codec = new MovieV2Codec();
         var draft = codec.Parse(new StringReader(File.ReadAllText(snapshot.Data["path"])), "draft").Document!;
-        Require(codec.WriteCanonical(draft) == vm.MovieText, "AI sees human draft including future edits");
+        File.WriteAllText(Path.Combine(output, "human-draft.hktas"), vm.MovieText);
+        File.WriteAllText(Path.Combine(output, "ai-snapshot.hktas"), codec.WriteCanonical(draft));
+        var human = codec.Parse(new StringReader(vm.MovieText), "human").Document!;
+        var slice = typeof(MainViewModel).GetMethod("SliceV2", BindingFlags.Static | BindingFlags.NonPublic)!;
+        Require(codec.WriteCanonical((MovieV2Document)slice.Invoke(null, new object[] { draft, 120L, 380L })!)
+            == codec.WriteCanonical((MovieV2Document)slice.Invoke(null, new object[] { human, 120L, 380L })!), "AI sees human future draft");
         var edited = MovieV2RangeEditor.Paint(draft, 140, 1, "Jump", true);
         var candidate = Path.Combine(movies.ShadowRoot, "ai-candidate.hktas");
         var text = codec.WriteCanonical(edited); File.WriteAllText(candidate, text);
         var update = Frame(); update["moviePath"] = candidate;
         await Call(AutomationCommandIds.FullRunUpdateMovie, AutomationScope.ControlPlayback, update);
         Require(vm.MovieText == text && boot.NativeCompletedFrames == native, "AI update immediately visible without advancing game");
+        SaveAutomationStudioImage("ai-edit.png");
         vm.UndoGridCommand.Execute(null);
         Require(vm.MovieText != text, "human can undo AI edit");
         vm.RedoGridCommand.Execute(null);
@@ -87,8 +97,21 @@ internal static partial class StudioScenarioHarness
         var state = await Call(AutomationCommandIds.FullRunStatus, AutomationScope.ObserveStatus);
         Require(state.Data["mismatchCount"] == "0" && boot.FullRunFaultCode == 0, "no mismatch or native fault");
         Require(Field<long>(vm, "currentFullRunMovieFrame").ToString() == state.Data["movieFrame"], "Studio and Runtime frame agree");
+        SaveAutomationStudioImage("ai-paused.png");
         movies.VerifyOriginalSavesUnchanged();
         File.WriteAllText(Path.Combine(output, "final-state.json"), System.Text.Json.JsonSerializer.Serialize(state.Data));
         File.WriteAllText(Path.Combine(output, "final-movie.hktas"), vm.MovieText);
+    }
+
+    static void SaveAutomationStudioImage(string name)
+    {
+        app.MainWindow.UpdateLayout();
+        var target = new System.Windows.Media.Imaging.RenderTargetBitmap((int)app.MainWindow.ActualWidth,
+            (int)app.MainWindow.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+        target.Render(app.MainWindow);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(target));
+        using var file = File.Create(Path.Combine(output, name));
+        encoder.Save(file);
     }
 }

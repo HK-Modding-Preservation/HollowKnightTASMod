@@ -41,11 +41,20 @@ namespace HollowKnightTAS.Companion.ViewModels
             var stop = id == AutomationCommandIds.FullRunStop;
             var mutation = command.RequiredScope.StartsWith("control.", StringComparison.Ordinal);
             if (!mutation && !snapshot) return await execute(command);
-            if (gridApplying || sequenceSaving || savingBranch || recordingGridSync || IsRestorePresentationFrozen)
+            if (gridApplying || sequenceSaving || IsRestorePresentationFrozen)
                 return StudioResult(command, false, "StudioBusy", "Studio is applying or saving an edit; observe again after it completes.");
             SetGridApplying(true);
             try
             {
+                // Reserve the editor before draining an already-running background
+                // read/save. The timer cannot start another while gridApplying is set.
+                var idleDeadline = DateTime.UtcNow.AddSeconds(3);
+                while (savingBranch || recordingGridSync)
+                {
+                    if (DateTime.UtcNow >= idleDeadline)
+                        return StudioResult(command, false, "StudioBusy", "Studio background synchronization has not finished.");
+                    await Task.Delay(25);
+                }
                 // Remember the exact draft observed by this client. A native-frame
                 // precondition alone cannot detect edits made while paused.
                 var key = command.SessionId + ":" + command.ClientId;
@@ -75,6 +84,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     var frame = long.Parse(result.Data["movieFrame"], CultureInfo.InvariantCulture);
                     var text = MergeStudioSnapshot(ReadProtectedStudioMovie(result.Data["path"]), frame);
                     var path = await WriteStudioMovieAsync(text);
+                    RefreshObservedStudioMovie(text);
                     RememberExternalDraft(key);
                     var data = new Dictionary<string, string>(result.Data)
                     {
@@ -149,11 +159,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                     if (captured.Success)
                     {
                         var frame = long.Parse(captured.Data["movieFrame"], CultureInfo.InvariantCulture);
-                        var pendingEdits = gridHasUserEdits;
-                        var firstEdit = earliestGridEdit;
-                        AcceptExternalStudioMovie(MergeStudioSnapshot(ReadProtectedStudioMovie(captured.Data["path"]), frame), false);
-                        gridHasUserEdits = pendingEdits;
-                        earliestGridEdit = firstEdit;
+                        RefreshObservedStudioMovie(MergeStudioSnapshot(ReadProtectedStudioMovie(captured.Data["path"]), frame));
                     }
                 }
                 TrackGridFrame(CurrentGridFrame, true);
@@ -181,6 +187,17 @@ namespace HollowKnightTAS.Companion.ViewModels
         {
             if (externalDraftBases.Count >= 64 && !externalDraftBases.ContainsKey(key)) externalDraftBases.Clear();
             externalDraftBases[key] = Sha256Utility.ComputeUtf8Hex(MovieText);
+        }
+
+        private void RefreshObservedStudioMovie(string text)
+        {
+            var pendingEdits = gridHasUserEdits;
+            var firstEdit = earliestGridEdit;
+            var restart = draftRequiresRestart;
+            AcceptExternalStudioMovie(text, false);
+            gridHasUserEdits = pendingEdits;
+            earliestGridEdit = firstEdit;
+            draftRequiresRestart = restart;
         }
 
         private string ReadProtectedStudioMovie(string path)
