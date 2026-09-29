@@ -215,6 +215,9 @@ public sealed class StudioAutomationSyncTests
             }
             if (command.CommandId == AutomationCommandIds.FullRunUpdateMovie)
             {
+                Assert.IsTrue(Path.GetFullPath(command.Arguments["moviePath"]).StartsWith(
+                    Path.Combine(coordinator.ShadowRoot, "HollowKnightTAS") + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase), "Staged input must satisfy Runtime's session-root boundary.");
                 Updates++; success = !RejectUpdate;
                 if (success) RuntimeText = File.ReadAllText(command.Arguments["moviePath"]);
             }

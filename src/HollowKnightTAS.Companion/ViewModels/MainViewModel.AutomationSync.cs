@@ -215,7 +215,9 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private async Task<string> WriteStudioMovieAsync(string text)
         {
-            var path = Path.Combine(fullRunMovies!.ShadowRoot, "studio-" + Guid.NewGuid().ToString("N") + ".hktas");
+            var directory = Path.Combine(fullRunMovies!.ShadowRoot, "HollowKnightTAS");
+            Directory.CreateDirectory(directory);
+            var path = Path.Combine(directory, "studio-" + Guid.NewGuid().ToString("N") + ".hktas");
             await File.WriteAllTextAsync(path, text, new UTF8Encoding(false));
             return path;
         }
