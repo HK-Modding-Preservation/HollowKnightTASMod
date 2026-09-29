@@ -79,7 +79,7 @@ Each row is one frame. Action headers show the game's bound keys; hover to see a
 
 Future edits synchronize before the next play or step. After changing input that has already executed, select a target row and click Replay to current frame. Here, “current frame” means the selected grid row. Follow playback is enabled by default; disable it to keep browsing at a chosen position.
 
-Default FPS is 50, with integer values from 1 to 1000. The default setting affects only new and appended frames. Change existing rows through the selection FPS context-menu action. The game mouse setting applies to new sequences; an existing sequence retains its recorded mouse mode. With game mouse input enabled, keep the same resolution for recording and replay.
+Default FPS is 50. Values from 1 to 1000 may have up to 6 decimal places, such as 99.999. The default setting affects only new and appended frames. Change existing rows through the selection FPS context-menu action. The game mouse setting applies to new sequences; an existing sequence retains its recorded mouse mode. With game mouse input enabled, keep the same resolution for recording and replay.
 
 Enter a positive Insert count, then insert empty frames to add that many rows at the start of the selection. Context-menu insertion uses the same count. One Undo removes the entire insertion.
 

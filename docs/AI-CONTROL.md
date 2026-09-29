@@ -95,6 +95,8 @@ Invoke-Tas @('automation','call','fullRunStep','control.step',
 
 `fullRunSnapshot` 返回的 `path` 指向当前影子目录中的 Movie 快照，可读取并在同目录另存候选。修改未来输入后提交 `fullRunUpdateMovie`，保持已执行前缀一致。`fullRunSeek` 设置目标后，还需调用 `fullRunPlay` 开始向前运行。回到过去需要从绑定起点重启重放，Studio 的重算和时间线负责该流程；`fullRunSeek` 不能代替向过去回档。共享文件必须是当前会话的影子目录内文件，不修改真实用户存档。
 
+录制参数 `fps` 接受 1–1000，最多 6 位小数（例如 `fps=99.999`）。Movie v2 的小数帧率保存为约分后的 `fps / fpsDenominator`，例如 `{"repeatCount":1,"fps":99999,"fpsDenominator":1000,"samples":[]}`。整数省略分母，默认 50 仍省略 `fps`，旧整数文件的 canonical 内容保持不变。分母需配合 `fps` 使用，结果须落在范围内且能以最多 6 位小数精确表示。旧版解析器不支持新增分母字段。
+
 Movie v2 帧记录可带可选整数 `rngSeed`，范围为 -2147483648 至 2147483647；省略表示不干预。包含它的记录必须为 `repeatCount: 1`，例如 `{"repeatCount":1,"authored":true,"rngSeed":12345,"samples":[]}`。种子在该 Movie 帧开始前、场景 RNG 同步完成后应用一次；加载帧不执行。它属于 canonical 内容及世界线前缀身份，编辑已执行帧需要重放；旧版解析器会拒绝该字段。
 
 ## 非视觉世界观察
