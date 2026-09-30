@@ -59,6 +59,8 @@ public static class DiagnosticHistoryRetention
             ReadFiles(Path.Combine(root, "performance", "history"), name =>
                 name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
                 && (name.StartsWith("launch-", StringComparison.Ordinal) || name.StartsWith("restart-", StringComparison.Ordinal) || name.StartsWith("restore-", StringComparison.Ordinal)));
+            ReadFiles(Path.Combine(root, "application"), name =>
+                name.StartsWith("studio-", StringComparison.Ordinal) && name.EndsWith(".log", StringComparison.OrdinalIgnoreCase));
             long total = files.Sum(file => file.Length);
             foreach (var file in files.OrderBy(file => file.LastWriteTimeUtc).ThenBy(file => file.FullName, StringComparer.Ordinal))
             {
