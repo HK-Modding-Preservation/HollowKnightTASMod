@@ -35,8 +35,8 @@ namespace HollowKnightTAS.Companion.Services
             if (DwmGetWindowAttribute(window, 9, out var extended, Marshal.SizeOf<RectI>()) == 0)
                 imageBounds = extended;
             var previousWindow = GetWindow(window, 3); // GW_HWNDPREV: preserve the source's stacking order.
-            // Capture before exiting the source. Failure leaves the original process intact.
-            var bitmap = await GameWindowCapture.CaptureAsync(window);
+            // A still image is cosmetic. Unsupported/unready WGC falls back to a black cover.
+            var bitmap = await TryCaptureAsync(() => GameWindowCapture.CaptureAsync(window));
             cover = new Window
             {
                 Title = "Hollow Knight · 恢复中", WindowStyle = WindowStyle.None,
@@ -50,8 +50,8 @@ namespace HollowKnightTAS.Companion.Services
             cover.Show();
             SetWindowPos(handle, previousWindow, imageBounds.Left, imageBounds.Top,
                 imageBounds.Right - imageBounds.Left, imageBounds.Bottom - imageBounds.Top, 0x0010);
-            await PaintAsync();
-            Trace.WriteLine("RestorePresentation: source captured; cover painted");
+            await FinishVisualAsync(PaintAsync, () => { });
+            Trace.WriteLine("RestorePresentation: cover painted; source image=" + (bitmap != null));
         }
 
         public void AttachTarget(Process process)
@@ -77,13 +77,29 @@ namespace HollowKnightTAS.Companion.Services
             if (!IsActive) return;
             if (target == IntPtr.Zero || !IsWindow(target))
                 throw new InvalidOperationException("恢复后的游戏窗口已退出。");
-            // The caller has verified the completed native frame and exact Movie frame.
-            // Flush the compositor with the target shown under the cover before revealing it.
-            var targetImage = await GameWindowCapture.CaptureAsync(target);
-            ((Image)cover!.Content).Source = targetImage;
-            await PaintAsync();
-            Dispose();
+            // Startup frame zero precedes Unity initialization. The native gate may keep
+            // this window uncapturable indefinitely: neither capture nor retries belong here.
+            // Reveal the live window underneath; presentation must not fail a valid restore.
+            await FinishVisualAsync(PaintAsync, Dispose);
             Trace.WriteLine("RestorePresentation: target revealed");
+        }
+
+        internal static async Task<BitmapSource?> TryCaptureAsync(Func<Task<BitmapSource>> capture)
+        {
+            try { return await capture(); }
+            catch (Exception exception)
+            {
+                Trace.WriteLine("RestorePresentation: source capture unavailable: " + exception);
+                return null;
+            }
+        }
+
+        internal static async Task FinishVisualAsync(Func<Task> paint, Action release)
+        {
+            try { await paint(); }
+            catch (Exception exception)
+            { Trace.WriteLine("RestorePresentation: compositor update unavailable: " + exception); }
+            finally { release(); }
         }
 
         private void MuteAudio(object? sender, EventArgs e) => audio?.MuteNewSessions();

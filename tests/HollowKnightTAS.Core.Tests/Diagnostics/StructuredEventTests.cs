@@ -13,6 +13,35 @@ namespace HollowKnightTAS.Core.Tests.Diagnostics
     public sealed class StructuredEventTests
     {
         [TestMethod]
+        public void JsonLinesSink_FlushesIdleTailWithoutExplicitFlushOrDispose()
+        {
+            var directory = Path.Combine(Path.GetTempPath(), "hktas-live-log-" + Guid.NewGuid().ToString("N"));
+            var path = Path.Combine(directory, "events.jsonl");
+            try
+            {
+                using var sink = new JsonLinesEventSink(path, 8, TimeSpan.FromSeconds(2));
+                for (var sequence = 1; sequence <= 2; sequence++)
+                {
+                    sink.Emit(CreateEvent(sequence));
+                    Assert.IsTrue(System.Threading.SpinWait.SpinUntil(() =>
+                    {
+                        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        using var reader = new StreamReader(stream);
+                        var lines = reader.ReadToEnd().Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                        if (lines.Length != sequence) return false;
+                        try
+                        {
+                            using var json = JsonDocument.Parse(lines[sequence - 1]);
+                            return json.RootElement.GetProperty("sequence").GetInt64() == sequence;
+                        }
+                        catch (JsonException) { return false; }
+                    }, TimeSpan.FromSeconds(5)), "The running writer left its partial buffer unflushed.");
+                }
+            }
+            finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+        }
+
+        [TestMethod]
         public void Serialize_SortsFieldsAndEscapesControlCharacters()
         {
             var value = new StructuredEvent(

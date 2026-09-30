@@ -27,10 +27,16 @@ namespace HollowKnightTAS.Companion
         private System.Diagnostics.Process? startupGame;
         private readonly RestorePresentation restorePresentation = new();
         private AutomaticStartupHandoff? automaticStartup;
+        private StudioApplicationLog? applicationLog;
 
         protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+            applicationLog = new StudioApplicationLog(DiagnosticLogExporter.LocalRoot);
+            System.Diagnostics.Trace.Listeners.Add(applicationLog);
+            DispatcherUnhandledException += (_, args) => System.Diagnostics.Trace.WriteLine("Studio dispatcher exception: " + args.Exception);
+            AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+            System.Diagnostics.Trace.WriteLine("Studio started " + typeof(App).Assembly.GetName().Version);
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
             try
             {
@@ -308,6 +314,7 @@ namespace HollowKnightTAS.Companion
             }
             catch (Exception exception)
             {
+                System.Diagnostics.Trace.WriteLine("Studio startup failed: " + exception);
                 MessageBox.Show(
                     "HollowKnightTAS Companion failed to start.\n\n"
                     + exception.Message,
@@ -357,8 +364,18 @@ namespace HollowKnightTAS.Companion
             singleInstance?.Dispose();
             shutdown.Dispose();
             DiagnosticLogExporter.PreserveGameLogs();
+            System.Diagnostics.Trace.WriteLine("Studio exit " + e.ApplicationExitCode);
+            AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+            if (applicationLog != null)
+            {
+                System.Diagnostics.Trace.Listeners.Remove(applicationLog);
+                applicationLog.Dispose();
+            }
             base.OnExit(e);
         }
+
+        private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e) =>
+            System.Diagnostics.Trace.WriteLine("Studio unhandled exception: " + e.ExceptionObject);
 
         private void OnControlExitRequested(
             object? sender,

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -145,8 +146,20 @@ namespace HollowKnightTAS.Core.Diagnostics
             long writtenBytes = 0;
             try
             {
-                foreach (var item in queue.GetConsumingEnumerable())
+                var sinceFlush = Stopwatch.StartNew();
+                var dirty = false;
+                while (!queue.IsCompleted)
                 {
+                    // Flush on wall time even while idle or continuously busy. Protected
+                    // restarts kill Unity, so its normal shutdown flush is not guaranteed.
+                    if (dirty && sinceFlush.ElapsedMilliseconds >= 250)
+                    {
+                        writer.Flush();
+                        MarkDroppedStream();
+                        dirty = false;
+                        sinceFlush.Restart();
+                    }
+                    if (!queue.TryTake(out var item, 250)) continue;
                     if (item.Event != null)
                     {
                         if (item.Event.Sequence <= previousSequence)
@@ -170,11 +183,14 @@ namespace HollowKnightTAS.Core.Diagnostics
                             continue;
                         }
                         writer.WriteLine(json);
+                        dirty = true;
                         writtenBytes += bytes;
                     }
                     else if (item.FlushSignal != null)
                     {
                         writer.Flush();
+                        dirty = false;
+                        sinceFlush.Restart();
                         MarkDroppedStream();
                         item.FlushSignal.Set();
                     }

@@ -83,7 +83,7 @@ public sealed class DiagnosticLogExporter
                         && string.Equals(Path.GetExtension(path), ".txt", StringComparison.OrdinalIgnoreCase));
                 Tree(Path.Combine(gameRoot, "HollowKnightTAS", "sessions"), "game/sessions");
                 Tree(Path.Combine(gameRoot, "HollowKnightTAS", "diagnostics"), "game/diagnostics");
-                foreach (var name in new[] { "performance", "diagnostic-history" }) Tree(Path.Combine(localRoot, name), "studio/" + name);
+                foreach (var name in new[] { "performance", "diagnostic-history", "application" }) Tree(Path.Combine(localRoot, name), "studio/" + name);
                 var shadows = Path.Combine(localRoot, "save-shadows");
                 if (Directory.Exists(shadows))
                 {

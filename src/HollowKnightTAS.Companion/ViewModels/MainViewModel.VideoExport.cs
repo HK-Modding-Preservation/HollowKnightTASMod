@@ -199,6 +199,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             }
             catch (Exception exception)
             {
+                System.Diagnostics.Trace.WriteLine("Studio MP4 export failed: " + exception);
                 if (videoExportBusy)
                 {
                     try
