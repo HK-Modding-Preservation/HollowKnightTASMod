@@ -6,4 +6,7 @@
     <AssemblyName>HollowKnightTAS.ClockInjector</AssemblyName>
     <RootNamespace>HollowKnightTAS.ClockInjector</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\HollowKnightTAS.Core\Movie\NativeExecutionProfile.cs" Link="NativeExecutionProfile.cs" />
+  </ItemGroup>
 </Project>

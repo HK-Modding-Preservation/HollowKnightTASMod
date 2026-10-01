@@ -16,6 +16,8 @@ static BOOL save_write_guard_is_armed(void) { return g_fake_guard_armed; }
 #include "../../native/HollowKnightTAS.ClockBridge/full_run_frame_gate.h"
 static HANDLE g_boot_continue;
 static void advance_boot_frame_clock(void) { }
+static BOOL prepare_loading_startup_clock_probe(void) { return TRUE; }
+static void finish_loading_startup_clock_probe(void) { }
 #include "../../native/HollowKnightTAS.ClockBridge/startup_frame_hook.h"
 
 static int failed;

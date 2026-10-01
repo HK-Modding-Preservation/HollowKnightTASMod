@@ -25,7 +25,12 @@ internal static partial class StudioScenarioHarness
     static bool fsmScenarios;
     static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name,
         BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(owner)!;
-    static void Log(string text) { File.AppendAllText(Path.Combine(output, "scenario.log"), DateTime.Now.ToString("O") + " " + text + "\n"); }
+    static readonly object logLock = new object();
+    static void Log(string text)
+    {
+        lock (logLock)
+            File.AppendAllText(Path.Combine(output, "scenario.log"), DateTime.Now.ToString("O") + " " + text + "\n");
+    }
     static void Require(bool value, string detail) { if (!value) throw new Exception(detail); Log("PASS " + detail); }
     static void AtFrame(MainViewModel vm, StartupBootController boot, long frame, string detail)
     {
@@ -47,6 +52,18 @@ internal static partial class StudioScenarioHarness
     {
         output = args.Single(a => a.StartsWith("--scenario-output=")).Split('=', 2)[1];
         Directory.CreateDirectory(output);
+        var preservedEvidence = args.SingleOrDefault(a => a.StartsWith("--verify-movie-preserved="));
+        if (preservedEvidence != null)
+        {
+            try
+            {
+                var evidence = preservedEvidence.Split('=', 2)[1];
+                VerifyOriginalMovieInput(File.ReadAllText(Path.Combine(evidence, "original-movie.hktas")),
+                    File.ReadAllText(Path.Combine(evidence, "observed-movie.hktas")));
+                return 0;
+            }
+            catch (Exception error) { Log("FAIL " + error); return 1; }
+        }
         if (args.Contains("--info-overlay") || args.Contains("--overlay-stacking"))
             typeof(MainViewModel).GetProperty("InfoOverlaySettingPathOverride", BindingFlags.Static | BindingFlags.NonPublic)!
                 .SetValue(null, Path.Combine(output, "info-settings.json"));
@@ -63,7 +80,8 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (args.Contains("--overlay-stacking")) await RunOverlayStackingAsync();
+                if (args.Contains("--replay-divergence")) await RunReplayDivergenceAsync(args);
+                else if (args.Contains("--overlay-stacking")) await RunOverlayStackingAsync();
                 else if (args.Contains("--automation-sync")) await RunAutomationSyncAsync();
                 else if (args.Contains("--fractional-fps")) await RunFractionalFpsAsync(args);
                 else if (args.Contains("--keyboard-input")) await RunKeyboardInputAsync();
@@ -191,9 +209,20 @@ internal static partial class StudioScenarioHarness
     [DllImport("kernel32.dll")] static extern bool GlobalMemoryStatusEx(ref Memory memory);
     static void Guard()
     {
-        var deadline = DateTime.UtcNow.AddMinutes(battleVideoScenarios || worldlineFaultScenarios ? 20 : videoExportScenarios || fsmScenarios ? 8 : 4);
+        var deadline = DateTime.UtcNow.AddMinutes(battleVideoScenarios || worldlineFaultScenarios ? 20
+            : videoExportScenarios || fsmScenarios || Environment.GetEnvironmentVariable("HKTAS_CINEMATIC_ACCEPTANCE") == "1" ? 8 : 4);
         while (Volatile.Read(ref finished) == 0)
         {
+            if (DateTime.UtcNow > deadline)
+            {
+                Log("FAIL watchdog deadline boundary");
+                try
+                {
+                    var timedOutGame = Field<Process?>(app, "startupGame");
+                    if (timedOutGame != null && !timedOutGame.HasExited) timedOutGame.Kill();
+                }
+                finally { Environment.Exit(15); }
+            }
             try
             {
                 using var self = Process.GetCurrentProcess(); self.Refresh();
@@ -203,14 +232,7 @@ internal static partial class StudioScenarioHarness
                 long gameBytes = 0;
                 if (game != null && !game.HasExited) { game.Refresh(); gameBytes = game.PrivateMemorySize64; }
                 Log($"RESOURCE host={self.PrivateMemorySize64} game={gameBytes} available={memory.AvailablePhysical} commitAvailable={memory.AvailablePage}");
-                if (DateTime.UtcNow > deadline || self.PrivateMemorySize64 > 768L * 1024 * 1024
-                    || gameBytes > 3L * 1024 * 1024 * 1024 || memory.AvailablePhysical < 1536UL * 1024 * 1024
-                    || memory.AvailablePage < 2UL * 1024 * 1024 * 1024)
-                {
-                    Log("FAIL watchdog resource/deadline boundary");
-                    if (game != null && !game.HasExited) game.Kill();
-                    Environment.Exit(15);
-                }
+                // Resource usage is diagnostic only; the user disabled usage gates.
             }
             catch (Exception ex) { Log("GUARD " + ex.Message); }
             Thread.Sleep(1000);

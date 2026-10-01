@@ -62,6 +62,10 @@
       <HintPath>$(HKManagedDir)\UnityEngine.AudioModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.VideoModule">
+      <HintPath>$(HKManagedDir)\UnityEngine.VideoModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="MMHOOK_Assembly-CSharp">
       <HintPath>$(HKManagedDir)\MMHOOK_Assembly-CSharp.dll</HintPath>
       <Private>false</Private>

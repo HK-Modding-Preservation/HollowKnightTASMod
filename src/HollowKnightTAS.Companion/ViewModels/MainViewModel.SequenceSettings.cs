@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Win32;
 using HollowKnightTAS.Companion.Services;
+using HollowKnightTAS.Core.Movie;
 
 namespace HollowKnightTAS.Companion.ViewModels
 {
@@ -129,8 +130,25 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         internal async Task SaveSequenceToPathAsync(string path)
         {
-            await SequencePackage.WriteAsync(path, MovieText, sequenceInitialSaves);
+            var original = MovieText;
+            var saved = WithCurrentExecutionProfile(original);
+            await SequencePackage.WriteAsync(path, saved, sequenceInitialSaves);
             sequenceSavePath = path;
+            // Export current execution metadata without changing the live timeline's
+            // header identity, input rows, undo history, or concurrent edits.
+        }
+
+        private static string WithCurrentExecutionProfile(string source)
+        {
+            var parsed = new MovieAnyCodec().Parse(new StringReader(source), "<manual-save>");
+            var movie = parsed.V2Document;
+            if (!parsed.Success || movie == null
+                || movie.Header.NativeProfileId == MovieProtocolV2.NativeProfileId) return source;
+            var old = movie.Header;
+            var header = new MovieV2Header(old.GameVersion, old.ApiVersion, old.ModVersion,
+                MovieProtocolV2.NativeProfileId, old.ActionSchemaId, old.MouseEnabled,
+                old.EnvironmentSha256, old.ViewportWidth, old.ViewportHeight);
+            return new MovieV2Codec().WriteCanonical(new MovieV2Document(movie.SourceName, header, movie.Runs));
         }
 
         private sealed class SequenceSettings

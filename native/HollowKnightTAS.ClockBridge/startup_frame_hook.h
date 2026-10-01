@@ -74,8 +74,15 @@ static void __cdecl boot_player_loop(void)
         ResetEvent(g_boot_ready);
         InterlockedExchange(&g_boot_frame_state[1], 0);
     }
+    /* Start the bootstrap deadline only after the user releases frame zero. */
+    if (!prepare_loading_startup_clock_probe()) {
+        hktas_v2_fault(61);
+        g_boot_loop_active = FALSE;
+        return;
+    }
     advance_boot_frame_clock();
     g_boot_original_player_loop();
+    finish_loading_startup_clock_probe();
     if (g_v2_gate_enabled) hktas_v2_after_frame();
     if (g_boot_frame_state) InterlockedIncrement(&g_boot_frame_state[0]);
     g_boot_loop_active = FALSE;
