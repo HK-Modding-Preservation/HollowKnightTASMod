@@ -22,6 +22,10 @@ namespace HollowKnightTAS.Companion.Tests
             Assert.AreEqual("F11", settings.Hotkey);
             Assert.AreEqual("右上", settings.Anchor);
             Assert.AreEqual(8d, settings.MarginX); Assert.AreEqual(8d, settings.MarginY);
+            Assert.IsFalse(settings.IncludeInVideo);
+            Assert.AreEqual("", InfoOverlayModel.VideoSettingsJson(settings));
+            Assert.AreEqual("rt", InfoOverlayModel.NewItem("rt").Expression);
+            Assert.AreEqual("gt", InfoOverlayModel.NewItem("gt").Expression);
         }
         [TestMethod]
         public void PausedValuesDoNotChangeAndNewSnapshotsReplaceRatherThanMerge()
@@ -62,7 +66,7 @@ namespace HollowKnightTAS.Companion.Tests
                 var settings = InfoOverlaySettings.Defaults();
                 settings.Items.Move(0, 3); settings.Items[0].Enabled = false; settings.Items[1].Label = "Knight";
                 settings.Items[1].Color = "#FFAABB"; settings.Items[1].Precision = 5;
-                settings.Anchor = "右下"; settings.MarginX = 28; settings.Hotkey = "F12";
+                settings.Anchor = "右下"; settings.MarginX = 28; settings.Hotkey = "F12"; settings.IncludeInVideo = true;
                 settings.Save(path); var loaded = InfoOverlaySettings.Load(path);
                 Assert.AreEqual(JsonSerializer.Serialize(settings), JsonSerializer.Serialize(loaded));
                 loaded.Items.Clear(); loaded.Save(path); Assert.AreEqual(0, InfoOverlaySettings.Load(path).Items.Count);
@@ -115,6 +119,23 @@ namespace HollowKnightTAS.Companion.Tests
                 Assert.AreEqual("左上", customized.Anchor); Assert.AreEqual(42d, customized.MarginX);
             }
             finally { File.Delete(path); }
+        }
+        [TestMethod]
+        public void VideoOptionsFreezeEnabledRowsAndShareOverlayFormatting()
+        {
+            var settings = InfoOverlaySettings.Defaults(); settings.IncludeInVideo = true; settings.Enabled = false;
+            settings.Items[0].Enabled = false;
+            var rt = InfoOverlayModel.NewItem("rt"); rt.Expression = "rt - 12.5"; settings.Items.Add(rt);
+            var json = InfoOverlayModel.VideoSettingsJson(settings);
+            var video = JsonSerializer.Deserialize<HollowKnightTAS.Core.Media.InfoOverlayVideoSettings>(json)!;
+            video.Validate(); Assert.AreEqual(8, video.Rows.Count);
+            Assert.IsFalse(video.Rows.Any(r => r.Id == "frame"));
+            Assert.AreEqual("rt - 12.5", video.Rows.Last().Expression);
+            Assert.AreEqual(InfoOverlayModel.Format(rt, Values("{\"watch:rt - 12.5\":2.75}")),
+                video.Format(video.Rows.Last(), _ => 2.75));
+            rt.Expression = "rt - 99";
+            Assert.AreEqual("rt - 12.5", video.Rows.Last().Expression);
+            Assert.AreEqual(json, JsonSerializer.Serialize(video));
         }
         [TestMethod]
         public void PresetExpressionsCanBeEditedPersistedAndReset()

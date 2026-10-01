@@ -6,5 +6,8 @@
     <Version>0.1.4</Version>
     <Description>Runtime-independent protocols and deterministic evidence primitives for HollowKnightTAS.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\third_party\LiveSplit.HollowKnight.LICENSE.txt" LogicalName="HollowKnightTAS.LiveSplit.LICENSE.txt" />
+  </ItemGroup>
 
 </Project>

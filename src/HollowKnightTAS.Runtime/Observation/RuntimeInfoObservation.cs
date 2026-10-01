@@ -21,12 +21,25 @@ namespace HollowKnightTAS.Runtime.Observation
         private static FieldInfo? Field(string name) => typeof(HeroController).GetField(name,
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
-        public static Dictionary<string, string> Capture(long nativeFrame, long movieFrame, string[]? watches = null)
+        public static Dictionary<string, string> Capture(long nativeFrame, long movieFrame, string[]? watches = null,
+            double? realSeconds = null, double? gameSeconds = null, string timingError = "")
+        {
+            var values = CaptureValues(nativeFrame, movieFrame, watches, realSeconds, gameSeconds, timingError, out var errors);
+            return new Dictionary<string, string>
+            {
+                ["snapshotId"] = "info-" + Guid.NewGuid().ToString("N"),
+                ["snapshotJson"] = JsonConvert.SerializeObject(new { schemaVersion = 1, nativeFrame, movieFrame, values, errors })
+            };
+        }
+
+        public static Dictionary<string, object?> CaptureValues(long nativeFrame, long movieFrame, string[]? watches,
+            double? realSeconds, double? gameSeconds, string timingError, out Dictionary<string, string> errors)
         {
             var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             var values = new Dictionary<string, object?>
             {
-                ["frame"] = movieFrame, ["nativeFrame"] = nativeFrame, ["room"] = scene
+                ["frame"] = movieFrame, ["nativeFrame"] = nativeFrame, ["room"] = scene,
+                ["rt"] = realSeconds, ["gt"] = gameSeconds
             };
             var hero = HeroController.SilentInstance;
             var manager = GameManager.instance;
@@ -55,7 +68,8 @@ namespace HollowKnightTAS.Runtime.Observation
                     if (!player.hasShadowDash) values["shade"] = null;
                 }
             }
-            var errors = new Dictionary<string, string>();
+            errors = new Dictionary<string, string>();
+            if (timingError.Length != 0) errors["gt"] = timingError;
             foreach (var expression in watches ?? Array.Empty<string>())
             {
                 try
@@ -72,23 +86,19 @@ namespace HollowKnightTAS.Runtime.Observation
             }
             object? ReadQuery(InfoWatchQuery query)
             {
-                    object? root;
-                    switch (query.Root)
-                    {
-                        case "hero": root = valid ? hero : null; break;
-                        case "player": root = valid ? PlayerData.instance : null; break;
-                        case "game": root = manager; break;
-                        case "position": root = valid ? (object)hero!.transform.position : null; break;
-                        case "velocity": root = valid ? (object?)hero!.GetComponent<Rigidbody2D>()?.velocity : null; break;
-                        default: root = ResolveTarget(query); break;
-                    }
-                    return query.Read(root);
+                object? root;
+                switch (query.Root)
+                {
+                    case "hero": root = valid ? hero : null; break;
+                    case "player": root = valid ? PlayerData.instance : null; break;
+                    case "game": root = manager; break;
+                    case "position": root = valid ? (object)hero!.transform.position : null; break;
+                    case "velocity": root = valid ? (object?)hero!.GetComponent<Rigidbody2D>()?.velocity : null; break;
+                    default: root = ResolveTarget(query); break;
+                }
+                return query.Read(root);
             }
-            return new Dictionary<string, string>
-            {
-                ["snapshotId"] = "info-" + Guid.NewGuid().ToString("N"),
-                ["snapshotJson"] = JsonConvert.SerializeObject(new { schemaVersion = 1, nativeFrame, movieFrame, values, errors })
-            };
+            return values;
         }
 
         private static object? ResolveTarget(InfoWatchQuery query)

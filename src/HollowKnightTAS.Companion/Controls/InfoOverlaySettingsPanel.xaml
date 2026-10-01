@@ -5,6 +5,7 @@
  <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="18">
   <TextBlock Text="{ui:Text 信息显示}" FontSize="20" Margin="0,0,0,12" />
   <CheckBox Content="{ui:Text 在游戏画面中显示信息}" IsChecked="{Binding InfoSettings.Enabled}" AutomationProperties.AutomationId="HktasStudio.InfoEnabled" />
+  <CheckBox Content="{ui:Text 信息显示录入MP4}" IsChecked="{Binding InfoSettings.IncludeInVideo}" Margin="0,6,0,0" AutomationProperties.AutomationId="HktasStudio.InfoIncludeInVideo" />
   <TextBlock Text="{ui:Text 信息显示说明}" TextWrapping="Wrap" Foreground="#A8B7C8" Margin="0,6,0,12" />
   <WrapPanel Margin="0,0,0,10">
    <TextBlock Text="{ui:Text 位置}" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -56,7 +57,10 @@
       </Border>
      </Popup>
      <Button Content="{ui:Text 恢复预设表达式}" Click="OnResetExpression" HorizontalAlignment="Left" Margin="0,0,0,6"/>
-     <TextBlock Text="{ui:Text 自定义字段说明}" TextWrapping="Wrap" Foreground="#A8B7C8" />
+     <Expander Header="{ui:Text 表达式帮助}"><StackPanel>
+      <TextBlock Text="{ui:Text 自定义字段说明}" TextWrapping="Wrap" Foreground="#A8B7C8" />
+      <TextBlock Text="{ui:Text RT和GT说明}" TextWrapping="Wrap" Foreground="#A8B7C8" Margin="0,5,0,0" />
+     </StackPanel></Expander>
     </StackPanel>
     <TextBlock Text="{ui:Text 显示名称}"/><TextBox Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" MaxLength="48" ToolTip="{ui:Text 留空使用默认值}" Margin="0,4,0,8"/>
     <WrapPanel Margin="0,0,0,8">

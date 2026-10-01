@@ -812,6 +812,7 @@ namespace HollowKnightTAS.Companion.ViewModels
 
         private async Task StartLegacyVideoExportAsync()
         {
+            if (InfoSettings.IncludeInVideo) throw new InvalidOperationException(UiText.T("信息录入视频需要v2序列。"));
             if (!string.Equals(currentControlMode, "Paused", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(

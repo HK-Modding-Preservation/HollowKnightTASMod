@@ -18,6 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="System.Drawing">
+      <HintPath>$(HKManagedDir)\System.Drawing.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>$(HKManagedDir)\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>

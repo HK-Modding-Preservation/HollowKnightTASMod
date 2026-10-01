@@ -92,7 +92,8 @@ namespace HollowKnightTAS.Companion.Tests
                     window.Update(settings, values); canvas.UpdateLayout();
                     var bitmap = new RenderTargetBitmap(800, 450, 96, 96, PixelFormats.Pbgra32); bitmap.Render(canvas);
                     var root = new DirectoryInfo(AppContext.BaseDirectory);
-                    while (root != null && !Directory.Exists(Path.Combine(root.FullName, ".git"))) root = root.Parent;
+                    while (root != null && !Directory.Exists(Path.Combine(root.FullName, ".git"))
+                        && !File.Exists(Path.Combine(root.FullName, ".git"))) root = root.Parent;
                     var path = Path.Combine(root!.FullName, "artifacts", "info-overlay", "overlay-offline.png");
                     Directory.CreateDirectory(Path.GetDirectoryName(path)!);
                     var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
