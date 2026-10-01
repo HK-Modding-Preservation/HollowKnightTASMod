@@ -63,7 +63,8 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (args.Contains("--overlay-stacking")) await RunOverlayStackingAsync();
+                if (args.Contains("--replay-divergence")) await RunReplayDivergenceAsync(args);
+                else if (args.Contains("--overlay-stacking")) await RunOverlayStackingAsync();
                 else if (args.Contains("--automation-sync")) await RunAutomationSyncAsync();
                 else if (args.Contains("--fractional-fps")) await RunFractionalFpsAsync(args);
                 else if (args.Contains("--keyboard-input")) await RunKeyboardInputAsync();
