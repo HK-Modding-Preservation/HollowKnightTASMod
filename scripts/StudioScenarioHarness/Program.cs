@@ -65,7 +65,8 @@ internal static partial class StudioScenarioHarness
             }
             catch (Exception error) { Log("FAIL " + error); return 1; }
         }
-        if (args.Contains("--info-overlay") || args.Contains("--overlay-stacking") || args.Contains("--custom-keys"))
+        if (args.Contains("--info-overlay") || args.Contains("--overlay-stacking") || args.Contains("--custom-keys")
+            || args.Contains("--divergence-fault-window"))
             typeof(MainViewModel).GetProperty("InfoOverlaySettingPathOverride", BindingFlags.Static | BindingFlags.NonPublic)!
                 .SetValue(null, Path.Combine(output, "info-settings.json"));
         videoExportScenarios = args.Contains("--video-export");
@@ -82,7 +83,9 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (customKeyScenarios) await RunCustomKeysAsync(args);
+                if (args.Contains("--startup-restore")) await RunStartupRestoreAsync();
+                else if (args.Contains("--startup-gate")) await RunStartupGateAsync(args);
+                else if (customKeyScenarios) await RunCustomKeysAsync(args);
                 else if (args.Contains("--replay-divergence")) await RunReplayDivergenceAsync(args);
                 else if (args.Contains("--overlay-stacking")) await RunOverlayStackingAsync();
                 else if (args.Contains("--automation-sync")) await RunAutomationSyncAsync();

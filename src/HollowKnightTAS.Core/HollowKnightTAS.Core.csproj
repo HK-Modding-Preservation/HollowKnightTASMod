@@ -3,8 +3,11 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>HollowKnightTAS.Core</AssemblyName>
     <RootNamespace>HollowKnightTAS.Core</RootNamespace>
-    <Version>0.1.4</Version>
+    <Version>0.1.5</Version>
     <Description>Runtime-independent protocols and deterministic evidence primitives for HollowKnightTAS.</Description>
   </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\third_party\LiveSplit.HollowKnight.LICENSE.txt" LogicalName="HollowKnightTAS.LiveSplit.LICENSE.txt" />
+  </ItemGroup>
 
 </Project>

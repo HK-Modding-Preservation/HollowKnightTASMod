@@ -27,9 +27,10 @@ namespace HollowKnightTAS.Companion.Services
         private string field = "position", label = "", color = "#FFFFFF", unit = "";
         private int precision = 3;
         private bool enabled = true, readyAtZero = true;
-        private string expression = "hero.dashCooldownTimer";
+        private string? expression;
         [JsonIgnore] public bool IsCustom => Field == "custom";
-        public string Expression { get => expression; set => Change(ref expression, value); }
+        [JsonIgnore] public bool UsesExpression => IsCustom || Expression != InfoOverlayModel.DefaultExpression(Field);
+        public string Expression { get => expression ?? InfoOverlayModel.DefaultExpression(Field); set => Change(ref expression, value); }
         [JsonIgnore] public string FieldName => InfoOverlayModel.Fields.FirstOrDefault(f => f.Id == Field)?.Name ?? Field;
         public string Field { get => field; set => Change(ref field, value); }
         public string Label { get => label; set => Change(ref label, value); }
@@ -43,10 +44,12 @@ namespace HollowKnightTAS.Companion.Services
     public sealed class InfoOverlaySettings : InfoNotify
     {
         private bool enabled = true;
+        private bool includeInVideo;
         private double fontSize = 16, opacity = .65, marginX = 8, marginY = 8;
         private string anchor = "右上", color = "#FFFFFF", hotkey = "F11";
-        public int Version { get; set; } = 2;
+        public int Version { get; set; } = 3;
         public bool Enabled { get => enabled; set => Change(ref enabled, value); }
+        public bool IncludeInVideo { get => includeInVideo; set => Change(ref includeInVideo, value); }
         public double FontSize { get => fontSize; set => Change(ref fontSize, value); }
         public double BackgroundOpacity { get => opacity; set => Change(ref opacity, value); }
         public double MarginX { get => marginX; set => Change(ref marginX, value); }
@@ -65,7 +68,7 @@ namespace HollowKnightTAS.Companion.Services
 
         public void Validate()
         {
-            if (Version != 2 || !Anchors.Contains(Anchor) || !Hotkeys.Contains(Hotkey)
+            if (Version != 3 || !Anchors.Contains(Anchor) || !Hotkeys.Contains(Hotkey)
                 || !double.IsFinite(FontSize) || FontSize < 10 || FontSize > 40
                 || !double.IsFinite(BackgroundOpacity) || BackgroundOpacity < 0 || BackgroundOpacity > 1
                 || !double.IsFinite(MarginX) || MarginX < 0 || MarginX > 10000
@@ -79,7 +82,7 @@ namespace HollowKnightTAS.Companion.Services
                     || item.Label.Any(char.IsControl) || item.Unit == null || item.Unit.Length > 16
                     || item.Unit.Any(char.IsControl) || (!string.IsNullOrEmpty(item.Color) && !InfoOverlayModel.IsColor(item.Color)))
                     throw new InvalidDataException("信息条目无效：检查字段、小数位、名称、单位和颜色。");
-                if (item.IsCustom) InfoWatchQuery.Parse(item.Expression);
+                InfoWatchExpression.Parse(item.Expression);
             }
         }
         public static InfoOverlaySettings Load(string path)
@@ -95,13 +98,24 @@ namespace HollowKnightTAS.Companion.Services
                 { result.Anchor = "右上"; result.MarginX = 8; result.MarginY = 8; }
                 result.Version = 2;
             }
+            if (result.Version == 2)
+            {
+                // Older preset rows stored an unused custom query. Do not reinterpret it as an edit.
+                if (result.Items != null)
+                    foreach (var item in result.Items.Where(i => i != null && !i.IsCustom))
+                        item.Expression = InfoOverlayModel.DefaultExpression(item.Field);
+                result.Version = 3;
+            }
             result.Validate(); return result;
         }
         public void Save(string path)
         {
             Validate();
+            var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+            if (System.Text.Encoding.UTF8.GetByteCount(json) > 65536)
+                throw new InvalidDataException("信息显示设置文件过大。");
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path + ".new", JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(path + ".new", json);
             File.Move(path + ".new", path, true);
         }
     }
@@ -111,6 +125,7 @@ namespace HollowKnightTAS.Companion.Services
         public static IReadOnlyList<InfoField> Fields { get; } = new[]
         {
             new InfoField("frame", "帧", "integer"), new InfoField("nativeFrame", "原生帧", "integer"),
+            new InfoField("rt", "RT", "number", "s"), new InfoField("gt", "GT", "number", "s"),
             new InfoField("room", "房间", "text"), new InfoField("position", "坐标", "pair"),
             new InfoField("x", "坐标 X"), new InfoField("y", "坐标 Y"),
             new InfoField("velocity", "速度", "pair"), new InfoField("vx", "速度 X"), new InfoField("vy", "速度 Y"),
@@ -128,6 +143,16 @@ namespace HollowKnightTAS.Companion.Services
             "game.gameState", "position.x", "velocity.y", "component(\"/Knight\", \"HeroController\").jump_steps",
             "fsm(\"/Knight\", \"Spell Control\", \"MP Cost\")"
         };
+        public static string DefaultExpression(string id) => id switch
+        {
+            "custom" => "hero.dashCooldownTimer",
+            "position" => "\"X \" + x + \"   Y \" + y",
+            "velocity" => "\"X \" + vx + \"   Y \" + vy",
+            "healthPair" => "health + \" / \" + maxHealth",
+            _ => id
+        };
+        public static string[] Watches(InfoOverlaySettings settings) => settings.Items
+            .Where(i => i.Enabled && i.UsesExpression).Select(i => i.Expression).Distinct().ToArray();
         public static InfoOverlayItem NewItem(string id)
         {
             var field = Fields.Single(f => f.Id == id);
@@ -147,44 +172,41 @@ namespace HollowKnightTAS.Companion.Services
         {
             var field = Fields.FirstOrDefault(f => f.Id == item.Field);
             if (field == null || values == null) return "—";
-            string Number(string key, int precision)
+            object? Read(string key)
             {
-                if (!values.TryGetValue(key, out var v) || !v.TryGetDoubleSafe(out var n)) return "—";
-                return n.ToString("F" + precision, CultureInfo.InvariantCulture);
+                if (!values.TryGetValue(key, out var value)) return null;
+                return value.ValueKind switch
+                {
+                    JsonValueKind.String => value.GetString(), JsonValueKind.True => true, JsonValueKind.False => false,
+                    JsonValueKind.Number when value.TryGetDouble(out var number) => number, _ => null
+                };
             }
-            if (field.Kind == "pair")
-            {
-                var a = Number(field.Id == "position" ? "x" : "vx", item.Precision);
-                var b = Number(field.Id == "position" ? "y" : "vy", item.Precision);
-                return a == "—" || b == "—" ? "—" : "X " + a + "   Y " + b + Suffix(item.Unit);
-            }
-            if (field.Kind == "health")
-            {
-                var a = Number("health", 0); var b = Number("maxHealth", 0);
-                return a == "—" || b == "—" ? "—" : a + " / " + b;
-            }
-            if (!values.TryGetValue(item.IsCustom ? "watch:" + item.Expression : field.Id, out var value) || value.ValueKind == JsonValueKind.Null) return "—";
-            if (item.IsCustom)
-            {
-                if (value.ValueKind == JsonValueKind.String) return value.GetString() ?? "—";
-                if (value.ValueKind is JsonValueKind.True or JsonValueKind.False) return UiText.T(value.GetBoolean() ? "是" : "否");
-            }
-            if (field.Kind == "text") return value.ValueKind == JsonValueKind.String ? value.GetString() ?? "—" : "—";
-            if (field.Kind is "bool" or "direction")
-            {
-                if (value.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return "—";
-                return UiText.T(field.Kind == "direction" ? (value.GetBoolean() ? "右" : "左") : (value.GetBoolean() ? "是" : "否"));
-            }
-            if (!value.TryGetDoubleSafe(out var number)) return "—";
-            if (field.Kind == "cooldown")
-            {
-                if (number <= 0 && item.ReadyAtZero) return UiText.T("就绪");
-                number = Math.Max(0, number);
-            }
-            return number.ToString("F" + (field.Kind == "integer" ? 0 : item.Precision), CultureInfo.InvariantCulture) + Suffix(item.Unit);
+            return InfoOverlayText.Format(field.Id, field.Kind, item.Expression, item.UsesExpression,
+                item.Precision, item.ReadyAtZero, item.Unit, Read, UiText.T);
         }
-        private static string Suffix(string text) => string.IsNullOrEmpty(text) ? "" : " " + text;
-        private static bool TryGetDoubleSafe(this JsonElement value, out double number)
-        { number = 0; return value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out number) && double.IsFinite(number); }
+        public static string VideoSettingsJson(InfoOverlaySettings settings)
+        {
+            if (!settings.IncludeInVideo) return "";
+            settings.Validate();
+            var video = new HollowKnightTAS.Core.Media.InfoOverlayVideoSettings
+            {
+                FontSize = settings.FontSize, BackgroundOpacity = settings.BackgroundOpacity,
+                MarginX = settings.MarginX, MarginY = settings.MarginY,
+                Right = settings.Anchor.StartsWith("右", StringComparison.Ordinal),
+                Bottom = settings.Anchor.EndsWith("下", StringComparison.Ordinal), English = UiText.Current.LanguageIndex == 1,
+                Rows = settings.Items.Where(i => i.Enabled).Select(i => new HollowKnightTAS.Core.Media.InfoOverlayVideoRow
+                {
+                    Id = i.Field, Kind = Fields.Single(f => f.Id == i.Field).Kind,
+                    Expression = i.Expression, UsesExpression = i.UsesExpression,
+                    Label = string.IsNullOrEmpty(i.Label) ? UiText.T(i.FieldName) : i.Label,
+                    Unit = i.Unit, Color = string.IsNullOrEmpty(i.Color) ? settings.TextColor : i.Color,
+                    Precision = i.Precision, ReadyAtZero = i.ReadyAtZero
+                }).ToList()
+            };
+            video.Validate();
+            var json = JsonSerializer.Serialize(video);
+            if (json.Length > 65536) throw new InvalidDataException("Video information overlay settings are too large.");
+            return json;
+        }
     }
 }

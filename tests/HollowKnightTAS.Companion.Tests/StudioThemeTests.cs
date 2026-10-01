@@ -112,7 +112,7 @@ namespace HollowKnightTAS.Companion.Tests
                         .Select(tab => tab.Header?.ToString())
                         .ToArray();
                     Assert.AreEqual(tabs.Items.Count, visibleTabs.Length, "All remaining pages are directly visible.");
-                    CollectionAssert.AreEqual(new[] { "输入编辑器", "时间线", "操作手册", "信息显示", "设置" }, visibleTabs);
+                    CollectionAssert.AreEqual(new[] { "输入编辑器", "时间线", "操作手册", "信息显示", "Boss状态机", "设置" }, visibleTabs);
                     Assert.IsFalse(grid.Columns.Any(c => c.SortMemberPath is "Channels" or "Samples"));
                     Assert.IsFalse(visibleTabs.Contains("Movie Text"));
                     Assert.IsNull(window.FindName("SavesTab"));
@@ -214,8 +214,9 @@ namespace HollowKnightTAS.Companion.Tests
                     // Switch without rebuilding the window or view model, including existing status text.
                     UiText.Current.LanguageIndex = 1;
                     window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-                    CollectionAssert.AreEqual(new[] { "Input Editor", "Timeline", "Manual", "Information overlay", "Setting" },
-                        tabs.Items.OfType<TabItem>().Select(t => t.Header?.ToString()).ToArray());
+                    CollectionAssert.AreEqual(new[] { "Input Editor", "Timeline", "Manual", "Information overlay", "Boss FSMs", "Setting" },
+                        tabs.Items.OfType<TabItem>().Select(t => t.Header?.ToString()).ToArray(),
+                        string.Join(" | ", tabs.Items.OfType<TabItem>().Select(t => t.Header?.ToString())));
                     Assert.IsTrue(Find<TextBlock>(root).Any(t => t.Text == "Default FPS"));
                     Assert.IsFalse(Find<TextBlock>(root).Any(t => t.Text.Contains("共 ")));
                     root.UpdateLayout();
@@ -257,6 +258,38 @@ namespace HollowKnightTAS.Companion.Tests
                             Assert.AreEqual("hero.cState.wallSliding", query.Text);
                             Assert.AreEqual("hero.cState.wallSliding", vm.InfoSettings.Items.Last().Expression,
                                 "Editing the real textbox must update the saved expression without a dropdown selection.");
+                            itemList.SelectedItem = vm.InfoSettings.Items.First();
+                            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            Assert.AreEqual(Visibility.Visible, ((StackPanel)query.Parent).Visibility,
+                                "Preset rows must expose the same expression editor.");
+                            editor.SelectAll(); editor.SelectedText = "frame / 50";
+                            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            Assert.AreEqual("frame / 50", vm.InfoSettings.Items.First().Expression);
+                            Assert.IsTrue(vm.InfoSettings.Items.First().UsesExpression);
+                            var panel = Find<HollowKnightTAS.Companion.Controls.InfoOverlaySettingsPanel>(page).Single();
+                            var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+                            var panelType = panel.GetType();
+                            panelType.GetMethod("OnExpressionLoaded", flags)!.Invoke(panel, new object[] { query, new RoutedEventArgs() });
+                            editor.Text = "health + player.ge + 12";
+                            editor.CaretIndex = "health + player.ge".Length;
+                            var candidates = (ListBox)panel.FindName("CompletionList");
+                            candidates.ItemsSource = InfoExpressionCompletion.At(editor.Text, editor.CaretIndex).Matches;
+                            candidates.SelectedItem = "player.geo";
+                            panelType.GetMethod("InsertCompletion", flags)!.Invoke(panel, null);
+                            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            Assert.AreEqual("health + player.geo + 12", editor.Text);
+                            Assert.AreEqual(editor.Text, vm.InfoSettings.Items.First().Expression);
+                            var videoCheck = Find<CheckBox>(page).Single(box =>
+                                System.Windows.Automation.AutomationProperties.GetAutomationId(box) == "HktasStudio.InfoIncludeInVideo");
+                            Assert.IsFalse(videoCheck.IsChecked == true);
+                            videoCheck.IsChecked = true;
+                            Assert.IsTrue(vm.InfoSettings.IncludeInVideo);
+                            videoCheck.IsChecked = false;
+                            vm.AddInfoItem(InfoOverlayModel.Fields.Single(f => f.Id == "rt"));
+                            itemList.SelectedItem = vm.InfoSettings.Items.Last();
+                            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            editor.SelectAll(); editor.SelectedText = "rt - 12.5";
+                            Assert.AreEqual("rt - 12.5", vm.InfoSettings.Items.Last().Expression);
                             window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
                             root.UpdateLayout();
                             var panelImage = new RenderTargetBitmap(1320, 840, 144, 144, PixelFormats.Pbgra32);

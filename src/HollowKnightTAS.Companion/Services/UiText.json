@@ -2379,8 +2379,8 @@
   {
     "Key": "信息显示说明",
     "Source": "信息显示说明",
-    "Zh": "只读信息直接叠加在游戏画面内；播放、单步时更新，暂停时保留，不录入 MP4。显隐快捷键跟随全局热键开关。",
-    "En": "Read-only information over the game. Updates while playing or stepping, and stays visible while paused. Not included in MP4 exports. Global shortcuts follow the global hotkey switch."
+    "Zh": "只读信息直接叠加在游戏画面内；播放、单步时更新，暂停时保留。可单独选择是否录入 MP4。显隐快捷键跟随全局热键开关。",
+    "En": "Read-only information over the game. Updates while playing or stepping, and stays visible while paused. MP4 inclusion is a separate option. Global shortcuts follow the global hotkey switch."
   },
   {
     "Key": "位置",
@@ -2763,14 +2763,44 @@
   {
     "Key": "只读字段查询",
     "Source": "只读字段查询",
-    "Zh": "只读字段查询",
-    "En": "Read-only field query"
+    "Zh": "只读表达式",
+    "En": "Read-only expression"
   },
   {
     "Key": "自定义字段说明",
     "Source": "自定义字段说明",
-    "Zh": "可直接改写示例：hero / player / game 的字段，position / velocity 的分量，component(\"/对象路径\", \"组件类型\").字段，或 fsm(\"/对象路径\", \"FSM名\", \"变量名\")。支持数组/List下标；不执行方法或属性getter。对象不存在显示 —，错误详情在页底。",
-    "En": "Edit a sample: hero / player / game fields, position / velocity components, component(\"/Object\", \"Type\").field, or fsm(\"/Object\", \"FSM\", \"Variable\"). Array/List indices are supported. No methods or property getters. Missing targets show —; details appear below."
+    "Zh": "预设也可编辑。支持 + - * / %、括号、比较、&& || ! 和 条件 ? 值 : 值；用引号包围文字可拼接。例：health / maxHealth * 100。输入时提示常用字段；Ctrl+空格打开候选，↑↓选择，Enter/Tab插入，Esc关闭。仍支持 hero/player/game、数组/List、component(...) 和 fsm(...)；不执行方法或属性getter。无效或缺失值显示 —，详情在页底。",
+    "En": "Presets are editable. Use + - * / %, parentheses, comparisons, && || !, condition ? value : value, and quoted text concatenation. Example: health / maxHealth * 100. Common fields appear while typing; Ctrl+Space opens suggestions, arrows select, Enter/Tab inserts, Esc closes. hero/player/game, Array/List, component(...) and fsm(...) remain supported. No methods or property getters. Invalid or missing values show —; details appear below."
+  },
+  {
+    "Key": "恢复预设表达式",
+    "Source": "恢复预设表达式",
+    "Zh": "恢复预设表达式",
+    "En": "Reset expression"
+  },
+  {
+    "Key": "表达式帮助",
+    "Source": "表达式帮助",
+    "Zh": "表达式与 RT / GT 帮助",
+    "En": "Expression and RT / GT help"
+  },
+  {
+    "Key": "信息显示录入MP4",
+    "Source": "信息显示录入MP4",
+    "Zh": "将已勾选的信息条目录入 MP4（默认关闭，下次导出生效）",
+    "En": "Include checked information rows in MP4 (off by default; applies to the next export)"
+  },
+  {
+    "Key": "RT和GT说明",
+    "Source": "RT和GT说明",
+    "Zh": "RT 是序列总时长（含加载），GT 按 LiveSplit 的加载排除规则计时，单位为秒。可写 rt - 12.5 或 gt - 12.5 自定义起点；不想出现负数可写 rt < 12.5 ? 0 : rt - 12.5。区间导出保留序列时间起点。",
+    "En": "RT is total sequence time including loads; GT follows LiveSplit load removal, in seconds. Use rt - 12.5 or gt - 12.5 to shift the origin; rt < 12.5 ? 0 : rt - 12.5 clamps negative values. Range exports retain the sequence time origin."
+  },
+  {
+    "Key": "信息录入视频需要v2序列。",
+    "Source": "信息录入视频需要v2序列。",
+    "Zh": "信息录入视频需要 v2 序列。",
+    "En": "Video information overlays require a v2 sequence."
   },
   {
     "Key": "自定义字段不可用：",

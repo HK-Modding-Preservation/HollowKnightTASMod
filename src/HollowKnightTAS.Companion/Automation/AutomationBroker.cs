@@ -655,8 +655,8 @@ namespace HollowKnightTAS.Companion.Automation
             }
 
             if (command.CommandId == AutomationCommandIds.StartVideoExport
-                && command.Arguments.ContainsKey("endMovieFrame"))
-                return Result(command, false, "Unsupported", "A video endMovieFrame requires a full-run v2 session.");
+                && (command.Arguments.ContainsKey("endMovieFrame") || command.Arguments.ContainsKey("infoOverlay")))
+                return Result(command, false, "Unsupported", "A video range or information overlay requires a full-run v2 session.");
 
             if (command.CommandId == AutomationCommandIds.GetWorldSnapshot
                 || command.CommandId == AutomationCommandIds.GetObjectDetails)
@@ -3238,7 +3238,7 @@ namespace HollowKnightTAS.Companion.Automation
             {
                 case AutomationCommandIds.StartVideoExport:
                     required = new[] { "outputPath", "maximumFrames" };
-                    optional = new[] { "ffmpegPath", "replayLoadedMovie", "endMovieFrame" };
+                    optional = new[] { "ffmpegPath", "replayLoadedMovie", "endMovieFrame", "infoOverlay" };
                     break;
                 case AutomationCommandIds.FinishVideoExport:
                 case AutomationCommandIds.CancelVideoExport:
@@ -3485,6 +3485,18 @@ namespace HollowKnightTAS.Companion.Automation
             switch (command.CommandId)
             {
                 case AutomationCommandIds.StartVideoExport:
+                    if (arguments.TryGetValue("infoOverlay", out var overlayJson) && !string.IsNullOrEmpty(overlayJson))
+                    {
+                        if (overlayJson.Length > 65536) return "Video overlay settings are too large.";
+                        try
+                        {
+                            var overlay = System.Text.Json.JsonSerializer.Deserialize<HollowKnightTAS.Core.Media.InfoOverlayVideoSettings>(overlayJson)
+                                ?? throw new InvalidDataException("Video overlay settings are missing.");
+                            overlay.Validate();
+                        }
+                        catch (Exception error) when (error is System.Text.Json.JsonException or InvalidDataException or FormatException)
+                        { return "Invalid video overlay: " + error.Message; }
+                    }
                     if (arguments.TryGetValue("endMovieFrame", out var videoEnd)
                         && !TryInt64(videoEnd, 1, MovieProtocolV2.MaximumExpandedFrames, out _))
                         return "endMovieFrame must be a positive Movie frame within the supported limit.";

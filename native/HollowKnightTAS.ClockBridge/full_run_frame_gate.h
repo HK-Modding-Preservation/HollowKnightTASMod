@@ -162,6 +162,28 @@ static void hktas_v2_wait_command(void)
     }
 }
 
+static void hktas_v2_wait_fault(void)
+{
+    /* A terminal fault must not return to Unity with a skipped PlayerLoop:
+       its outer/title-bar loop can then wait for a render that never ran.
+       Keep g_boot_loop_active set while servicing only window messages.
+       Do not run observations, accept playback commands or advance time. */
+    for (;;)
+    {
+        DWORD result = MsgWaitForMultipleObjectsEx(1, &g_boot_owner, INFINITE,
+            QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+        if (result == WAIT_OBJECT_0 || result == WAIT_FAILED) ExitProcess(74u);
+        if (result != WAIT_OBJECT_0 + 1) continue;
+        MSG message;
+        for (int i = 0; i < 128 && PeekMessageW(&message, NULL, 0, 0, PM_REMOVE); ++i)
+        {
+            if (message.message == WM_QUIT) ExitProcess(0u);
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+    }
+}
+
 static BOOL hktas_v2_before_frame(void)
 {
     if (g_v2_state == NULL) return FALSE;

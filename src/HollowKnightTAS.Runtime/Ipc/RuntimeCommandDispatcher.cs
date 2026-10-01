@@ -1196,14 +1196,16 @@ namespace HollowKnightTAS.Runtime.Ipc
             switch (command.MessageType)
             {
                 case IpcMessageTypes.StartVideoExport:
-                    RequireFields(command.Fields, command.Fields.ContainsKey("endMovieFrame")
-                        ? new[] { "ffmpegPath", "outputPath", "maximumFrames", "requestId", "replayLoadedMovie", "endMovieFrame" }
-                        : new[] { "ffmpegPath", "outputPath", "maximumFrames", "requestId", "replayLoadedMovie" });
+                    var videoFields = new List<string> { "ffmpegPath", "outputPath", "maximumFrames", "requestId", "replayLoadedMovie" };
+                    if (command.Fields.ContainsKey("endMovieFrame")) videoFields.Add("endMovieFrame");
+                    if (command.Fields.ContainsKey("infoOverlay")) videoFields.Add("infoOverlay");
+                    RequireFields(command.Fields, videoFields.ToArray());
                     return session.StartVideoExport(command.Fields["ffmpegPath"], command.Fields["outputPath"],
                         int.Parse(command.Fields["maximumFrames"], CultureInfo.InvariantCulture),
                         bool.Parse(command.Fields["replayLoadedMovie"]),
                         command.Fields.TryGetValue("endMovieFrame", out var videoEndFrame)
-                            ? long.Parse(videoEndFrame, CultureInfo.InvariantCulture) : -1);
+                            ? long.Parse(videoEndFrame, CultureInfo.InvariantCulture) : -1,
+                        command.Fields.TryGetValue("infoOverlay", out var videoInfoOverlay) ? videoInfoOverlay : "");
                 case IpcMessageTypes.CancelVideoExport:
                     RequireFields(command.Fields, "operationId", "requestId");
                     return session.CancelVideoExport(command.Fields["operationId"]);

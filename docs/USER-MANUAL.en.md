@@ -21,13 +21,25 @@ Other Mods can remain enabled; you are responsible for checking compatibility. R
 
 The Information overlay tab enables a panel over the game by default: Movie frame, internal room name, position, velocity, dash and shade dash cooldowns, health and soul. It appears after Runtime connects, updates during playback and stepping, and remains visible while paused. Unavailable hero values show `—`. Ready means the cooldown timer ended; other action restrictions still apply.
 
-Search to add fields, remove rows or uncheck them to hide them. Drag rows to reorder, or use Move up/down. Select a row to edit its name, decimal places (0–6), unit and color. A blank name or color uses the default. Colors use `#RRGGBB`. Settings save automatically; Restore defaults resets them.
+Search to add fields, remove rows or uncheck them to hide them. Drag rows to reorder, or use Move up/down. Select any row, including a preset, to edit its expression, name, decimal places (0–6), unit and color. A blank name or color uses the default. Colors use `#RRGGBB`. Settings save automatically; Restore defaults resets them. Reset expression restores only the selected row's expression.
 
-The panel defaults to the top-right corner and stays aligned while moving the game window. Choose a corner, X/Y margins, font size and background opacity. Enable Drag position to drag the panel over the game; disable it afterwards to restore mouse passthrough. F11 toggles visibility by default, with F12 or no shortcut also available. In-game shortcuts require global hotkeys. The panel follows the game window and is not included in MP4 exports.
+The panel defaults to the top-right corner and stays aligned while moving the game window. Choose a corner, X/Y margins, font size and background opacity. Enable Drag position to drag the panel over the game; disable it afterwards to restore mouse passthrough. F11 toggles visibility by default, with F12 or no shortcut also available. In-game shortcuts require global hotkeys.
+
+Include checked information rows in MP4 is off by default. When enabled, v2 sequence exports composite each frame using the rows, expressions and appearance settings captured at export start. Desktop visibility is independent. Changes during export apply to the next export; overlapping desktop windows are never recorded.
+
+### RT and GT
+
+Search for and add the `RT` or `GT` preset, displayed in seconds. RT starts at the sequence's input-ready zero point, includes loading frames, and matches the cumulative duration of a full sequence video. GT accumulates those frame durations using Hollow Knight LiveSplit's load-removal rules. TAS editing pauses advance neither timer; the game's own pause menu follows LiveSplit rules.
+
+Use `rt - 12.5` to make sequence second 12.5 the display origin, or `gt - 12.5` for GT. Negative values are allowed; use `rt < 12.5 ? 0 : rt - 12.5` to clamp to zero. Range exports retain the sequence time origin; subtract the range start's RT/GT to rebase them. Values describe the end of the completed frame. LiveSplit's automatic run starts and finishing splits are not applied.
 
 ### Custom read-only information
 
-Select Add custom field and edit a sample in Read-only field query. Names are case-sensitive. Roots are `hero` (HeroController), `player` (PlayerData), `game` (GameManager), `position` and `velocity` (the hero's vectors).
+Select Add custom field or an existing preset and edit Read-only expression. Names are case-sensitive. Use `+ - * / %`, parentheses, comparisons, `&& || !`, `condition ? value : value`, and quoted text concatenation. For example, `health / maxHealth * 100`. Unchanged presets retain their special formatting; edited expressions use their result type and the row's decimal setting.
+
+Common field suggestions appear while typing. Ctrl+Space opens them, arrows select, Enter/Tab inserts, and Esc closes. Completion replaces only the field at the caret. Candidates cover preset scalar values and common known fields, not an enumeration of every game object's fields.
+
+Roots are `hero` (HeroController), `player` (PlayerData), `game` (GameManager), `position` and `velocity` (the hero's vectors).
 
 | Query | Value |
 | --- | --- |

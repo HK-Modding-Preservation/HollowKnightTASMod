@@ -158,6 +158,23 @@ namespace HollowKnightTAS.Companion.Tests
             return fields;
         }
 
+        [TestMethod]
+        public void BrokerAcceptsBoundedVideoOverlayAndRejectsMalformedRows()
+        {
+            var fields = Arguments("3700"); fields["infoOverlay"] = "";
+            Assert.IsNull(Validate("ValidateArgumentShape", Command(fields)));
+            Assert.IsNull(Validate("ValidateArgumentValues", Command(fields)));
+            var settings = InfoOverlaySettings.Defaults(); settings.IncludeInVideo = true;
+            fields["infoOverlay"] = InfoOverlayModel.VideoSettingsJson(settings);
+            Assert.IsNull(Validate("ValidateArgumentValues", Command(fields)));
+            foreach (var invalid in new[] { "null", "{", "{\"FontSize\":500}", "{\"Rows\":[null]}",
+                "{\"Rows\":[{\"Expression\":\"hero.Mutate()\"}]}", new string(' ', 65537) })
+            {
+                fields["infoOverlay"] = invalid;
+                Assert.IsNotNull(Validate("ValidateArgumentValues", Command(fields)), invalid);
+            }
+        }
+
         private static AutomationCommandEnvelope Command(string? endFrame) => Command(Arguments(endFrame));
         private static AutomationCommandEnvelope Command(IReadOnlyDictionary<string, string> fields)
             => new("request-test", "idempotency-test", "video-arguments-client", "video-arguments-session", Hash,

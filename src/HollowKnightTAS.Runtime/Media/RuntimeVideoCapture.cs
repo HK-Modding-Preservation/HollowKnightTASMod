@@ -26,11 +26,15 @@ namespace HollowKnightTAS.Runtime.Media
         private readonly bool finishAtFrameLimit;
         private readonly Action? onFailure;
         private readonly Action? afterFrame;
+        private readonly Action<byte[], int, int>? composite;
+        private readonly Action? releaseComposite;
+        private readonly int width, height;
         public static bool HideTasOverlays { get; private set; }
 
         public RuntimeVideoCapture(string ffmpeg, string output, int maximumFrames, Action<string> log,
             bool finishAtFrameLimit = true, Action? onFailure = null, Action? afterFrame = null,
-            Func<double>? frameDuration = null, long? nativeStartFrame = null)
+            Func<double>? frameDuration = null, long? nativeStartFrame = null,
+            Action<byte[], int, int>? composite = null, Action? releaseComposite = null)
         {
             if (maximumFrames <= 0) throw new ArgumentOutOfRangeException(nameof(maximumFrames));
             this.maximumFrames = maximumFrames;
@@ -38,6 +42,8 @@ namespace HollowKnightTAS.Runtime.Media
             this.finishAtFrameLimit = finishAtFrameLimit;
             this.onFailure = onFailure;
             this.afterFrame = afterFrame;
+            this.composite = composite;
+            this.releaseComposite = releaseComposite;
             OperationId = "video-" + Guid.NewGuid().ToString("N");
             var delta = frameDuration?.Invoke() ?? Time.captureDeltaTime;
             if (double.IsNaN(delta) || double.IsInfinity(delta) || delta <= 0)
@@ -45,6 +51,7 @@ namespace HollowKnightTAS.Runtime.Media
             framesPerSecond = checked((int)Math.Round(1d / delta));
             var format = new VideoExportFormat(Screen.width, Screen.height, framesPerSecond, 1, AudioSettings.outputSampleRate,
                 AudioSettings.speakerMode == AudioSpeakerMode.Mono ? 1 : 2);
+            width = format.Width; height = format.Height;
             encoder = new FfmpegVideoEncoder(ffmpeg, output, format);
             try { capture = new UnityFrameCapture(format, frameDuration); }
             catch { encoder.Dispose(); throw; }
@@ -69,6 +76,7 @@ namespace HollowKnightTAS.Runtime.Media
             fields["videoExport.frames"] = encoder.FrameCount.ToString(CultureInfo.InvariantCulture);
             fields["videoExport.fps"] = (capture.LastFrameDuration > 0 ? 1d / capture.LastFrameDuration : framesPerSecond).ToString("R", CultureInfo.InvariantCulture);
             fields["videoExport.timing"] = "per-frame-game-clock";
+            fields["videoExport.infoOverlay"] = composite != null ? "true" : "false";
             fields["videoExport.durationSeconds"] = encoder.DurationSeconds.ToString("R", CultureInfo.InvariantCulture);
             fields["videoExport.lastAudioSampleFrames"] = capture.LastAudioSampleFrames.ToString(CultureInfo.InvariantCulture);
             fields["videoExport.maximumAudioPeak"] = capture.MaximumAudioPeak.ToString("R", CultureInfo.InvariantCulture);
@@ -146,6 +154,7 @@ namespace HollowKnightTAS.Runtime.Media
                     throw new InvalidOperationException("Video native frame boundary was not sequential.");
                 lastCompletedFrame = completedFrame;
                 capture.Capture(encoder.FrameCount, out var rgb, out var pcm);
+                composite?.Invoke(rgb, width, height);
                 encoder.WriteFrame(rgb, pcm, capture.LastFrameDuration);
                 afterFrame?.Invoke();
                 if (encoder.FrameCount >= maximumFrames)
@@ -166,7 +175,8 @@ namespace HollowKnightTAS.Runtime.Media
             detached = true;
             HideTasOverlays = false;
             if (!externalFrameBoundary) CompletedFrameBoundarySignal.Reached -= OnCompletedFrame;
-            capture.Dispose();
+            try { capture.Dispose(); }
+            finally { releaseComposite?.Invoke(); }
         }
     }
 }

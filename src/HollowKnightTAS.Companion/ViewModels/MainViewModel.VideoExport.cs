@@ -127,6 +127,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                 var plan = timelineRange ? SelectedVideoRange() : StudioVideoExportPlan.ForMovie(MovieText);
                 var files = videoExportFilePicker();
                 if (files == null) return;
+                var frozenInfoOverlay = InfoOverlayModel.VideoSettingsJson(InfoSettings);
                 if (!File.Exists(files.Value.Ffmpeg)) throw new FileNotFoundException("FFmpeg 不存在。", files.Value.Ffmpeg);
                 if (File.Exists(files.Value.Output)) throw new IOException("导出文件已存在；请选择新的 .mp4 文件。");
                 if (!string.Equals(Path.GetExtension(files.Value.Output), ".mp4", StringComparison.OrdinalIgnoreCase))
@@ -162,7 +163,8 @@ namespace HollowKnightTAS.Companion.ViewModels
                         ["outputPath"] = Path.GetFullPath(files.Value.Output),
                         ["maximumFrames"] = maximumFrames.ToString(CultureInfo.InvariantCulture),
                         ["replayLoadedMovie"] = "true",
-                        ["endMovieFrame"] = plan.EndMovieFrame.ToString(CultureInfo.InvariantCulture)
+                        ["endMovieFrame"] = plan.EndMovieFrame.ToString(CultureInfo.InvariantCulture),
+                        ["infoOverlay"] = frozenInfoOverlay
                     }, "Paused", null, CancellationToken.None);
                 RequireAutomationSuccess(result);
                 operationId = RequireResultField(result, "detail");

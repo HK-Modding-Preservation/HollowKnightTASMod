@@ -22,6 +22,10 @@ namespace HollowKnightTAS.Companion.Tests
             Assert.AreEqual("F11", settings.Hotkey);
             Assert.AreEqual("右上", settings.Anchor);
             Assert.AreEqual(8d, settings.MarginX); Assert.AreEqual(8d, settings.MarginY);
+            Assert.IsFalse(settings.IncludeInVideo);
+            Assert.AreEqual("", InfoOverlayModel.VideoSettingsJson(settings));
+            Assert.AreEqual("rt", InfoOverlayModel.NewItem("rt").Expression);
+            Assert.AreEqual("gt", InfoOverlayModel.NewItem("gt").Expression);
         }
         [TestMethod]
         public void PausedValuesDoNotChangeAndNewSnapshotsReplaceRatherThanMerge()
@@ -62,7 +66,7 @@ namespace HollowKnightTAS.Companion.Tests
                 var settings = InfoOverlaySettings.Defaults();
                 settings.Items.Move(0, 3); settings.Items[0].Enabled = false; settings.Items[1].Label = "Knight";
                 settings.Items[1].Color = "#FFAABB"; settings.Items[1].Precision = 5;
-                settings.Anchor = "右下"; settings.MarginX = 28; settings.Hotkey = "F12";
+                settings.Anchor = "右下"; settings.MarginX = 28; settings.Hotkey = "F12"; settings.IncludeInVideo = true;
                 settings.Save(path); var loaded = InfoOverlaySettings.Load(path);
                 Assert.AreEqual(JsonSerializer.Serialize(settings), JsonSerializer.Serialize(loaded));
                 loaded.Items.Clear(); loaded.Save(path); Assert.AreEqual(0, InfoOverlaySettings.Load(path).Items.Count);
@@ -107,7 +111,7 @@ namespace HollowKnightTAS.Companion.Tests
                 settings.Items.Add(InfoOverlayModel.NewItem("facingRight"));
                 File.WriteAllText(path, JsonSerializer.Serialize(settings));
                 var migrated = InfoOverlaySettings.Load(path);
-                Assert.AreEqual(2, migrated.Version); Assert.AreEqual("右上", migrated.Anchor);
+                Assert.AreEqual(3, migrated.Version); Assert.AreEqual("右上", migrated.Anchor);
                 Assert.AreEqual(8d, migrated.MarginY); Assert.AreEqual(9, migrated.Items.Count);
                 settings.MarginX = 42;
                 File.WriteAllText(path, JsonSerializer.Serialize(settings));
@@ -115,6 +119,74 @@ namespace HollowKnightTAS.Companion.Tests
                 Assert.AreEqual("左上", customized.Anchor); Assert.AreEqual(42d, customized.MarginX);
             }
             finally { File.Delete(path); }
+        }
+        [TestMethod]
+        public void VideoOptionsFreezeEnabledRowsAndShareOverlayFormatting()
+        {
+            var settings = InfoOverlaySettings.Defaults(); settings.IncludeInVideo = true; settings.Enabled = false;
+            settings.Items[0].Enabled = false;
+            var rt = InfoOverlayModel.NewItem("rt"); rt.Expression = "rt - 12.5"; settings.Items.Add(rt);
+            var json = InfoOverlayModel.VideoSettingsJson(settings);
+            var video = JsonSerializer.Deserialize<HollowKnightTAS.Core.Media.InfoOverlayVideoSettings>(json)!;
+            video.Validate(); Assert.AreEqual(8, video.Rows.Count);
+            Assert.IsFalse(video.Rows.Any(r => r.Id == "frame"));
+            Assert.AreEqual("rt - 12.5", video.Rows.Last().Expression);
+            Assert.AreEqual(InfoOverlayModel.Format(rt, Values("{\"watch:rt - 12.5\":2.75}")),
+                video.Format(video.Rows.Last(), _ => 2.75));
+            rt.Expression = "rt - 99";
+            Assert.AreEqual("rt - 12.5", video.Rows.Last().Expression);
+            Assert.AreEqual(json, JsonSerializer.Serialize(video));
+        }
+        [TestMethod]
+        public void PresetExpressionsCanBeEditedPersistedAndReset()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "hktas-info-" + Guid.NewGuid().ToString("N"), "settings.json");
+            try
+            {
+                var settings = InfoOverlaySettings.Defaults();
+                var row = settings.Items.First(i => i.Field == "healthPair");
+                row.Expression = "health / maxHealth * 100"; row.Precision = 1; row.Unit = "%";
+                settings.Save(path);
+                var loaded = InfoOverlaySettings.Load(path); row = loaded.Items.First(i => i.Field == "healthPair");
+                CollectionAssert.AreEqual(new[] { row.Expression }, InfoOverlayModel.Watches(loaded));
+                Assert.AreEqual("50.0 %", InfoOverlayModel.Format(row, Values("{\"watch:health / maxHealth * 100\":50}")));
+                row.Expression = "false";
+                Assert.AreEqual(UiText.T("否"), InfoOverlayModel.Format(row, Values("{\"watch:false\":false}")));
+                row.Expression = InfoOverlayModel.DefaultExpression(row.Field); row.Unit = "";
+                Assert.AreEqual(0, InfoOverlayModel.Watches(loaded).Length);
+                Assert.AreEqual("5 / 9", InfoOverlayModel.Format(row, Values("{\"health\":5,\"maxHealth\":9}")));
+                row.Expression = "health +";
+                var lastGood = File.ReadAllText(path);
+                Assert.ThrowsExactly<FormatException>(() => loaded.Save(path));
+                Assert.AreEqual(lastGood, File.ReadAllText(path));
+            }
+            finally { if (File.Exists(path)) File.Delete(path); Directory.Delete(Path.GetDirectoryName(path)!); }
+        }
+        [TestMethod]
+        public void V2UnusedPresetQueriesDoNotOverrideBuiltinsAfterMigration()
+        {
+            var path = Path.GetTempFileName();
+            try
+            {
+                var settings = InfoOverlaySettings.Defaults(); settings.Version = 2;
+                foreach (var item in settings.Items) item.Expression = "hero.dashCooldownTimer";
+                var custom = InfoOverlayModel.NewItem("custom"); custom.Expression = "player.geo"; settings.Items.Add(custom);
+                File.WriteAllText(path, JsonSerializer.Serialize(settings));
+                var loaded = InfoOverlaySettings.Load(path);
+                CollectionAssert.AreEqual(new[] { "player.geo" }, InfoOverlayModel.Watches(loaded));
+                Assert.AreEqual("frame", loaded.Items[0].Expression);
+            }
+            finally { File.Delete(path); }
+        }
+        [TestMethod]
+        public void CompletionTargetsOnlyCaretTokenAndSkipsQuotedNames()
+        {
+            const string expression = "health + player.ge + 12";
+            var match = InfoExpressionCompletion.At(expression, expression.IndexOf(" + 12", StringComparison.Ordinal));
+            CollectionAssert.Contains(match.Matches, "player.geo");
+            Assert.AreEqual("health + player.geo + 12", expression.Remove(match.Start, match.Length).Insert(match.Start, "player.geo"));
+            Assert.AreEqual(0, InfoExpressionCompletion.At("fsm(\"/Knight\", \"Spe", 18).Matches.Length);
+            CollectionAssert.Contains(InfoExpressionCompletion.At("hero.cState.", 12).Matches, "hero.cState.onGround");
         }
     }
 }

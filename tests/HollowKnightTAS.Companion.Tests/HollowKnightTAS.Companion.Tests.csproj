@@ -3,12 +3,19 @@
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>HollowKnightTAS.Companion.Tests</AssemblyName>
     <RootNamespace>HollowKnightTAS.Companion.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Media\VideoInfoOverlay.cs" Link="Media\VideoInfoOverlay.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Media\FfmpegVideoEncoder.cs" Link="Media\FfmpegVideoEncoder.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Ipc\NativeNamedPipeServer.cs" Link="Media\NativeNamedPipeServer.cs" />
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\Ipc\WindowsCurrentUserSid.cs" Link="Media\WindowsCurrentUserSid.cs" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageReference Include="MSTest.TestAdapter" Version="4.3.2">

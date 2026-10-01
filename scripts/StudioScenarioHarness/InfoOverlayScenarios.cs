@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,11 +20,17 @@ internal static partial class StudioScenarioHarness
     static async Task RunInfoOverlayAsync(string[] args)
     {
         var advanced = args.Contains("--info-custom");
+        var timing = args.Contains("--info-timing");
         var expressions = advanced ? new[] { "hero.dashCooldownTimer", "player.geo", "position.x", "game.gameState",
             "component(\"/Knight\", \"HeroController\").jump_steps", "fsm(\"/Knight\", \"Spell Control\", \"MP Cost\")", "hero.noSuchField" } : Array.Empty<string>();
+        if (timing) expressions = new[] { "rt - 12.5", "gt - 1.25", "x + 2", "hero.dashCooldownTimer * 1000" };
         var vm = (MainViewModel)app.MainWindow.DataContext;
         var boot = Field<StartupBootController>(app, "startupBoot");
         var movies = Field<FullRunMovieCoordinator>(app, "fullRunMovies");
+        typeof(MainViewModel).GetField("worldlines", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(vm, new StudioTimelineStore(Path.Combine(output, "timelines.json")));
+        typeof(MainViewModel).GetField("initialSaveCacheRoot", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(vm, Path.Combine(output, "initial-saves"));
         typeof(MainViewModel).GetField("activeSequenceDirectory", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(vm, output);
         var controller = Field<InfoOverlayController>(vm, "infoController");
         async Task<IReadOnlyDictionary<string, JsonElement>> Snapshot(string label)
@@ -45,16 +51,40 @@ internal static partial class StudioScenarioHarness
         await Until(() => vm.SelectedSession?.Client.IsConnected == true, "info Runtime connected", 120);
         await vm.PollInputGridProgressAsync();
         var observed = await VideoRuntimeMovie(vm, movies);
+        if (args.Contains("--info-video-only")) { await RunInfoVideoAsync(vm, observed.Movie, args); movies.VerifyOriginalSavesUnchanged(); return; }
         var title = await Snapshot("title");
         Require(!title.ContainsKey("x"), "title has no stale hero coordinates");
         var baselinePath = args.Single(a => a.StartsWith("--info-baseline=", StringComparison.Ordinal)).Split('=', 2)[1];
         var baseline = SequencePackage.Read(baselinePath);
+        var saveRoot = args.SingleOrDefault(a => a.StartsWith("--info-initial-saves="))?.Split('=', 2)[1];
+        if (saveRoot != null)
+            baseline = baseline with { InitialSaves = new InitialSaveSnapshot(Directory.GetFiles(saveRoot, "user*")
+                .Select(path => new KeyValuePair<string, byte[]>(Path.GetFileName(path), File.ReadAllBytes(path)))) };
         var source = TimelineTree.Parse(baseline.Movie);
         var candidate = new MovieV2Document("info-display-candidate", TimelineTree.Parse(observed.Movie).Header,
             source.Runs.Select(r => new NativeFrameRun(r.RepeatCount, r.Samples, r.Span, r.FramesPerSecond, true, r.RngSeed)));
         var candidatePath = Path.Combine(output, "info-candidate.hktaspack");
         await SequencePackage.WriteAsync(candidatePath, new MovieV2Codec().WriteCanonical(candidate), baseline.InitialSaves!);
         await vm.OpenMovieFileAsync(candidatePath);
+        if (args.Contains("--info-timing-trace-only"))
+        {
+            for (var attempt = 0; attempt < 3; attempt++)
+            {
+                var game = Field<System.Diagnostics.Process>(app, "startupGame"); game.Refresh();
+                if (InfoIsIconic(game.MainWindowHandle)) { InfoShowWindow(game.MainWindowHandle, 4); await Task.Delay(200); }
+                await vm.FrameMenuAsync("rebuild", 1500);
+                AtFrame(vm, boot, 1500, "timing trace replay " + attempt);
+                await Snapshot("timing-replay-" + attempt);
+                if (args.Contains("--info-timing-resume-between"))
+                {
+                    await Command(vm.StepCommand);
+                    await vm.FrameMenuAsync("seek", 1520);
+                    AtFrame(vm, boot, 1520, "timing replay resumes before next cold rebuild");
+                }
+            }
+            movies.VerifyOriginalSavesUnchanged();
+            return;
+        }
         await vm.FrameMenuAsync("rebuild", 1500);
         AtFrame(vm, boot, 1500, "gameplay reached under new Runtime identity");
         var values = await Snapshot("gameplay-1500");
@@ -79,6 +109,19 @@ internal static partial class StudioScenarioHarness
             Require(InfoOverlaySettings.Load(Path.Combine(output, "info-settings.json")).Items.Last().Expression == "player.geo", "custom expression persists through real VM");
             await MoveInfoGameWhileObservationsWait(vm, boot, overlay);
         }
+        if (timing)
+        {
+            Require(values["rt"].GetDouble() > values["gt"].GetDouble() && values["gt"].GetDouble() > 0, "RT includes loading and GT advances during gameplay");
+            Require(Math.Abs(values["watch:rt - 12.5"].GetDouble() - (values["rt"].GetDouble() - 12.5)) < 1e-8, "RT expression offset evaluated in live Runtime");
+            Require(Math.Abs(values["watch:x + 2"].GetDouble() - values["x"].GetDouble() - 2) < 1e-5, "preset expression arithmetic evaluated in live Runtime");
+            vm.InfoSettings.Items.Clear();
+            foreach (var id in new[] { "frame", "rt", "gt", "x" }) vm.AddInfoItem(InfoOverlayModel.Fields.Single(f => f.Id == id));
+            vm.InfoSettings.Items[1].Expression = "rt - 12.5";
+            vm.InfoSettings.Items[1].Label = "RT offset";
+            vm.InfoSettings.Items[3].Expression = "x + 2";
+            vm.InfoSettings.Items[3].Label = "X plus 2";
+            await Task.Delay(600);
+        }
         var pausedNative = boot.NativeCompletedFrames;
         await Task.Delay(550);
         boot.Refresh(); Require(boot.NativeCompletedFrames == pausedNative, "automatic overlay polling leaves game paused");
@@ -93,6 +136,11 @@ internal static partial class StudioScenarioHarness
         await Command(vm.StepCommand); await vm.PollInputGridProgressAsync();
         var stepped = await Snapshot("gameplay-1501");
         Require(stepped["frame"].GetInt64() == 1501, "step publishes next Movie frame");
+        if (timing)
+        {
+            Require(Math.Abs(stepped["rt"].GetDouble() - values["rt"].GetDouble() - .02) < 1e-7, "one 50 FPS gameplay step adds 20ms RT");
+            Require(Math.Abs(stepped["gt"].GetDouble() - values["gt"].GetDouble() - .02) < 1e-7, "one gameplay step adds 20ms GT");
+        }
         vm.InfoSettings.Items[0].Label = "Test frame"; vm.InfoSettings.Items.Move(0, 2);
         vm.InfoSettings.Anchor = "右下"; vm.InfoSettings.FontSize = 18;
         await Task.Delay(600);
@@ -107,8 +155,48 @@ internal static partial class StudioScenarioHarness
         foreach (var key in new[] { "room", "x", "y", "dash", "shade", "health", "soul" })
             Require(restored[key].ToString() == values[key].ToString(), "restored display matches " + key);
         await Until(() => overlay.IsVisible, "overlay visible after restore");
+        if (timing)
+        {
+            Log("TIMING REPLAY " + JsonSerializer.Serialize(new { beforeRt = values["rt"].GetDouble(), afterRt = restored["rt"].GetDouble(), beforeGt = values["gt"].GetDouble(), afterGt = restored["gt"].GetDouble() }));
+            Require(restored["gt"].GetDouble() > 0 && restored["gt"].GetDouble() <= restored["rt"].GetDouble(), "restored GT remains positive and bounded by RT");
+            await RunInfoVideoAsync(vm, observed.Movie, args);
+        }
         movies.VerifyOriginalSavesUnchanged();
         Require(boot.FullRunFaultCode == 0, "no native fault after display controls");
+    }
+
+    static async Task RunInfoVideoAsync(MainViewModel vm, string observedMovie, string[] args)
+    {
+        if (args.Contains("--info-video-only"))
+        {
+            vm.InfoSettings.Items.Clear();
+            foreach (var id in new[] { "frame", "rt", "gt" }) vm.AddInfoItem(InfoOverlayModel.Fields.Single(f => f.Id == id));
+        }
+            var picker = typeof(MainViewModel).GetField("videoExportFilePicker", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var original = picker.GetValue(vm);
+            var ffmpeg = args.Single(a => a.StartsWith("--ffmpeg=")).Split('=', 2)[1];
+            // Export a short real-game title sequence through the same VM command as the button.
+            var neutral = new MovieV2Document("info-video", TimelineTree.Parse(observedMovie).Header,
+                new[] { new NativeFrameRun(30, Array.Empty<HollowKnightTAS.Core.Movie.GameInputSample>(), new MovieSourceSpan("info-video", 1, 1, 1), 50, true) });
+            var neutralPath = Path.Combine(output, "info-video.hktas");
+            await File.WriteAllTextAsync(neutralPath, new MovieV2Codec().WriteCanonical(neutral));
+            await vm.OpenMovieFileAsync(neutralPath);
+            try
+            {
+                foreach (var include in new[] { true, false })
+                {
+                    vm.InfoSettings.IncludeInVideo = include;
+                    vm.InfoSettings.Enabled = !include;
+                    var target = Path.Combine(output, include ? "info-on.mp4" : "info-off.mp4");
+                    picker.SetValue(vm, (Func<(string Ffmpeg, string Output)?>)(() => (ffmpeg, target)));
+                    await Command(vm.StartVideoExportCommand).WaitAsync(TimeSpan.FromMinutes(2));
+                    var state = await VideoRuntimeState(vm);
+                    Log("VIDEO STATUS " + vm.VideoExportStatus + " " + JsonSerializer.Serialize(state));
+                    Require(state.GetValueOrDefault("videoExport.state") == "Completed" && File.Exists(target), "real MP4 export completes with info=" + include);
+                    await File.WriteAllTextAsync(Path.Combine(output, "video-" + include + ".json"), JsonSerializer.Serialize(state));
+                }
+            }
+            finally { picker.SetValue(vm, original); }
     }
 
     static async Task MoveInfoGameWhileObservationsWait(MainViewModel vm, StartupBootController boot, InfoOverlayWindow overlay)
@@ -151,4 +239,6 @@ internal static partial class StudioScenarioHarness
     [DllImport("user32.dll", EntryPoint = "SetWindowPos")] static extern bool SetInfoWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll", EntryPoint = "GetClientRect")] static extern bool GetInfoClientRect(IntPtr window, out InfoRect bounds);
     [DllImport("user32.dll", EntryPoint = "ClientToScreen")] static extern bool InfoClientToScreen(IntPtr window, ref InfoPoint point);
+    [DllImport("user32.dll", EntryPoint = "IsIconic")] static extern bool InfoIsIconic(IntPtr window);
+    [DllImport("user32.dll", EntryPoint = "ShowWindow")] static extern bool InfoShowWindow(IntPtr window, int command);
 }
