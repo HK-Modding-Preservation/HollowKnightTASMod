@@ -28,11 +28,40 @@ internal static partial class StudioScenarioHarness
         Set("activeSequenceDirectory", output);
         var source = args.Single(a => a.StartsWith("--divergence-sequence=")).Split('=', 2)[1];
         var copy = Path.Combine(output, "input.hktaspack");
-        File.Copy(source, copy, false);
+        var initialSaves = args.SingleOrDefault(a => a.StartsWith("--divergence-initial-saves="))?.Split('=', 2)[1];
+        if (initialSaves == null) File.Copy(source, copy, false);
+        else
+        {
+            var snapshot = new InitialSaveSnapshot(Directory.GetFiles(initialSaves, "user*")
+                .Select(path => new KeyValuePair<string, byte[]>(Path.GetFileName(path), File.ReadAllBytes(path))));
+            await SequencePackage.WriteAsync(copy, File.ReadAllText(source), snapshot);
+        }
         await vm.OpenMovieFileAsync(copy);
         var originalMovie = vm.MovieText;
         await File.WriteAllTextAsync(Path.Combine(output, "original-movie.hktas"), originalMovie);
         await Field<Func<string, Task>>(vm, "launchGame")(@"D:\SteamLibrary\steamapps\common\Hollow Knight\hollow_knight.exe");
+        if (args.Contains("--divergence-video-fault"))
+        {
+            var picker = typeof(MainViewModel).GetField("videoExportFilePicker", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            picker.SetValue(vm, (Func<(string Ffmpeg, string Output)?>)(() =>
+                (BundledFfmpeg.Resolve(), Path.Combine(output, "fault-video.mp4"))));
+            var heartbeat = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            heartbeat.Tick += (_, _) => Log("VIDEO UI responsive busy=" + vm.IsVideoExportBusy + " status=" + vm.VideoExportStatus);
+            heartbeat.Start();
+            try
+            {
+                await Command(vm.StartVideoExportCommand);
+                var state = await VideoRuntimeState(vm);
+                await File.WriteAllTextAsync(Path.Combine(output, "fault-status.json"), JsonSerializer.Serialize(state));
+                Require(state.GetValueOrDefault("videoExport.state") == "Failed" && boot.FullRunFaultCode != 0,
+                    "video fault probe reproduced a replay failure");
+                await Task.Delay(15000);
+                movies.VerifyOriginalSavesUnchanged();
+                Log("VIDEO failure command returned and UI delay completed");
+            }
+            finally { heartbeat.Stop(); }
+            return;
+        }
         if (args.Contains("--divergence-startup-pause"))
         {
             await Task.Delay(35000);
@@ -104,6 +133,18 @@ internal static partial class StudioScenarioHarness
             await vm.FrameMenuAsync("rebuild", start);
             AtFrame(vm, boot, start, "continuous playback starting boundary");
             await vm.FrameMenuAsync("seek", target);
+            if (args.Contains("--divergence-fault-probe") && boot.FullRunFaultCode != 0)
+            {
+                await File.WriteAllTextAsync(Path.Combine(output, "fault-status.json"),
+                    JsonSerializer.Serialize(await VideoRuntimeState(vm)));
+                for (var second = 0; second < 15; second++)
+                {
+                    await Task.Delay(1000);
+                    Log("FAULT UI dispatcher responsive " + second);
+                }
+                movies.VerifyOriginalSavesUnchanged();
+                return;
+            }
             AtFrame(vm, boot, target, "continuous playback target boundary");
             await Capture("play-" + target);
         }

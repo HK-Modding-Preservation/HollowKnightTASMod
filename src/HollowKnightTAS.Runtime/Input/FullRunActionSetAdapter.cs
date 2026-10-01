@@ -340,8 +340,11 @@ namespace HollowKnightTAS.Runtime.Input
                                 + currentFrame + ", sample " + sampleIndex + ", action " + index + ".");
                     if (!authored && authoredEdgeChannels.Contains(channel)) transitionedEdgeChannels.Add(channel);
                     if (!authored && !authoredEdgeChannels.Contains(channel) && (pressed != desired.PressedMask || released != desired.ReleasedMask))
-                        throw new InvalidDataException("Input edge mismatch at native frame "
-                            + currentFrame + ", sample " + sampleIndex + ".");
+                        throw new InvalidDataException("Input edge mismatch at Movie frame "
+                            + currentFrame + ", sample " + sampleIndex + ", channel=" + channel
+                            + ", tick=" + updateTick + ", expectedPressed=" + desired.PressedMask
+                            + ", actualPressed=" + pressed + ", expectedReleased=" + desired.ReleasedMask
+                            + ", actualReleased=" + released + ".");
                 }
                 if (!redundantExtra)
                 {
