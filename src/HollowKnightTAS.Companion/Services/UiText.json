@@ -2969,5 +2969,9 @@
   "Source": "诊断日志导出失败：{0}",
   "Zh": "诊断日志导出失败：{0}",
   "En": "Diagnostic export failed: {0}"
-}
+},
+{"Key": "customKey", "Source": "自定义按键", "Zh": "自定义按键", "En": "Custom key"},
+{"Key": "addCustomKey", "Source": "添加自定义键", "Zh": "添加自定义键", "En": "Add custom key"},
+{"Key": "removeCustomKey", "Source": "移除自定义键", "Zh": "移除自定义键", "En": "Remove custom key"},
+{"Key": "removeCustomKeyHint", "Source": "从整个序列移除此键；可撤销", "Zh": "从整个序列移除此键；可撤销", "En": "Remove this key from the sequence; undo is available"}
 ]

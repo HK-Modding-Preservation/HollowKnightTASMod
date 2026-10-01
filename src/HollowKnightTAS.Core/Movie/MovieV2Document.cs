@@ -7,7 +7,7 @@ namespace HollowKnightTAS.Core.Movie
     {
         public MovieV2Header(string gameVersion, string apiVersion, string modVersion, string nativeProfileId,
             string actionSchemaId, bool mouseEnabled, string environmentSha256,
-            int viewportWidth, int viewportHeight)
+            int viewportWidth, int viewportHeight, IEnumerable<short>? customKeys = null)
         {
             GameVersion = gameVersion ?? throw new ArgumentNullException(nameof(gameVersion));
             ApiVersion = apiVersion ?? throw new ArgumentNullException(nameof(apiVersion));
@@ -18,7 +18,11 @@ namespace HollowKnightTAS.Core.Movie
             EnvironmentSha256 = environmentSha256 ?? throw new ArgumentNullException(nameof(environmentSha256));
             ViewportWidth = viewportWidth;
             ViewportHeight = viewportHeight;
+            CustomKeys = Array.AsReadOnly(new List<short>(customKeys ?? Array.Empty<short>()).ToArray());
         }
+
+        public IReadOnlyList<short> CustomKeys { get; }
+        public MovieV2Header WithCustomKeys(IEnumerable<short> keys) => new MovieV2Header(GameVersion, ApiVersion, ModVersion, NativeProfileId, ActionSchemaId, MouseEnabled, EnvironmentSha256, ViewportWidth, ViewportHeight, keys);
 
         public int Version => MovieProtocolV2.Version;
         public string Format => MovieProtocolV2.Format;

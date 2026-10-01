@@ -12,6 +12,14 @@ namespace HollowKnightTAS.Runtime.Input
         private readonly List<ActionSetLease> leases = new List<ActionSetLease>();
         private readonly CustomKnightInputGuard customKnightInputs = new CustomKnightInputGuard();
         private MovieV2Document? movie;
+        private FullRunKeyboardBridge? keyboard;
+        private IReadOnlyList<GameInputSample> customSamples = Array.Empty<GameInputSample>();
+        private void PrepareSamples(IReadOnlyList<GameInputSample> samples)
+        {
+            customSamples = samples.Where(s => s.Channel == GameInputChannel.CustomKey).ToArray();
+            expected = samples.Where(s => s.Channel != GameInputChannel.CustomKey).ToArray();
+            keyboard?.Prepare(customSamples);
+        }
         private long[]? runStarts;
         private IReadOnlyList<GameInputSample> expected = Array.Empty<GameInputSample>();
         private long currentFrame = -1;
@@ -153,12 +161,14 @@ namespace HollowKnightTAS.Runtime.Input
             authoredSampleCounts.Clear();
             var run = RunAt(frame);
             authored = run.Authored;
-            expected = run.Samples;
+            PrepareSamples(run.Samples);
         }
 
         private void SetReplayMovie(MovieV2Document movie)
         {
             this.movie = movie ?? throw new ArgumentNullException(nameof(movie));
+            keyboard ??= new FullRunKeyboardBridge(() => !suspended && IsNativeFrameActive);
+            keyboard.Configure(movie);
             var starts = new long[movie.Runs.Count];
             long total = 0;
             for (var index = 0; index < starts.Length; index++)
@@ -182,11 +192,13 @@ namespace HollowKnightTAS.Runtime.Input
             authoredSampleCounts.Clear();
             var run = replaying && !atReplayEnd ? RunAt(frameIndex) : null;
             authored = run?.Authored == true;
-            expected = run?.Samples ?? Array.Empty<GameInputSample>();
+            PrepareSamples(run?.Samples ?? Array.Empty<GameInputSample>());
         }
 
         public void CompleteFrame(long frameIndex)
         {
+            foreach (var sample in customSamples) Sampled?.Invoke(frameIndex, sample, 0);
+            keyboard?.Complete();
             // InControl can report the same edge on multiple updates in one frame.
             // Retire an authored-to-recorded transition only after the whole frame.
             foreach (var channel in transitionedEdgeChannels) authoredEdgeChannels.Remove(channel);
@@ -448,6 +460,8 @@ namespace HollowKnightTAS.Runtime.Input
             disposed = true;
             if (hooked) On.InControl.PlayerActionSet.Update -= OnPlayerActionSetUpdate;
             var errors = new List<string>();
+            try { keyboard?.Dispose(); }
+            catch (Exception exception) { errors.Add(exception.Message); }
             try { customKnightInputs.Dispose(); }
             catch (Exception exception) { errors.Add(exception.Message); }
             foreach (var lease in leases)

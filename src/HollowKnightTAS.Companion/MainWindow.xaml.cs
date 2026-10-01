@@ -141,6 +141,7 @@ namespace HollowKnightTAS.Companion
 
         private void RestoreGridSelection(object? sender, EventArgs e)
         {
+            if (DataContext is MainViewModel customVm) RefreshCustomKeyColumns(customVm);
             if (DataContext is not MainViewModel vm
                 || !long.TryParse(vm.GridStart, out var start) || start < 0
                 || !long.TryParse(vm.GridCount, out var count) || count < 1) return;
@@ -209,7 +210,7 @@ namespace HollowKnightTAS.Companion
                 return;
             }
             var action = cell.Column.SortMemberPath;
-            if (action != "Submit" && action != "Cancel" && !Enum.TryParse<TasAction>(action, out _)) return;
+            if (action != "Submit" && action != "Cancel" && !HollowKnightTAS.Core.Movie.CustomKeyInput.TryAction(action, out _) && !Enum.TryParse<TasAction>(action, out _)) return;
             InputGrid.SelectedItem = row;
             paintStart = paintEnd = row.Tick;
             paintAction = action;
@@ -277,6 +278,7 @@ namespace HollowKnightTAS.Companion
             foreach (var column in InputGrid.Columns.OfType<DataGridCheckBoxColumn>())
             {
                 var action = column.SortMemberPath;
+                if (HollowKnightTAS.Core.Movie.CustomKeyInput.TryAction(action, out _)) continue;
                 var known = vm.InputBindingLabels.TryGetValue(action, out var keys);
                 var label = known ? (string.IsNullOrWhiteSpace(keys) ? "—" : keys!) : "?";
                 var header = new TextBlock { Text = string.Join("/", label.Split(new[] { " / " }, StringSplitOptions.None).Select(CompactKeyLabel)),
@@ -288,6 +290,25 @@ namespace HollowKnightTAS.Companion
                 // SizeToHeader retains WPF's measured width across recycled headers.
                 // Recompute a pixel width from the key label so reloads cannot grow it.
                 column.Width = new DataGridLength(Math.Max(32, Math.Ceiling(header.DesiredSize.Width) + 20));
+            }
+        }
+
+        private void RefreshCustomKeyColumns(MainViewModel vm)
+        {
+            var keys = vm.CustomKeys;
+            var existing = InputGrid.Columns.Where(c => c.SortMemberPath.StartsWith("Key:", StringComparison.Ordinal)).ToArray();
+            var actions = keys.Select(HollowKnightTAS.Core.Movie.CustomKeyInput.Action).ToArray();
+            if (existing.Select(c => c.SortMemberPath).SequenceEqual(actions)) return;
+            foreach (var column in existing) InputGrid.Columns.Remove(column);
+            foreach (var key in keys)
+            {
+                var action = HollowKnightTAS.Core.Movie.CustomKeyInput.Action(key);
+                InputGrid.Columns.Add(new DataGridCheckBoxColumn
+                {
+                    Header = HollowKnightTAS.Core.Movie.CustomKeyInput.Names[key], SortMemberPath = action,
+                    Binding = new System.Windows.Data.Binding("[" + action + "]") { Mode = System.Windows.Data.BindingMode.OneWay },
+                    Width = 75, ElementStyle = (Style)FindResource("TasGridCheckBoxStyle")
+                });
             }
         }
 

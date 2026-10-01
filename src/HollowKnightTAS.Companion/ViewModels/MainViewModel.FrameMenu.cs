@@ -216,7 +216,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             {
                 var snapshot = await ReadReadyFrameSnapshotAsync();
                 var recorded = movieEditor.ValidateAny(snapshot.Movie).V2Document!;
-                candidate = new MovieV2Document(candidate.SourceName, recorded.Header, candidate.Runs);
+                candidate = new MovieV2Document(candidate.SourceName, recorded.Header.WithCustomKeys(candidate.Header.CustomKeys), candidate.Runs);
                 MovieText = gridSource = new MovieV2Codec().WriteCanonical(candidate);
             }
             if (frame > InputGridEditor.Count(candidate)) throw new InvalidOperationException("存档目标超出 Movie。");

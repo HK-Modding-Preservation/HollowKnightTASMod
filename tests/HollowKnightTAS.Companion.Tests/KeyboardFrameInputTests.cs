@@ -19,6 +19,22 @@ public sealed class KeyboardFrameInputTests
     }
 
     [TestMethod]
+    public void CustomChordCaptureReleaseAndStepConflict()
+    {
+        var keys = new HashSet<int> { 0x70, 0xA2 };
+        var captured = KeyboardFrameInput.Capture(Bindings(), Key.V, keys.Contains, new short[] {282,306});
+        Assert.IsTrue(captured["Key:282"] && captured["Key:306"]);
+        var movie = new MovieV2Document("keys", new MovieV2Header("game","api","mod", MovieProtocolV2.NativeProfileId,
+            MovieProtocolV2.ActionSchemaId,false,"none",0,0,new short[]{282,306}),
+            new[]{new NativeFrameRun(2,Array.Empty<GameInputSample>(),new MovieSourceSpan("keys",1,1,1))});
+        var written = KeyboardFrameInput.WriteFrame(movie,0,captured);
+        Assert.AreEqual(2,written.Runs[0].Samples.Count(s=>s.Channel==GameInputChannel.CustomKey && s.Values[1]==short.MaxValue));
+        keys.Clear();
+        Assert.IsFalse(KeyboardFrameInput.Capture(Bindings(), Key.V, keys.Contains, new short[]{282})["Key:282"]);
+        Assert.ThrowsExactly<InvalidOperationException>(() => KeyboardFrameInput.Capture(Bindings(), Key.F1, keys.Contains, new short[]{282}));
+    }
+
+    [TestMethod]
     public void UpAttackChordAndHeldJumpAreSampledAgainForEachStep()
     {
         var keys = new HashSet<int> { 0x57, 0x4A, 0x56 };

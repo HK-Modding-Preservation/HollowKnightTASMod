@@ -9,7 +9,8 @@ namespace HollowKnightTAS.Core.Movie
         PreMenu,
         Binder,
         MouseInControl,
-        MouseHollowKnight
+        MouseHollowKnight,
+        CustomKey
     }
 
     public static class MovieProtocolV2
@@ -50,6 +51,7 @@ namespace HollowKnightTAS.Core.Movie
         {
             switch (channel)
             {
+                case GameInputChannel.CustomKey: return 2;
                 case GameInputChannel.Hero:
                     return HeroActionNamesValue.Count;
                 case GameInputChannel.PreMenu:
@@ -67,6 +69,7 @@ namespace HollowKnightTAS.Core.Movie
         {
             switch (channel)
             {
+                case GameInputChannel.CustomKey: return "customKey";
                 case GameInputChannel.Hero: return "hero";
                 case GameInputChannel.PreMenu: return "preMenu";
                 case GameInputChannel.Binder: return "binder";

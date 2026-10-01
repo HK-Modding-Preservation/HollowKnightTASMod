@@ -136,7 +136,7 @@ namespace HollowKnightTAS.Companion.ViewModels
                         ? SliceV2(draft, snapshot.Frame, total - snapshot.Frame).Runs
                         : new[] { new NativeFrameRun(500, Array.Empty<GameInputSample>(), new MovieSourceSpan("<blank>", 1, 1, 1), ParseFrameRate(DefaultFrameRate), true) });
                 }
-                MovieText = gridSource = new MovieV2Codec().WriteCanonical(new MovieV2Document(draft.SourceName, recorded.Header, runs));
+                MovieText = gridSource = new MovieV2Codec().WriteCanonical(new MovieV2Document(draft.SourceName, recorded.Header.WithCustomKeys(draft.Header.CustomKeys), runs));
                 recordingGridNativeFrame = startupBoot.NativeCompletedFrames;
                 RefreshInputGrid();
                 TrackGridFrame(snapshot.Frame, true);
