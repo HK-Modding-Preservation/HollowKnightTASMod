@@ -147,7 +147,7 @@ namespace HollowKnightTAS.Companion.ViewModels
             var old = movie.Header;
             var header = new MovieV2Header(old.GameVersion, old.ApiVersion, old.ModVersion,
                 MovieProtocolV2.NativeProfileId, old.ActionSchemaId, old.MouseEnabled,
-                old.EnvironmentSha256, old.ViewportWidth, old.ViewportHeight);
+                old.EnvironmentSha256, old.ViewportWidth, old.ViewportHeight, old.CustomKeys);
             return new MovieV2Codec().WriteCanonical(new MovieV2Document(movie.SourceName, header, movie.Runs));
         }
 

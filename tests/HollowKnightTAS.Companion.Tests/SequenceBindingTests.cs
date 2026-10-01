@@ -62,9 +62,9 @@ public sealed class SequenceBindingTests
     {
         using var f = new Fixture();
         var values = new short[26]; values[1] = 32767; values[10] = 32767;
-        var expected = new MovieV2Codec().WriteCanonical(new MovieV2Document("test", TimelineTree.Parse(Movie()).Header,
+        var expected = new MovieV2Codec().WriteCanonical(new MovieV2Document("test", TimelineTree.Parse(Movie()).Header.WithCustomKeys(new short[] { 282 }),
             new[] { new NativeFrameRun(1, new[] { new GameInputSample(GameInputChannel.Hero, values, null,
-                    pressedMask: (1UL << 1) | (1UL << 10)) }, new MovieSourceSpan("test", 2, 1, 1), 59.94m, true, 12345),
+                    pressedMask: (1UL << 1) | (1UL << 10)), CustomKeyInput.Sample(282, true) }, new MovieSourceSpan("test", 2, 1, 1), 59.94m, true, 12345),
                 new NativeFrameRun(499, Array.Empty<GameInputSample>(), new MovieSourceSpan("test", 3, 1, 1), 50, true) }));
         var legacy = expected.Replace(MovieProtocolV2.NativeProfileId,
             "hktas-unity-input-playerloop-load-elision-scene-rng-2026-v3");
