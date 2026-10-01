@@ -27,7 +27,7 @@ public sealed partial class MainViewModel
                 if (fullRunMovies?.IsPending != true || startupBoot?.IsWaiting != true)
                     throw new InvalidOperationException("键盘逐帧输入需要已暂停的全流程 TAS 会话。");
                 // Capture before any await; a released key must not change this frame's intent.
-                pendingKeyboardFrame = KeyboardFrameInput.Capture(keyboardBindings, ConfiguredAdvance);
+                pendingKeyboardFrame = KeyboardFrameInput.Capture(keyboardBindings, ConfiguredAdvance, customKeys: CustomKeys);
             }
             StepCommand.Execute(null);
         }

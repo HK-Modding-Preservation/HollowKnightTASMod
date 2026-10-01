@@ -42,6 +42,11 @@ namespace HollowKnightTAS.Core.Movie
             return Transform(movie, start, count, run =>
             {
                 var samples = run.Samples.ToList();
+                if (CustomKeyInput.TryAction(action, out var key))
+                {
+                    samples.RemoveAll(s => s.Channel == GameInputChannel.CustomKey && s.Values[0] == key);
+                    samples.Add(CustomKeyInput.Sample(key, held));
+                }
                 foreach (var channel in new[] { GameInputChannel.Hero, GameInputChannel.PreMenu, GameInputChannel.Binder })
                 {
                     int index = ActionIndex(channel, action);

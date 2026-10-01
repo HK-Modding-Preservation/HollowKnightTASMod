@@ -24,6 +24,7 @@ namespace HollowKnightTAS.Companion.Services
             foreach (var sample in row.Samples)
             {
                 var values = sample.Values;
+                if (sample.Channel == GameInputChannel.CustomKey && values[1] != 0) customKeys.Add(values[0]);
                 if (sample.Channel == GameInputChannel.Hero)
                 {
                     if (values[0] > 0) held |= TasAction.Left;
@@ -58,7 +59,9 @@ namespace HollowKnightTAS.Companion.Services
         public override int GetHashCode() => Tick.GetHashCode();
         public decimal FramesPerSecond { get; } = 50;
         public int? RngSeed { get; }
-        public bool HasAction(string action) => action == "Submit" ? Submit : action == "Cancel" ? Cancel : Enum.TryParse<TasAction>(action, out var parsed) && Has(parsed);
+        private readonly HashSet<short> customKeys = new();
+        public bool this[string action] => HasAction(action);
+        public bool HasAction(string action) => previewAction == action ? previewHeld : CustomKeyInput.TryAction(action, out var key) ? customKeys.Contains(key) : action == "Submit" ? Submit : action == "Cancel" ? Cancel : Enum.TryParse<TasAction>(action, out var parsed) && Has(parsed);
         public long Tick { get; }
         public FrameRunCommand Input { get; }
         public bool IsV2 { get; }

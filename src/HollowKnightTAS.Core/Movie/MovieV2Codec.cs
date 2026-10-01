@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using HollowKnightTAS.Core.Cryptography;
 
@@ -47,6 +48,8 @@ namespace HollowKnightTAS.Core.Movie
                         if (run.RepeatCount > MovieProtocolV2.MaximumExpandedFrames - expandedFrames)
                             throw new FormatFault(MovieDiagnosticCodes.ExpandedTickLimit, 1, "Expanded native-frame limit exceeded.");
                         expandedFrames += run.RepeatCount;
+                        if (run.Samples.Any(sample => sample.Channel == GameInputChannel.CustomKey && !header!.CustomKeys.Contains(sample.Values[0])))
+                            throw new FormatFault(MovieDiagnosticCodes.InvalidCommand, 1, "Custom key is not configured in the header.");
                         runs.Add(run);
                     }
                 }
@@ -84,6 +87,8 @@ namespace HollowKnightTAS.Core.Movie
             AppendString(builder, movie.Header.EnvironmentSha256);
             builder.Append(",\"viewportWidth\":").Append(movie.Header.ViewportWidth.ToString(CultureInfo.InvariantCulture));
             builder.Append(",\"viewportHeight\":").Append(movie.Header.ViewportHeight.ToString(CultureInfo.InvariantCulture));
+            if (movie.Header.CustomKeys.Count != 0)
+                builder.Append(",\"customKeys\":[").Append(string.Join(",", movie.Header.CustomKeys.Select(k => k.ToString(CultureInfo.InvariantCulture)))).Append(']');
             builder.Append("}\n");
             EnsureSourceBudget(builder);
 
@@ -96,6 +101,8 @@ namespace HollowKnightTAS.Core.Movie
             foreach (var run in movie.Runs)
             {
                 ValidateRun(run);
+                if (run.Samples.Any(sample => sample.Channel == GameInputChannel.CustomKey && !movie.Header.CustomKeys.Contains(sample.Values[0])))
+                    throw new InvalidDataException("Custom key is not configured in the header.");
                 if (run.RepeatCount > MovieProtocolV2.MaximumExpandedFrames - expandedFrames)
                     throw new InvalidDataException("Expanded native-frame limit exceeded.");
                 expandedFrames += run.RepeatCount;
@@ -167,7 +174,7 @@ namespace HollowKnightTAS.Core.Movie
         private static MovieV2Header ReadHeader(JsonValue json)
         {
             var fields = ObjectFields(json, "format", "version", "tickUnit", "actionSchemaId", "nativeProfileId",
-                "mouseEnabled", "gameVersion", "apiVersion", "modVersion", "environmentSha256", "viewportWidth", "viewportHeight");
+                "mouseEnabled", "gameVersion", "apiVersion", "modVersion", "environmentSha256", "viewportWidth", "viewportHeight", "customKeys?");
             if (String(fields, "format") != MovieProtocolV2.Format)
                 throw new FormatFault(MovieDiagnosticCodes.InvalidHeaderValue, json.Column, "Invalid movie format.");
             if (Integer(fields, "version", 0, int.MaxValue) != MovieProtocolV2.Version)
@@ -179,13 +186,21 @@ namespace HollowKnightTAS.Core.Movie
                 String(fields, "nativeProfileId"), String(fields, "actionSchemaId"),
                 Boolean(fields, "mouseEnabled"), String(fields, "environmentSha256"),
                 (int)Integer(fields, "viewportWidth", 0, 32768),
-                (int)Integer(fields, "viewportHeight", 0, 32768));
+                (int)Integer(fields, "viewportHeight", 0, 32768), ReadCustomKeys(fields));
             try { ValidateHeader(header); }
             catch (InvalidDataException error)
             {
                 throw new FormatFault(MovieDiagnosticCodes.InvalidHeaderValue, json.Column, error.Message);
             }
             return header;
+        }
+
+        private static short[] ReadCustomKeys(Dictionary<string, JsonValue> fields)
+        {
+            if (!fields.TryGetValue("customKeys", out var value)) return Array.Empty<short>();
+            if (value.Kind != JsonKind.Array || value.Items == null || value.Items.Count > CustomKeyInput.Names.Count)
+                throw new FormatFault(MovieDiagnosticCodes.InvalidHeaderValue, value.Column, "Invalid custom key list.");
+            return value.Items.Select(item => (short)Integer(item, 1, short.MaxValue)).ToArray();
         }
 
         private static NativeFrameRun ReadRun(JsonValue json, string sourceName, int lineNumber)
@@ -201,6 +216,8 @@ namespace HollowKnightTAS.Core.Movie
                 throw new FormatFault(MovieDiagnosticCodes.InvalidCommand, array.Column, "Too many samples in one native frame.");
             var samples = new List<GameInputSample>(array.Items.Count);
             foreach (var item in array.Items) samples.Add(ReadSample(item));
+            try { CustomKeyInput.Validate(samples); }
+            catch (InvalidDataException error) { throw new FormatFault(MovieDiagnosticCodes.InvalidCommand, json.Column, error.Message); }
             return new NativeFrameRun(count, samples, new MovieSourceSpan(sourceName, lineNumber, 1, json.Length),
                 ReadFrameRate(fields),
                 fields.ContainsKey("authored") && Boolean(fields, "authored"),
@@ -310,6 +327,9 @@ namespace HollowKnightTAS.Core.Movie
         private static void ValidateHeader(MovieV2Header header)
         {
             if (header == null) throw new InvalidDataException("Movie header is missing.");
+            if (header.CustomKeys.Any(k => !CustomKeyInput.Names.ContainsKey(k))
+                || !header.CustomKeys.SequenceEqual(header.CustomKeys.Distinct().OrderBy(k => k)))
+                throw new InvalidDataException("Custom keys must be supported, unique and sorted.");
             CheckHeaderString(header.GameVersion, "gameVersion");
             CheckHeaderString(header.ApiVersion, "apiVersion");
             CheckHeaderString(header.ModVersion, "modVersion");
@@ -347,6 +367,7 @@ namespace HollowKnightTAS.Core.Movie
                 throw new InvalidDataException("Frame rate must be between 1 and 1000 FPS.");
             if (run.Samples.Count > MovieProtocolV2.MaximumSamplesPerFrame)
                 throw new InvalidDataException("Too many samples in one native frame.");
+            CustomKeyInput.Validate(run.Samples);
             foreach (var sample in run.Samples)
             {
                 var expected = MovieProtocolV2.ExpectedValueCount(sample.Channel);

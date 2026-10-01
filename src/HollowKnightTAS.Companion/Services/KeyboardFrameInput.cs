@@ -12,7 +12,7 @@ public static class KeyboardFrameInput
     public static readonly string[] Actions = { "Left", "Right", "Up", "Down", "Submit", "Cancel", "Jump", "Dash", "SuperDash", "DreamNail", "Attack", "Cast", "QuickCast" };
 
     public static IReadOnlyDictionary<string, bool> Capture(IReadOnlyDictionary<string, string> bindings,
-        Key stepKey, Func<int, bool>? isDown = null)
+        Key stepKey, Func<int, bool>? isDown = null, IEnumerable<short>? customKeys = null)
     {
         isDown ??= key => (GetAsyncKeyState(key) & 0x8000) != 0;
         var states = new Dictionary<int, bool>();
@@ -39,12 +39,24 @@ public static class KeyboardFrameInput
             }
             result[action] = held;
         }
+        foreach (var key in customKeys ?? Array.Empty<short>())
+        {
+            var name = CustomKeyInput.Names[key];
+            if (name.StartsWith("Alpha")) name = "Key" + name.Substring(5);
+            if (name.StartsWith("Keypad")) name = "Pad" + name.Substring(6);
+            var codes = VirtualKeys(name);
+            if (codes.Contains(KeyInterop.VirtualKeyFromKey(stepKey)))
+                throw new InvalidOperationException("逐帧快捷键与自定义键冲突：" + name);
+            result[CustomKeyInput.Action(key)] = codes.Any(Down);
+        }
         return result;
     }
 
     public static MovieV2Document WriteFrame(MovieV2Document movie, long frame, IReadOnlyDictionary<string, bool> states)
     {
         foreach (var action in Actions) movie = MovieV2RangeEditor.Paint(movie, frame, 1, action, states[action]);
+        foreach (var state in states.Where(s => CustomKeyInput.TryAction(s.Key, out _)))
+            movie = MovieV2RangeEditor.Paint(movie, frame, 1, state.Key, state.Value);
         return movie;
     }
 
@@ -59,10 +71,11 @@ public static class KeyboardFrameInput
             "LeftControl" => "LeftCtrl", "RightControl" => "RightCtrl",
             "LeftCommand" => "LWin", "RightCommand" => "RWin", "AltGr" => "RightAlt",
             "LeftArrow" => "Left", "RightArrow" => "Right", "UpArrow" => "Up", "DownArrow" => "Down",
-            "Backquote" => "Oem3", "Minus" => "OemMinus", "Equals" => "OemPlus",
+            "BackQuote" or "Backquote" => "Oem3", "Minus" => "OemMinus", "Equals" => "OemPlus",
             "LeftBracket" => "OemOpenBrackets", "RightBracket" => "OemCloseBrackets",
             "Backslash" => "Oem5", "Semicolon" => "Oem1", "Quote" => "Oem7",
             "Comma" => "OemComma", "Period" => "OemPeriod", "Slash" => "Oem2",
+            "Numlock" => "NumLock", "ScrollLock" => "Scroll", "PadEquals" => "OemPlus",
             "Backspace" => "Back", "PadDivide" => "Divide", "PadMultiply" => "Multiply",
             "PadMinus" => "Subtract", "PadPlus" => "Add", "PadPeriod" => "Decimal", "PadEnter" => "Return",
             _ when name.Length == 4 && name.StartsWith("Key") && char.IsDigit(name[3]) => "D" + name[3],

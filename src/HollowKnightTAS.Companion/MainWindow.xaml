@@ -97,6 +97,10 @@
                      AutomationProperties.AutomationId="HktasStudio.InsertFrameCount" />
             <Button Content="{ui:Text t13}" Command="{Binding InsertGridCommand}" />
             <Button Content="{ui:Text t14}" Command="{Binding DeleteGridCommand}" />
+            <ComboBox ItemsSource="{Binding AvailableCustomKeys}" DisplayMemberPath="Value" SelectedValuePath="Key"
+                      SelectedValue="{Binding SelectedCustomKey}" Width="120" Margin="8,0,4,0" ToolTip="{ui:Text customKey}" />
+            <Button Content="{ui:Text addCustomKey}" Command="{Binding AddCustomKeyCommand}" />
+            <Button Content="{ui:Text removeCustomKey}" Command="{Binding RemoveCustomKeyCommand}" ToolTip="{ui:Text removeCustomKeyHint}" />
           </WrapPanel>
           <WrapPanel Grid.Row="1" Margin="0,0,0,6">
             <Button Content="{ui:Text t15}" Command="{Binding OpenMovieCommand}" IsEnabled="{Binding IsInputGridInteractive}" />
