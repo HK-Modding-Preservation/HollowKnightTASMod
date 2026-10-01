@@ -22,7 +22,7 @@ namespace HollowKnightTAS.Companion
             if (DataContext is not MainViewModel vm) return;
             if (vm.SequenceInitialSaves == null || vm.SequenceInitialSaves.Hashes.Count == 0)
             {
-                MessageBox.Show(this, UiText.T("当前序列没有关联存档。"), UiText.T("序列存档"));
+                MessageBox.Show(this, UiText.T("当前序列没有关联存档。"), UiText.T("编辑存档"));
                 return;
             }
             new SequenceSavesWindow(vm) { Owner = this }.ShowDialog();

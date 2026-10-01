@@ -19,7 +19,7 @@ public sealed class SequenceSavesWindow : Window
 
     public SequenceSavesWindow(MainViewModel vm)
     {
-        Title = UiText.T("序列存档 · JSON"); Width = 900; Height = 700; MinWidth = 550; MinHeight = 350;
+        Title = UiText.T("编辑存档 · JSON"); Width = 900; Height = 700; MinWidth = 550; MinHeight = 350;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var original = vm.SequenceInitialSaves!;
         var draft = original;

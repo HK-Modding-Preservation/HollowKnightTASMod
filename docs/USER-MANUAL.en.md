@@ -130,6 +130,6 @@ See the [AI control guide](AI-CONTROL.en.md) for automation.
 
 ### Edit and export sequence saves
 
-Choose **Sequence saves**, select a file, and edit its JSON text. **Apply changes to sequence** preserves the original timeline and creates a new starting point. Use **Save sequence** to save a new package. Invalid JSON stays in the editor so you can correct it.
+Choose **Edit saves**, select a file, and edit its JSON text. **Apply changes to sequence** preserves the original timeline and creates a new starting point. Use **Save sequence** to save a new package. Invalid JSON stays in the editor so you can correct it.
 
 **Export saves…** writes every save and Mod companion file from the current copy to a new folder under your chosen location. It preserves the game save format and existing files.
