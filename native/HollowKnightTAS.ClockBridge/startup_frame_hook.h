@@ -61,8 +61,7 @@ static void __cdecl boot_player_loop(void)
     {
         if (!hktas_v2_before_frame())
         {
-            g_boot_loop_active = FALSE;
-            return;
+            hktas_v2_wait_fault();
         }
     }
     else if (g_boot_frame_state && WaitForSingleObject(g_boot_continue, 0) != WAIT_OBJECT_0)
@@ -77,8 +76,7 @@ static void __cdecl boot_player_loop(void)
     /* Start the bootstrap deadline only after the user releases frame zero. */
     if (!prepare_loading_startup_clock_probe()) {
         hktas_v2_fault(61);
-        g_boot_loop_active = FALSE;
-        return;
+        hktas_v2_wait_fault();
     }
     advance_boot_frame_clock();
     g_boot_original_player_loop();

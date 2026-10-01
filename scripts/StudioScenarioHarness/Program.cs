@@ -65,7 +65,8 @@ internal static partial class StudioScenarioHarness
             }
             catch (Exception error) { Log("FAIL " + error); return 1; }
         }
-        if (args.Contains("--info-overlay") || args.Contains("--overlay-stacking") || args.Contains("--custom-keys"))
+        if (args.Contains("--info-overlay") || args.Contains("--overlay-stacking") || args.Contains("--custom-keys")
+            || args.Contains("--divergence-fault-window"))
             typeof(MainViewModel).GetProperty("InfoOverlaySettingPathOverride", BindingFlags.Static | BindingFlags.NonPublic)!
                 .SetValue(null, Path.Combine(output, "info-settings.json"));
         videoExportScenarios = args.Contains("--video-export");

@@ -55,6 +55,8 @@ internal static partial class StudioScenarioHarness
                 await File.WriteAllTextAsync(Path.Combine(output, "fault-status.json"), JsonSerializer.Serialize(state));
                 Require(state.GetValueOrDefault("videoExport.state") == "Failed" && boot.FullRunFaultCode != 0,
                     "video fault probe reproduced a replay failure");
+                if (args.Contains("--divergence-fault-window"))
+                    await ProbeFaultedWindowAsync(vm, boot, args.Contains("--require-fault-responsive"));
                 await Task.Delay(15000);
                 movies.VerifyOriginalSavesUnchanged();
                 Log("VIDEO failure command returned and UI delay completed");
@@ -137,10 +139,23 @@ internal static partial class StudioScenarioHarness
             {
                 await File.WriteAllTextAsync(Path.Combine(output, "fault-status.json"),
                     JsonSerializer.Serialize(await VideoRuntimeState(vm)));
+                if (args.Contains("--divergence-fault-window"))
+                    await ProbeFaultedWindowAsync(vm, boot, args.Contains("--require-fault-responsive"));
                 for (var second = 0; second < 15; second++)
                 {
                     await Task.Delay(1000);
                     Log("FAULT UI dispatcher responsive " + second);
+                }
+                if (args.Contains("--divergence-recover-after-fault"))
+                {
+                    await vm.FrameMenuAsync("rebuild", 0);
+                    AtFrame(vm, boot, 0, "cold rebuild recovers from terminal replay fault");
+                    await Command(vm.StepCommand);
+                    AtFrame(vm, boot, 0, "recovered game bootstraps a fresh movie");
+                    var recoveredNativeFrame = boot.NativeCompletedFrames;
+                    await Command(vm.StepCommand);
+                    Require(boot.NativeCompletedFrames == recoveredNativeFrame + 1 && boot.IsWaiting && boot.FullRunFaultCode == 0,
+                        "recovered game accepts one normal native frame step");
                 }
                 movies.VerifyOriginalSavesUnchanged();
                 return;
@@ -215,6 +230,54 @@ internal static partial class StudioScenarioHarness
                 "all targets reached the first gameplay scene without input/native faults");
         }
     }
+
+    static async Task ProbeFaultedWindowAsync(MainViewModel vm, StartupBootController boot, bool requireResponsive)
+    {
+        var game = Field<Process>(app, "startupGame"); game.Refresh();
+        var window = game.MainWindowHandle;
+        var native = boot.NativeCompletedFrames;
+        var fault = boot.FullRunFaultCode;
+        var gate = Field<StartupBootGate>(boot, "gate");
+        Require(window != IntPtr.Zero && fault != 0, "probe owns a faulted game window");
+        async Task<bool> Responsive() => await Task.Run(() => FaultWindowMessage(window, 0, IntPtr.Zero,
+            IntPtr.Zero, 0x0002, 1000, out _) != IntPtr.Zero);
+        var before = await Responsive();
+        Log("FAULT WINDOW before move responsive=" + before);
+        // Unity's title-bar modal loop can reenter PerformMainLoop. A fault
+        // must pump this loop without running another simulation frame.
+        PostInfoMessage(window, 0x0112, new IntPtr(0xF010), IntPtr.Zero);
+        await Task.Delay(200);
+        PostInfoMessage(window, 0x0100, new IntPtr(0x27), IntPtr.Zero);
+        await Task.Delay(250);
+        PostInfoMessage(window, 0x0100, new IntPtr(0x1B), IntPtr.Zero);
+        var after = await Responsive();
+        Log("FAULT WINDOW after move responsive=" + after);
+        await File.WriteAllTextAsync(Path.Combine(output, "fault-window.json"), JsonSerializer.Serialize(new
+        { before, after, nativeBefore = native, nativeAfter = boot.NativeCompletedFrames,
+            faultBefore = fault, faultAfter = boot.FullRunFaultCode, saveGuard = gate.SaveGuardArmed }));
+        Require(boot.NativeCompletedFrames == native && boot.FullRunFaultCode == fault && gate.SaveGuardArmed == 1,
+            "fault interaction never advances simulation or clears fault/save protection");
+        if (requireResponsive)
+        {
+            Require(before && after, "faulted game keeps servicing window messages");
+            app.MainWindow.Show(); app.MainWindow.Activate();
+            var info = new InfoOverlayWindow();
+            var colliders = new ColliderOverlayWindow();
+            try
+            {
+                info.SetOwner(window); info.SetBounds(100, 100, 500, 300, 96); info.ShowOverlay();
+                colliders.SetOwner(window); colliders.SetBounds(100, 100, 500, 300, 96); colliders.ShowOverlay();
+                await Task.Delay(300);
+                info.Hide(); colliders.Hide();
+                Log("PASS Studio and owned overlays can show and hide after a native fault");
+            }
+            finally { info.Close(); colliders.Close(); }
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", EntryPoint = "SendMessageTimeoutW")]
+    static extern IntPtr FaultWindowMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam,
+        uint flags, uint timeout, out IntPtr result);
 
     static void VerifyOriginalMovieInput(string original, string observed)
     {
