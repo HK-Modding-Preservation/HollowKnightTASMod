@@ -549,7 +549,7 @@ namespace HollowKnightTAS.ClockPayload
             }
             if (!RecordingClockCalibrationPolicy.IsAllowed(
                     recordingClockCalibrationRequested,
-                    recordingRootConfigured || randomSynchronizationRequested
+                    fullRunRenderIsolationEnabled || recordingRootConfigured || randomSynchronizationRequested
                         || randomSynchronizationApplied || recordingRandomSynchronizationApplied,
                     string.Equals(sceneName, "GG_Workshop", StringComparison.Ordinal)))
             {

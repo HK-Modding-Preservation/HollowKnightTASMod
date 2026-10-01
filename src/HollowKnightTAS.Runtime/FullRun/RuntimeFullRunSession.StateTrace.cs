@@ -12,7 +12,7 @@ namespace HollowKnightTAS.Runtime.FullRun
 
         private void TraceReplayState(long nativeFrame)
         {
-            if (!replayStateTraceEnabled || !frameInputEnabled || movieFrame < 220 || movieFrame > 705) return;
+            if (!replayStateTraceEnabled || !frameInputEnabled || movieFrame < 220 || movieFrame > 1800) return;
             try
             {
                 if (replayStateTrace == null)

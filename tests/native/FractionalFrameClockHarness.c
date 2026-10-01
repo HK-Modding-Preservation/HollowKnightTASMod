@@ -65,5 +65,24 @@ int main(void)
     CHECK(HktasClockBridge_SetFullRunFrameRateRatio(999999999, 1000000) == 1);
     CHECK(HktasClockBridge_SetFullRunFrameRateRatio(1000001, 1000000) == 1);
     printf("PASS all legacy integer rates and six-decimal boundaries\n");
+    reset_clock();
+    g_loading_startup_clock_enabled = TRUE;
+    g_loading_startup_clock_frozen_frame = TRUE;
+    CHECK(HktasClockBridge_SetFullRunFrameRateRatio(99999, 1000) == 1);
+    advance_boot_frame_clock();
+    CHECK(g_deterministic_clock_anchor.QuadPart == 0 && g_fractional_clock.phase == 0);
+    g_loading_startup_clock_frozen_frame = FALSE;
+    g_status = 2;
+    g_query_performance_counter = QueryPerformanceCounter;
+    g_virtual_clock_main_thread_id = GetCurrentThreadId();
+    for (LONG i = 1; i <= 10000; ++i) {
+        advance_boot_frame_clock();
+        LONGLONG current = g_deterministic_clock_anchor.QuadPart;
+        uint64_t current_phase = g_fractional_clock.phase;
+        CHECK(HktasClockBridge_AdvanceDeterministicFrameClock(i) == 1);
+        CHECK(g_deterministic_clock_anchor.QuadPart == current && g_fractional_clock.phase == current_phase);
+        CHECK(HktasClockBridge_AdvanceDeterministicFrameClock(i) == -5);
+    }
+    printf("PASS canonical bootstrap holds time and managed observations never double-advance it\n");
     return 0;
 }

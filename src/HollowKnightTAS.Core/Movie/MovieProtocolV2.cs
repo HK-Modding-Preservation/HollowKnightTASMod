@@ -18,7 +18,7 @@ namespace HollowKnightTAS.Core.Movie
         public const string Format = "hktas";
         public const string TickUnit = "input-playerloop";
         public const string ActionSchemaId = "hktas-full-run-actions-v2";
-        public const string NativeProfileId = "hktas-unity-input-playerloop-load-elision-scene-rng-2026-v3";
+        public const string NativeProfileId = NativeExecutionProfile.ProfileId;
         public const string RandomSynchronizationPolicyId =
             "scene-input-boundary-seed-render-isolation-v1";
         public const int MaximumSourceUtf8Bytes = 16 * 1024 * 1024;

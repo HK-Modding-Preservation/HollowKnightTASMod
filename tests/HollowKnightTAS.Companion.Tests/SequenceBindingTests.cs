@@ -58,6 +58,39 @@ public sealed class SequenceBindingTests
         StringAssert.Contains(f.Vm.SequenceBindingStatus, "未绑定");
     }
 
+    [TestMethod] public async Task ManualSaveUpgradesLegacyProfileAndPreservesInputsAndInitialSaves()
+    {
+        using var f = new Fixture();
+        var values = new short[26]; values[1] = 32767; values[10] = 32767;
+        var expected = new MovieV2Codec().WriteCanonical(new MovieV2Document("test", TimelineTree.Parse(Movie()).Header,
+            new[] { new NativeFrameRun(1, new[] { new GameInputSample(GameInputChannel.Hero, values, null,
+                    pressedMask: (1UL << 1) | (1UL << 10)) }, new MovieSourceSpan("test", 2, 1, 1), 59.94m, true, 12345),
+                new NativeFrameRun(499, Array.Empty<GameInputSample>(), new MovieSourceSpan("test", 3, 1, 1), 50, true) }));
+        var legacy = expected.Replace(MovieProtocolV2.NativeProfileId,
+            "hktas-unity-input-playerloop-load-elision-scene-rng-2026-v3");
+        var original = Path.Combine(f.Root, "legacy.hktaspack");
+        var snapshot = Snapshot(7);
+        await SequencePackage.WriteAsync(original, legacy, snapshot);
+        await f.Vm.OpenMovieFileAsync(original);
+        Assert.AreEqual(legacy, f.Vm.MovieText, "Opening alone must not migrate the source.");
+        Set(f.Vm, "activeSequenceDirectory", f.Root); Set(f.Vm, "activeAutoSaveSeconds", 1);
+        Set(f.Vm, "nextSequenceAutoSave", DateTime.MinValue); Set(f.Vm, "autoSaveName", "legacy");
+        await f.Vm.AutoSaveSequenceAsync();
+        Assert.AreEqual(legacy, SequencePackage.Read(Path.Combine(f.Root, "Autosave", "sequence-legacy.hktaspack")).Movie);
+
+        var copy = Path.Combine(f.Root, "new.hktaspack");
+        await Save(f.Vm, copy);
+        Assert.AreEqual(expected, SequencePackage.Read(copy).Movie, "Inputs, edges, fractional FPS and RNG seed must survive.");
+        Assert.AreEqual(snapshot.Id, SequencePackage.Read(copy).InitialSaves!.Id);
+        Assert.AreEqual(legacy, f.Vm.MovieText, "Saving must not change the live timeline identity.");
+        Assert.AreEqual(legacy, SequencePackage.Read(original).Movie, "Save As preserves the source file.");
+
+        await f.Vm.OpenMovieFileAsync(original);
+        await Save(f.Vm, original);
+        Assert.AreEqual(expected, SequencePackage.Read(original).Movie, "Ordinary save also upgrades the profile.");
+        Assert.AreEqual(snapshot.Id, SequencePackage.Read(original).InitialSaves!.Id);
+    }
+
     [TestMethod] public async Task OpeningBoundSequenceAtFrameZeroRequiresFreshShadowEvenWhenUnarmed()
     {
         using var f = new Fixture(); f.SetFrameZero();

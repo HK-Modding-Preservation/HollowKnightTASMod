@@ -12,6 +12,7 @@ using HollowKnightTAS.Companion.Automation;
 using HollowKnightTAS.Companion.Services;
 using HollowKnightTAS.Companion.ViewModels;
 using HollowKnightTAS.Core.Automation;
+using HollowKnightTAS.Core.Movie;
 
 internal static partial class StudioScenarioHarness
 {
@@ -30,7 +31,15 @@ internal static partial class StudioScenarioHarness
         File.Copy(source, copy, false);
         await vm.OpenMovieFileAsync(copy);
         var originalMovie = vm.MovieText;
+        await File.WriteAllTextAsync(Path.Combine(output, "original-movie.hktas"), originalMovie);
         await Field<Func<string, Task>>(vm, "launchGame")(@"D:\SteamLibrary\steamapps\common\Hollow Knight\hollow_knight.exe");
+        if (args.Contains("--divergence-startup-pause"))
+        {
+            await Task.Delay(35000);
+            boot.Refresh();
+            Require(boot.IsWaiting && boot.NativeCompletedFrames == 0 && boot.FullRunFaultCode == 0,
+                "waiting at startup frame zero does not advance or fault the clock");
+        }
         var observations = new Dictionary<string, Dictionary<string, string>>();
 
         async Task Capture(string label, bool screenshot = true)
@@ -83,6 +92,14 @@ internal static partial class StudioScenarioHarness
                 await Capture("step-" + frame, frame % 50 == 0 || frame is 114 or 640 or 641 || frame == target);
             }
         }
+        if (args.Contains("--divergence-play-sample"))
+        {
+            await vm.FrameMenuAsync("rebuild", start);
+            AtFrame(vm, boot, start, "continuous playback starting boundary");
+            await vm.FrameMenuAsync("seek", target);
+            AtFrame(vm, boot, target, "continuous playback target boundary");
+            await Capture("play-" + target);
+        }
         var repeats = int.Parse(args.SingleOrDefault(a => a.StartsWith("--divergence-repeats="))?.Split('=', 2)[1] ?? "3");
         for (var i = 0; i < repeats; i++)
         {
@@ -94,13 +111,16 @@ internal static partial class StudioScenarioHarness
                 var pausedFrame = boot.NativeCompletedFrames;
                 await Task.Delay(2000);
                 boot.Refresh();
+                Require(boot.NativeCompletedFrames == pausedFrame && boot.IsWaiting && boot.FullRunFaultCode == 0,
+                    "paused restore remains at the same native boundary");
                 await File.WriteAllTextAsync(Path.Combine(output, "pause-boundary-" + i + ".json"),
                     JsonSerializer.Serialize(new { before = pausedFrame, after = boot.NativeCompletedFrames,
                         waiting = boot.IsWaiting, fault = boot.FullRunFaultCode, stepEnabled = vm.StepCommand.CanExecute(null) }));
                 await Capture("after-pause-" + i + "-" + target, false);
             }
         }
-        Require(vm.MovieText == originalMovie, "probe did not edit movie input");
+        await File.WriteAllTextAsync(Path.Combine(output, "observed-movie.hktas"), vm.MovieText);
+        VerifyOriginalMovieInput(originalMovie, vm.MovieText);
         movies.VerifyOriginalSavesUnchanged();
         var targetStates = observations.Where(p => p.Value["movieFrame"] == target.ToString())
             .ToDictionary(p => p.Key, p => p.Value);
@@ -120,6 +140,29 @@ internal static partial class StudioScenarioHarness
             Require(targetStates.Values.All(v => v["sceneName"] == "Tutorial_01"
                 && v["faultCode"] == "0" && v["mismatchCount"] == "0"),
                 "all targets reached the first gameplay scene without input/native faults");
+        }
+    }
+
+    static void VerifyOriginalMovieInput(string original, string observed)
+    {
+        var codec = new MovieV2Codec();
+        var before = codec.Parse(new StringReader(original), "original").Document
+            ?? throw new InvalidDataException("Original probe movie is invalid.");
+        var after = codec.Parse(new StringReader(observed), "observed").Document
+            ?? throw new InvalidDataException("Observed probe movie is invalid.");
+        var count = before.Runs.Sum(run => run.RepeatCount);
+        var afterCount = after.Runs.Sum(run => run.RepeatCount);
+        Require(afterCount == count || afterCount == count + 500,
+            "only the normal 500-frame editor padding may extend the sequence");
+        Require(codec.WriteCanonical(MovieV2Prefix.Take(after, count)) == codec.WriteCanonical(before),
+            "all original movie input and metadata remain unchanged");
+        long end = 0;
+        foreach (var run in after.Runs)
+        {
+            end += run.RepeatCount;
+            if (end > count)
+                Require(run.Authored && run.Samples.Count == 0 && !run.RngSeed.HasValue,
+                    "editor tail padding contains no input or RNG commands");
         }
     }
 }
