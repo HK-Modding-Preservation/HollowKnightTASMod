@@ -528,6 +528,7 @@ namespace HollowKnightTAS.Runtime.FullRun
                     }
                 }
                 clock.SetFrameRate(ready ? activeFrameRate : 50);
+                DeterministicCinematics.FrameDuration = 1d / (double)(ready ? activeFrameRate : 50m);
                 if (ready) TraceMovieRng("before", replayMovie?.Runs[timingRunIndex].RngSeed);
                 frameInputEnabled = ready;
                 // Resume drawing before the target so temporal presentation can
@@ -550,6 +551,8 @@ namespace HollowKnightTAS.Runtime.FullRun
 
         private bool IsMovieFrameReady(out string boundary)
         {
+            if (DeterministicCinematics.Failure != null)
+                throw new InvalidOperationException("Cinematic synchronization failed: " + DeterministicCinematics.Failure);
             var manager = GameManager.instance;
             if (manager == null)
             {
@@ -601,6 +604,13 @@ namespace HollowKnightTAS.Runtime.FullRun
             {
                 boundary = "GameState:" + manager.gameState;
                 return false;
+            }
+            if (manager.gameState == GameState.CUTSCENE)
+            {
+                // CutsceneInput/Skip are valid without an active hero. Do not
+                // consume these scenes as unrecorded loading PlayerLoops.
+                boundary = "CutsceneInput";
+                return true;
             }
             var hero = HeroController.SilentInstance;
             if (hero == null || !hero.gameObject.activeInHierarchy)

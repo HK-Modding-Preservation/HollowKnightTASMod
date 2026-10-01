@@ -18,12 +18,14 @@ namespace HollowKnightTAS.Runtime.FullRun
         private readonly int gameThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
         private readonly ILHook randomConstructor;
         private readonly DeterministicSceneFetch synchronousFetch;
+        private readonly DeterministicCinematics cinematics;
         private bool suppressInput = true;
         private long suppressedUpdates;
 
         public ModStartupCompatibility()
         {
             synchronousFetch = new DeterministicSceneFetch();
+            cinematics = new DeterministicCinematics();
             if (InputManager.CurrentTick != 0)
                 throw new InvalidOperationException("Mod startup input guard was installed too late.");
             randomConstructor = new ILHook(typeof(Random).GetConstructor(Type.EmptyTypes), il =>
@@ -90,6 +92,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             On.InControl.InputManager.UpdateInternal -= OnInputUpdate;
             randomConstructor.Dispose();
             synchronousFetch.Dispose();
+            cinematics.Dispose();
         }
     }
 }

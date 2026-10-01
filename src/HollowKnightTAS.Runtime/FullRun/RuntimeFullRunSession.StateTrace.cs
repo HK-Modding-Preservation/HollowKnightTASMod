@@ -12,13 +12,13 @@ namespace HollowKnightTAS.Runtime.FullRun
 
         private void TraceReplayState(long nativeFrame)
         {
-            if (!replayStateTraceEnabled || !frameInputEnabled || movieFrame < 220 || movieFrame > 1800) return;
+            if (!replayStateTraceEnabled || !frameInputEnabled || movieFrame > 20000) return;
             try
             {
                 if (replayStateTrace == null)
                 {
                     replayStateTrace = new StreamWriter(Path.Combine(sessionDirectory, "replay-state-trace.csv"));
-                    replayStateTrace.WriteLine("native,movie,scene,x,y,bodyX,bodyY,vx,vy,time,fixedTime,timeDouble,fixedTimeDouble,dt,fixedDt,interpolation");
+                    replayStateTrace.WriteLine("native,movie,scene,x,y,bodyX,bodyY,vx,vy,time,fixedTime,timeDouble,fixedTimeDouble,dt,fixedDt,interpolation,cinematic");
                 }
                 var hero = HeroController.SilentInstance;
                 var body = hero == null ? null : hero.GetComponent<Rigidbody2D>();
@@ -30,8 +30,8 @@ namespace HollowKnightTAS.Runtime.FullRun
                     F(position.x), F(position.y), F(bodyPosition.x), F(bodyPosition.y), F(velocity.x), F(velocity.y),
                     F(Time.time), F(Time.fixedTime), Time.timeAsDouble.ToString("R", CultureInfo.InvariantCulture),
                     Time.fixedTimeAsDouble.ToString("R", CultureInfo.InvariantCulture), F(Time.deltaTime), F(Time.fixedDeltaTime),
-                    body == null ? "none" : body.interpolation.ToString()));
-                if (clock.IsPaused || movieFrame % 100 == 0) replayStateTrace.Flush();
+                    body == null ? "none" : body.interpolation.ToString(), DeterministicCinematics.TraceState));
+                replayStateTrace.Flush();
             }
             catch (Exception error)
             {

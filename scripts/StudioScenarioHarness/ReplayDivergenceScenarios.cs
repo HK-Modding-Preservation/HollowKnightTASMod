@@ -65,6 +65,13 @@ internal static partial class StudioScenarioHarness
             var observation = await (Task<IReadOnlyDictionary<string, string>>)request.Invoke(vm,
                 new object[] { vm.SelectedSession!.Client, watchFields, CancellationToken.None })!;
             await File.WriteAllTextAsync(Path.Combine(output, label + "-info.json"), observation["snapshotJson"]);
+            if (Environment.GetEnvironmentVariable("HKTAS_CINEMATIC_ACCEPTANCE") == "1")
+            {
+                var traces = Directory.GetFiles(Path.Combine(movies.ShadowRoot, "HollowKnightTAS", "sessions"),
+                    "replay-state-trace.csv", SearchOption.AllDirectories);
+                if (traces.Length == 1)
+                    File.Copy(traces[0], Path.Combine(output, "trace-" + movies.ShadowRoot.Split(Path.DirectorySeparatorChar).Last() + ".csv"), true);
+            }
             if (screenshot && !args.Contains("--divergence-no-screenshots"))
             {
                 var game = Field<Process>(app, "startupGame"); game.Refresh();
@@ -130,6 +137,31 @@ internal static partial class StudioScenarioHarness
             JsonSerializer.Serialize(new { target, distinctStates, observations = targetStates }));
         Log("DIAGNOSTIC comparison distinct target states=" + distinctStates
             + "; harness completion is not a determinism pass");
+        if (args.Contains("--verify-cinematics"))
+        {
+            Require(distinctStates == 1, "cutscene step/play/restore target state matches");
+            Require(targetStates.Values.All(v => v["faultCode"] == "0" && v["mismatchCount"] == "0"),
+                "cutscene samples have no native or input faults");
+            var traces = Directory.GetFiles(output, "trace-*.csv");
+            Require(traces.Length >= 2, "independent cinematic traces captured");
+            Dictionary<string, string[]> ReadTrace(string path) => File.ReadLines(path).Skip(1)
+                .Where(line => !string.IsNullOrWhiteSpace(line)).Select(line => line.Split(','))
+                .ToDictionary(row => row[1]);
+            var baselineTrace = ReadTrace(traces[0]);
+            foreach (var path in traces.Skip(1))
+            {
+                var current = ReadTrace(path);
+                Require(current.ContainsKey(target.ToString()), "cinematic trace reaches target");
+                var absoluteClockDifferences = current.Values.Count(row => baselineTrace.TryGetValue(row[1], out var before)
+                    && !before.Skip(9).Take(4).SequenceEqual(row.Skip(9).Take(4)));
+                Log("DIAGNOSTIC absolute Unity clock differences=" + absoluteClockDifferences);
+                var mismatch = current.Values.FirstOrDefault(row => baselineTrace.TryGetValue(row[1], out var before)
+                    && (!before.Skip(1).Take(8).SequenceEqual(row.Skip(1).Take(8))
+                        || !before.Skip(13).SequenceEqual(row.Skip(13))));
+                Require(mismatch == null, "scene, physics, frame deltas and cinematic clock match across "
+                    + current.Count + " Movie rows; first mismatch=" + (mismatch?[1] ?? "none"));
+            }
+        }
         if (args.Contains("--verify-first-level"))
         {
             Require(!observations.Values.Any(v => v["sceneName"] == "Opening_Sequence"

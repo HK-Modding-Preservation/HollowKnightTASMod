@@ -209,7 +209,8 @@ internal static partial class StudioScenarioHarness
     [DllImport("kernel32.dll")] static extern bool GlobalMemoryStatusEx(ref Memory memory);
     static void Guard()
     {
-        var deadline = DateTime.UtcNow.AddMinutes(battleVideoScenarios || worldlineFaultScenarios ? 20 : videoExportScenarios || fsmScenarios ? 8 : 4);
+        var deadline = DateTime.UtcNow.AddMinutes(battleVideoScenarios || worldlineFaultScenarios ? 20
+            : videoExportScenarios || fsmScenarios || Environment.GetEnvironmentVariable("HKTAS_CINEMATIC_ACCEPTANCE") == "1" ? 8 : 4);
         while (Volatile.Read(ref finished) == 0)
         {
             if (DateTime.UtcNow > deadline)

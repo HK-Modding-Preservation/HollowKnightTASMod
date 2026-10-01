@@ -4,6 +4,6 @@ namespace HollowKnightTAS.Core.Movie
     // cannot advertise different execution rules.
     public static class NativeExecutionProfile
     {
-        public const string ProfileId = "hktas-unity-input-playerloop-canonical-first-level-2026-v7";
+        public const string ProfileId = "hktas-unity-input-playerloop-canonical-cinematics-2026-v8";
     }
 }
