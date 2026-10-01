@@ -27,9 +27,10 @@ namespace HollowKnightTAS.Companion.Services
         private string field = "position", label = "", color = "#FFFFFF", unit = "";
         private int precision = 3;
         private bool enabled = true, readyAtZero = true;
-        private string expression = "hero.dashCooldownTimer";
+        private string? expression;
         [JsonIgnore] public bool IsCustom => Field == "custom";
-        public string Expression { get => expression; set => Change(ref expression, value); }
+        [JsonIgnore] public bool UsesExpression => IsCustom || Expression != InfoOverlayModel.DefaultExpression(Field);
+        public string Expression { get => expression ?? InfoOverlayModel.DefaultExpression(Field); set => Change(ref expression, value); }
         [JsonIgnore] public string FieldName => InfoOverlayModel.Fields.FirstOrDefault(f => f.Id == Field)?.Name ?? Field;
         public string Field { get => field; set => Change(ref field, value); }
         public string Label { get => label; set => Change(ref label, value); }
@@ -45,7 +46,7 @@ namespace HollowKnightTAS.Companion.Services
         private bool enabled = true;
         private double fontSize = 16, opacity = .65, marginX = 8, marginY = 8;
         private string anchor = "右上", color = "#FFFFFF", hotkey = "F11";
-        public int Version { get; set; } = 2;
+        public int Version { get; set; } = 3;
         public bool Enabled { get => enabled; set => Change(ref enabled, value); }
         public double FontSize { get => fontSize; set => Change(ref fontSize, value); }
         public double BackgroundOpacity { get => opacity; set => Change(ref opacity, value); }
@@ -65,7 +66,7 @@ namespace HollowKnightTAS.Companion.Services
 
         public void Validate()
         {
-            if (Version != 2 || !Anchors.Contains(Anchor) || !Hotkeys.Contains(Hotkey)
+            if (Version != 3 || !Anchors.Contains(Anchor) || !Hotkeys.Contains(Hotkey)
                 || !double.IsFinite(FontSize) || FontSize < 10 || FontSize > 40
                 || !double.IsFinite(BackgroundOpacity) || BackgroundOpacity < 0 || BackgroundOpacity > 1
                 || !double.IsFinite(MarginX) || MarginX < 0 || MarginX > 10000
@@ -79,7 +80,7 @@ namespace HollowKnightTAS.Companion.Services
                     || item.Label.Any(char.IsControl) || item.Unit == null || item.Unit.Length > 16
                     || item.Unit.Any(char.IsControl) || (!string.IsNullOrEmpty(item.Color) && !InfoOverlayModel.IsColor(item.Color)))
                     throw new InvalidDataException("信息条目无效：检查字段、小数位、名称、单位和颜色。");
-                if (item.IsCustom) InfoWatchQuery.Parse(item.Expression);
+                InfoWatchExpression.Parse(item.Expression);
             }
         }
         public static InfoOverlaySettings Load(string path)
@@ -94,6 +95,14 @@ namespace HollowKnightTAS.Companion.Services
                 if (result.Anchor == "左上" && result.MarginX == 16 && result.MarginY == 160)
                 { result.Anchor = "右上"; result.MarginX = 8; result.MarginY = 8; }
                 result.Version = 2;
+            }
+            if (result.Version == 2)
+            {
+                // Older preset rows stored an unused custom query. Do not reinterpret it as an edit.
+                if (result.Items != null)
+                    foreach (var item in result.Items.Where(i => i != null && !i.IsCustom))
+                        item.Expression = InfoOverlayModel.DefaultExpression(item.Field);
+                result.Version = 3;
             }
             result.Validate(); return result;
         }
@@ -128,6 +137,16 @@ namespace HollowKnightTAS.Companion.Services
             "game.gameState", "position.x", "velocity.y", "component(\"/Knight\", \"HeroController\").jump_steps",
             "fsm(\"/Knight\", \"Spell Control\", \"MP Cost\")"
         };
+        public static string DefaultExpression(string id) => id switch
+        {
+            "custom" => "hero.dashCooldownTimer",
+            "position" => "\"X \" + x + \"   Y \" + y",
+            "velocity" => "\"X \" + vx + \"   Y \" + vy",
+            "healthPair" => "health + \" / \" + maxHealth",
+            _ => id
+        };
+        public static string[] Watches(InfoOverlaySettings settings) => settings.Items
+            .Where(i => i.Enabled && i.UsesExpression).Select(i => i.Expression).Distinct().ToArray();
         public static InfoOverlayItem NewItem(string id)
         {
             var field = Fields.Single(f => f.Id == id);
@@ -147,6 +166,15 @@ namespace HollowKnightTAS.Companion.Services
         {
             var field = Fields.FirstOrDefault(f => f.Id == item.Field);
             if (field == null || values == null) return "—";
+            if (item.UsesExpression)
+            {
+                if (!values.TryGetValue("watch:" + item.Expression, out var evaluated)) return "—";
+                if (evaluated.ValueKind == JsonValueKind.String) return evaluated.GetString() ?? "—";
+                if (evaluated.ValueKind is JsonValueKind.True or JsonValueKind.False)
+                    return UiText.T(evaluated.GetBoolean() ? "是" : "否");
+                if (!evaluated.TryGetDoubleSafe(out var n)) return "—";
+                return n.ToString("F" + item.Precision, CultureInfo.InvariantCulture) + Suffix(item.Unit);
+            }
             string Number(string key, int precision)
             {
                 if (!values.TryGetValue(key, out var v) || !v.TryGetDoubleSafe(out var n)) return "—";

@@ -2763,14 +2763,20 @@
   {
     "Key": "只读字段查询",
     "Source": "只读字段查询",
-    "Zh": "只读字段查询",
-    "En": "Read-only field query"
+    "Zh": "只读表达式",
+    "En": "Read-only expression"
   },
   {
     "Key": "自定义字段说明",
     "Source": "自定义字段说明",
-    "Zh": "可直接改写示例：hero / player / game 的字段，position / velocity 的分量，component(\"/对象路径\", \"组件类型\").字段，或 fsm(\"/对象路径\", \"FSM名\", \"变量名\")。支持数组/List下标；不执行方法或属性getter。对象不存在显示 —，错误详情在页底。",
-    "En": "Edit a sample: hero / player / game fields, position / velocity components, component(\"/Object\", \"Type\").field, or fsm(\"/Object\", \"FSM\", \"Variable\"). Array/List indices are supported. No methods or property getters. Missing targets show —; details appear below."
+    "Zh": "预设也可编辑。支持 + - * / %、括号、比较、&& || ! 和 条件 ? 值 : 值；用引号包围文字可拼接。例：health / maxHealth * 100。输入时提示常用字段；Ctrl+空格打开候选，↑↓选择，Enter/Tab插入，Esc关闭。仍支持 hero/player/game、数组/List、component(...) 和 fsm(...)；不执行方法或属性getter。无效或缺失值显示 —，详情在页底。",
+    "En": "Presets are editable. Use + - * / %, parentheses, comparisons, && || !, condition ? value : value, and quoted text concatenation. Example: health / maxHealth * 100. Common fields appear while typing; Ctrl+Space opens suggestions, arrows select, Enter/Tab inserts, Esc closes. hero/player/game, Array/List, component(...) and fsm(...) remain supported. No methods or property getters. Invalid or missing values show —; details appear below."
+  },
+  {
+    "Key": "恢复预设表达式",
+    "Source": "恢复预设表达式",
+    "Zh": "恢复预设表达式",
+    "En": "Reset expression"
   },
   {
     "Key": "自定义字段不可用：",

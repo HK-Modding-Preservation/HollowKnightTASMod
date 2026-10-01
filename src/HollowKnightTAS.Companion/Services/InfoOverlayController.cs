@@ -58,8 +58,7 @@ namespace HollowKnightTAS.Companion.Services
                 var response = await request(session, new Dictionary<string, string>
                 {
                     ["requestId"] = "studio-info-" + Guid.NewGuid().ToString("N"), ["view"] = "info",
-                    ["watches"] = System.Text.Json.JsonSerializer.Serialize(settings.Items.Where(i => i.Enabled && i.IsCustom)
-                        .Select(i => i.Expression).Distinct().ToArray())
+                    ["watches"] = System.Text.Json.JsonSerializer.Serialize(InfoOverlayModel.Watches(settings))
                 }, cancellation.Token);
                 if (disposed || epoch != generation || !ReferenceEquals(session, sessionProvider()) || !session.IsConnected || suspended())
                 { window?.Hide(); return; }

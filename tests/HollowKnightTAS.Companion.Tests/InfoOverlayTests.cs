@@ -107,7 +107,7 @@ namespace HollowKnightTAS.Companion.Tests
                 settings.Items.Add(InfoOverlayModel.NewItem("facingRight"));
                 File.WriteAllText(path, JsonSerializer.Serialize(settings));
                 var migrated = InfoOverlaySettings.Load(path);
-                Assert.AreEqual(2, migrated.Version); Assert.AreEqual("右上", migrated.Anchor);
+                Assert.AreEqual(3, migrated.Version); Assert.AreEqual("右上", migrated.Anchor);
                 Assert.AreEqual(8d, migrated.MarginY); Assert.AreEqual(9, migrated.Items.Count);
                 settings.MarginX = 42;
                 File.WriteAllText(path, JsonSerializer.Serialize(settings));
@@ -115,6 +115,57 @@ namespace HollowKnightTAS.Companion.Tests
                 Assert.AreEqual("左上", customized.Anchor); Assert.AreEqual(42d, customized.MarginX);
             }
             finally { File.Delete(path); }
+        }
+        [TestMethod]
+        public void PresetExpressionsCanBeEditedPersistedAndReset()
+        {
+            var path = Path.Combine(Path.GetTempPath(), "hktas-info-" + Guid.NewGuid().ToString("N"), "settings.json");
+            try
+            {
+                var settings = InfoOverlaySettings.Defaults();
+                var row = settings.Items.First(i => i.Field == "healthPair");
+                row.Expression = "health / maxHealth * 100"; row.Precision = 1; row.Unit = "%";
+                settings.Save(path);
+                var loaded = InfoOverlaySettings.Load(path); row = loaded.Items.First(i => i.Field == "healthPair");
+                CollectionAssert.AreEqual(new[] { row.Expression }, InfoOverlayModel.Watches(loaded));
+                Assert.AreEqual("50.0 %", InfoOverlayModel.Format(row, Values("{\"watch:health / maxHealth * 100\":50}")));
+                row.Expression = "false";
+                Assert.AreEqual(UiText.T("否"), InfoOverlayModel.Format(row, Values("{\"watch:false\":false}")));
+                row.Expression = InfoOverlayModel.DefaultExpression(row.Field); row.Unit = "";
+                Assert.AreEqual(0, InfoOverlayModel.Watches(loaded).Length);
+                Assert.AreEqual("5 / 9", InfoOverlayModel.Format(row, Values("{\"health\":5,\"maxHealth\":9}")));
+                row.Expression = "health +";
+                var lastGood = File.ReadAllText(path);
+                Assert.ThrowsExactly<FormatException>(() => loaded.Save(path));
+                Assert.AreEqual(lastGood, File.ReadAllText(path));
+            }
+            finally { if (File.Exists(path)) File.Delete(path); Directory.Delete(Path.GetDirectoryName(path)!); }
+        }
+        [TestMethod]
+        public void V2UnusedPresetQueriesDoNotOverrideBuiltinsAfterMigration()
+        {
+            var path = Path.GetTempFileName();
+            try
+            {
+                var settings = InfoOverlaySettings.Defaults(); settings.Version = 2;
+                foreach (var item in settings.Items) item.Expression = "hero.dashCooldownTimer";
+                var custom = InfoOverlayModel.NewItem("custom"); custom.Expression = "player.geo"; settings.Items.Add(custom);
+                File.WriteAllText(path, JsonSerializer.Serialize(settings));
+                var loaded = InfoOverlaySettings.Load(path);
+                CollectionAssert.AreEqual(new[] { "player.geo" }, InfoOverlayModel.Watches(loaded));
+                Assert.AreEqual("frame", loaded.Items[0].Expression);
+            }
+            finally { File.Delete(path); }
+        }
+        [TestMethod]
+        public void CompletionTargetsOnlyCaretTokenAndSkipsQuotedNames()
+        {
+            const string expression = "health + player.ge + 12";
+            var match = InfoExpressionCompletion.At(expression, expression.IndexOf(" + 12", StringComparison.Ordinal));
+            CollectionAssert.Contains(match.Matches, "player.geo");
+            Assert.AreEqual("health + player.geo + 12", expression.Remove(match.Start, match.Length).Insert(match.Start, "player.geo"));
+            Assert.AreEqual(0, InfoExpressionCompletion.At("fsm(\"/Knight\", \"Spe", 18).Matches.Length);
+            CollectionAssert.Contains(InfoExpressionCompletion.At("hero.cState.", 12).Matches, "hero.cState.onGround");
         }
     }
 }

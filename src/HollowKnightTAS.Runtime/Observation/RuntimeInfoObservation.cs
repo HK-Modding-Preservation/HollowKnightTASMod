@@ -60,7 +60,18 @@ namespace HollowKnightTAS.Runtime.Observation
             {
                 try
                 {
-                    var query = InfoWatchQuery.Parse(expression);
+                    var parsed = InfoWatchExpression.Parse(expression);
+                    values["watch:" + expression] = parsed.Evaluate(ReadQuery,
+                        key => values.TryGetValue(key, out var value) ? value : null);
+                }
+                catch (Exception error)
+                {
+                    values["watch:" + expression] = null;
+                    errors[expression] = error.Message;
+                }
+            }
+            object? ReadQuery(InfoWatchQuery query)
+            {
                     object? root;
                     switch (query.Root)
                     {
@@ -71,13 +82,7 @@ namespace HollowKnightTAS.Runtime.Observation
                         case "velocity": root = valid ? (object?)hero!.GetComponent<Rigidbody2D>()?.velocity : null; break;
                         default: root = ResolveTarget(query); break;
                     }
-                    values["watch:" + expression] = query.Read(root);
-                }
-                catch (Exception error)
-                {
-                    values["watch:" + expression] = null;
-                    errors[expression] = error.Message;
-                }
+                    return query.Read(root);
             }
             return new Dictionary<string, string>
             {
