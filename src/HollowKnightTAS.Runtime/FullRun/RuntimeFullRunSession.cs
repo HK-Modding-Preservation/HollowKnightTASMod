@@ -112,6 +112,7 @@ namespace HollowKnightTAS.Runtime.FullRun
         private bool titleReadySeen;
         private bool returningToMainMenu;
         private bool returnToMainMenuHooked;
+        private bool firstLevelActivationPending;
         private string frameBoundary = "Bootstrap";
         private UIManager? uiManager;
         private static readonly FieldInfo MainMenuScreenField = typeof(UIManager).GetField(
@@ -556,6 +557,13 @@ namespace HollowKnightTAS.Runtime.FullRun
                 return false;
             }
             var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            // NewGame sets PLAYING before awaiting the first world scene. The
+            // active Knight_Pickup hero is not proof that that load has finished.
+            if (firstLevelActivationPending)
+            {
+                boundary = "FirstLevelActivation";
+                return false;
+            }
             if (manager.IsInSceneTransition)
             {
                 boundary = "SceneTransition";
@@ -684,6 +692,7 @@ namespace HollowKnightTAS.Runtime.FullRun
             {
                 restoreDrawing.EndFrame();
                 CaptureVideoFrame(completed);
+                TraceReplayState(completed);
                 try
                 {
                     Volatile.Write(ref observedWorld, CaptureWorldStatus());
@@ -718,6 +727,8 @@ namespace HollowKnightTAS.Runtime.FullRun
                 ?? throw new InvalidOperationException("Replay movie is missing."));
             input.PrepareFrame(0);
             On.GameManager.ReturnToMainMenu += OnReturnToMainMenu;
+            On.GameManager.OnWillActivateFirstLevel += OnWillActivateFirstLevel;
+            On.GameManager.OnNextLevelReady += OnNextLevelReady;
             returnToMainMenuHooked = true;
             expectedNativeStart = frame;
             clock.RegisterBeforeFrame(OnNativeBeforeFrame);
@@ -732,7 +743,26 @@ namespace HollowKnightTAS.Runtime.FullRun
             GameManager.ReturnToMainMenuSaveModes saveMode, Action<bool> callback)
         {
             returningToMainMenu = true;
+            firstLevelActivationPending = false;
             return original(self, saveMode, callback);
+        }
+
+        private void OnWillActivateFirstLevel(On.GameManager.orig_OnWillActivateFirstLevel original,
+            GameManager self)
+        {
+            firstLevelActivationPending = true;
+            Modding.Logger.LogDebug("[HKTAS] First-level activation pending at Movie " + movieFrame);
+            original(self);
+        }
+
+        private void OnNextLevelReady(On.GameManager.orig_OnNextLevelReady original, GameManager self)
+        {
+            // Keep the gate closed through vanilla setup and its callbacks. Hero
+            // entry animation retains the existing gameplay readiness policy.
+            original(self);
+            if (!firstLevelActivationPending) return;
+            firstLevelActivationPending = false;
+            Modding.Logger.LogDebug("[HKTAS] First-level activation complete at Movie " + movieFrame);
         }
 
         private void ObserveBoss()
@@ -858,11 +888,16 @@ namespace HollowKnightTAS.Runtime.FullRun
         {
             if (disposed) return;
             disposed = true;
+            replayStateTrace?.Dispose();
             restoreDrawing.Dispose();
             videoCapture?.Dispose();
             observationQueue.Dispose();
             if (returnToMainMenuHooked)
+            {
                 On.GameManager.ReturnToMainMenu -= OnReturnToMainMenu;
+                On.GameManager.OnWillActivateFirstLevel -= OnWillActivateFirstLevel;
+                On.GameManager.OnNextLevelReady -= OnNextLevelReady;
+            }
             input.Sampled -= OnSampled;
             input.Faulted -= OnInputFault;
             UnbindBoss();

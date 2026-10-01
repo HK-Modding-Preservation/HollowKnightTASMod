@@ -110,5 +110,16 @@ internal static partial class StudioScenarioHarness
             JsonSerializer.Serialize(new { target, distinctStates, observations = targetStates }));
         Log("DIAGNOSTIC comparison distinct target states=" + distinctStates
             + "; harness completion is not a determinism pass");
+        if (args.Contains("--verify-first-level"))
+        {
+            Require(!observations.Values.Any(v => v["sceneName"] == "Opening_Sequence"
+                && v["frameBoundary"] == "GameplayInput"), "first-level loading never appears as gameplay input");
+            Require(targetStates.Count >= repeats + (args.Contains("--divergence-restore-only") ? 0 : 1),
+                "all requested target observations captured");
+            Require(distinctStates == 1, "step and repeated restore have identical target gameplay state");
+            Require(targetStates.Values.All(v => v["sceneName"] == "Tutorial_01"
+                && v["faultCode"] == "0" && v["mismatchCount"] == "0"),
+                "all targets reached the first gameplay scene without input/native faults");
+        }
     }
 }
