@@ -113,6 +113,38 @@ namespace HollowKnightTAS.Companion.Services
                     && (stateView == null || (stateView.ReadInt32(12) == 1
                         && stateView.ReadInt32(4) == 1 && CompletedFrames >= expectedFrame)));
 
+        public async Task WaitForStartupAsync(Func<bool> hasExited, TimeSpan timeout,
+            CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(hasExited);
+            if (timeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
+            var elapsed = Stopwatch.StartNew();
+            try
+            {
+                for (;;)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ObjectDisposedException.ThrowIf(disposed, this);
+                    if (hasExited()) throw new InvalidOperationException("游戏在确认原生启动暂停前已退出。");
+                    if (FullRunFaultCode != 0)
+                        throw new InvalidOperationException("原生启动门禁故障，代码：" + FullRunFaultCode);
+                    if (IsWaiting)
+                    {
+                        if (fullRun && NativeCompletedFrames != 0)
+                            throw new InvalidOperationException("原生启动暂停未停在第 0 帧。");
+                        return;
+                    }
+                    if (elapsed.Elapsed >= timeout)
+                        throw new TimeoutException($"等待游戏原生启动暂停超时（{timeout.TotalSeconds:0} 秒；原生帧={NativeCompletedFrames}，存档保护={SaveGuardArmed}）。请重试或导出诊断日志。");
+                    await Task.Delay(50, cancellationToken);
+                }
+            }
+            finally
+            {
+                Trace.WriteLine($"Startup gate: elapsedMs={elapsed.ElapsedMilliseconds} acknowledged={IsAcknowledged} native={NativeCompletedFrames} guard={SaveGuardArmed} fault={FullRunFaultCode} disposed={disposed}");
+            }
+        }
+
         public void SetProtectedSaveSession(ProtectedSaveSession session)
         {
             ObjectDisposedException.ThrowIf(disposed, this);

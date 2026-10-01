@@ -202,11 +202,10 @@ namespace HollowKnightTAS.Companion
                             timing.Mark("injector-returned");
                             if (gate != null)
                             {
-                                var deadline = DateTime.UtcNow.AddSeconds(10);
-                                while (!gate.IsAcknowledged && DateTime.UtcNow < deadline)
-                                    await Task.Delay(50, shutdown.Token);
-                                if (!gate.IsAcknowledged)
-                                    throw new InvalidOperationException("原生启动暂停没有回执；当前 ClockBridge 可能不支持启动门闩。");
+                                // Unity initialization and save-guard setup can outlast the
+                                // injector. A slow first PlayerLoop is not a capability failure.
+                                await gate.WaitForStartupAsync(() => handle.HasExited,
+                                    TimeSpan.FromSeconds(60), shutdown.Token);
                                 automationBroker?.BindFullRunEndpoint(gate.Token,
                                     profile.StartupProfileSha256,
                                     AutomationMode.ApprovedControl);

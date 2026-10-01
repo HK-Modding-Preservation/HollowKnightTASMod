@@ -82,7 +82,9 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (customKeyScenarios) await RunCustomKeysAsync(args);
+                if (args.Contains("--startup-restore")) await RunStartupRestoreAsync();
+                else if (args.Contains("--startup-gate")) await RunStartupGateAsync(args);
+                else if (customKeyScenarios) await RunCustomKeysAsync(args);
                 else if (args.Contains("--replay-divergence")) await RunReplayDivergenceAsync(args);
                 else if (args.Contains("--overlay-stacking")) await RunOverlayStackingAsync();
                 else if (args.Contains("--automation-sync")) await RunAutomationSyncAsync();
