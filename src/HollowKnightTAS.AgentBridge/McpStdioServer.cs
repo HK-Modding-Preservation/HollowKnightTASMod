@@ -286,7 +286,7 @@ namespace HollowKnightTAS.AgentBridge
                             "HollowKnightTAS.AgentBridge",
                         ["title"] =
                             "Hollow Knight TAS Agent Bridge",
-                        ["version"] = "0.1.3",
+                        ["version"] = "0.1.4",
                         ["description"] =
                             "Local non-visual TAS observation and typed control."
                     },

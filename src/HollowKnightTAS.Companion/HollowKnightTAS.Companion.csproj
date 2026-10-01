@@ -6,7 +6,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <AssemblyName>HollowKnightTAS.Companion</AssemblyName>
     <RootNamespace>HollowKnightTAS.Companion</RootNamespace>
-    <Version>0.1.3</Version>
+    <Version>0.1.4</Version>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PlatformTarget>x64</PlatformTarget>
     <SelfContained>true</SelfContained>
