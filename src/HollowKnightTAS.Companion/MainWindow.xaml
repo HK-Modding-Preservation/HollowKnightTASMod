@@ -105,6 +105,7 @@
           <WrapPanel Grid.Row="1" Margin="0,0,0,6">
             <Button Content="{ui:Text t15}" Command="{Binding OpenMovieCommand}" IsEnabled="{Binding IsInputGridInteractive}" />
             <Button Content="{ui:Text saveSequence}" Command="{Binding SaveMovieCommand}" AutomationProperties.AutomationId="HktasStudio.SaveSequence" />
+            <Button Content="{ui:Text sequenceSaves}" Click="OpenSequenceSaves" IsEnabled="{Binding IsInputGridInteractive}" AutomationProperties.AutomationId="HktasStudio.SequenceSaves" />
             <Button Content="{ui:Text t16}" Command="{Binding SaveMovieAsCommand}" IsEnabled="{Binding IsInputGridInteractive}" />
             <Button Content="{ui:Text t17}" Command="{Binding ApplyGridAndSeekCommand}" ToolTip="{ui:Text t18}" IsEnabled="{Binding IsInputGridInteractive}" />
             <CheckBox Content="{ui:Text t19}" IsChecked="{Binding AutoFollowGrid, Mode=TwoWay}"

@@ -1025,9 +1025,14 @@ namespace HollowKnightTAS.Companion.ViewModels
         public async Task OpenMovieFileAsync(string path)
         {
             if (gridApplying || sequenceSaving) throw new InvalidOperationException("请等待当前恢复或保存完成。");
-            var sequence = SequencePackage.Read(path);
+            await ApplySequenceAsync(SequencePackage.Read(path), path);
+        }
+
+        private async Task ApplySequenceAsync(SequenceFile sequence, string? path)
+        {
+            if (gridApplying || sequenceSaving) throw new InvalidOperationException("请等待当前恢复或保存完成。");
             var text = sequence.Movie;
-            var candidate = movieEditor.ValidateAny(text, path);
+            var candidate = movieEditor.ValidateAny(text, path ?? "<save-editor>");
             if (!candidate.Success) throw new InvalidDataException("序列文件无效，当前草稿未改变。");
             if (sequence.InitialSaves != null && candidate.V2Document == null)
                 throw new InvalidDataException("绑定存档的序列包需要 v2 全流程序列。");

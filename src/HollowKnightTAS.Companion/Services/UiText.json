@@ -2973,5 +2973,19 @@
 {"Key": "customKey", "Source": "自定义按键", "Zh": "自定义按键", "En": "Custom key"},
 {"Key": "addCustomKey", "Source": "添加自定义键", "Zh": "添加自定义键", "En": "Add custom key"},
 {"Key": "removeCustomKey", "Source": "移除自定义键", "Zh": "移除自定义键", "En": "Remove custom key"},
-{"Key": "removeCustomKeyHint", "Source": "从整个序列移除此键；可撤销", "Zh": "从整个序列移除此键；可撤销", "En": "Remove this key from the sequence; undo is available"}
+{"Key": "removeCustomKeyHint", "Source": "从整个序列移除此键；可撤销", "Zh": "从整个序列移除此键；可撤销", "En": "Remove this key from the sequence; undo is available"},
+{"Key": "sequenceSaves", "Source": "序列存档", "Zh": "序列存档", "En": "Sequence saves"},
+{"Key": "saveJson1", "Source": "当前序列没有关联存档。", "Zh": "当前序列没有关联存档。", "En": "This sequence has no associated saves."},
+{"Key": "saveJson2", "Source": "序列存档 · JSON", "Zh": "序列存档 · JSON", "En": "Sequence saves · JSON"},
+{"Key": "saveJson3", "Source": "保存修改到序列", "Zh": "保存修改到序列", "En": "Apply changes to sequence"},
+{"Key": "saveJson4", "Source": "导出存档…", "Zh": "导出存档…", "En": "Export saves…"},
+{"Key": "saveJson5", "Source": "编辑初始存档 JSON；保存修改后，请在主窗口保存为新的序列包。导出包含所有存档文件。", "Zh": "编辑初始存档 JSON；保存修改后，请在主窗口保存为新的序列包。导出包含所有存档文件。", "En": "Edit initial save JSON, apply changes, then save a new sequence package in the main window. Export includes all save files."},
+{"Key": "saveJson6", "Source": "修改仅作用于序列副本；播放将从起点重新开始。", "Zh": "修改仅作用于序列副本；播放将从起点重新开始。", "En": "Changes affect the sequence copy. Playback will restart from the beginning."},
+{"Key": "saveJson7", "Source": "选择导出位置（将创建新文件夹）", "Zh": "选择导出位置（将创建新文件夹）", "En": "Choose export location (creates a new folder)"},
+{"Key": "saveJson8", "Source": "放弃尚未保存到序列的修改？", "Zh": "放弃尚未保存到序列的修改？", "En": "Discard changes not yet applied to the sequence?"},
+{"Key": "saveJson9", "Source": "JSON 保存失败：", "Zh": "JSON 保存失败：", "En": "Could not save JSON: "},
+{"Key": "saveJson10", "Source": "此文件无法作为 JSON 编辑，仍可原样导出：", "Zh": "此文件无法作为 JSON 编辑，仍可原样导出：", "En": "This file cannot be edited as JSON but can still be exported unchanged: "},
+{"Key": "saveJson11", "Source": "修改失败：", "Zh": "修改失败：", "En": "Could not apply changes: "},
+{"Key": "saveJson12", "Source": "存档已导出：", "Zh": "存档已导出：", "En": "Saves exported to: "},
+{"Key": "saveJson13", "Source": "导出失败：", "Zh": "导出失败：", "En": "Export failed: "}
 ]

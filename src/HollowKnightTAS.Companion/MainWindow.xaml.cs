@@ -17,6 +17,17 @@ namespace HollowKnightTAS.Companion
 {
     public partial class MainWindow : Window
     {
+        private void OpenSequenceSaves(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainViewModel vm) return;
+            if (vm.SequenceInitialSaves == null || vm.SequenceInitialSaves.Hashes.Count == 0)
+            {
+                MessageBox.Show(this, UiText.T("当前序列没有关联存档。"), UiText.T("序列存档"));
+                return;
+            }
+            new SequenceSavesWindow(vm) { Owner = this }.ShowDialog();
+        }
+
         private GlobalStudioHotkeys? globalHotkeys;
         private bool restoringGridSelection;
         private double? restoreScrollOffset;
