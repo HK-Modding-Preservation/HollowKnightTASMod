@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <limits.h>
+#include <stdio.h>
 #include "startup_gate.h"
 #include "save_write_guard.h"
 #include "restore_window.h"
@@ -62,14 +63,17 @@ static volatile LONG g_startup_fault_code;
 static BOOL g_guard_required;
 static BOOL g_v2_gate_enabled;
 static volatile LONG *g_boot_frame_state; /* completed, waiting, thread, hooked */
+static BOOL loading_startup_clock_is_frozen(void);
+static BOOL loading_startup_clock_owns_advances(void);
 
 static void advance_boot_frame_clock(void)
 {
+    if (loading_startup_clock_is_frozen()) return;
     AcquireSRWLockExclusive(&g_clock_lock);
     if (g_fractional_clock_configured)
         g_deterministic_clock_step_ticks = hktas_fractional_peek(&g_fractional_clock);
-    /* The managed payload adopts this same anchor later. Once adopted,
-     * only its existing completed-frame clock path may advance it. */
+    /* Preserve the legacy v3 advances. In the opt-in v4 policy this native
+     * hook owns the anchor; the managed call validates sequence only. */
     if ((g_v2_gate_enabled || g_startup_handoff_adopt_count == 0)
         && g_deterministic_clock_enabled
         && g_deterministic_clock_step_ticks > 0
@@ -77,12 +81,24 @@ static void advance_boot_frame_clock(void)
     {
         g_deterministic_clock_anchor.QuadPart += g_deterministic_clock_step_ticks;
         if (g_fractional_clock_configured) hktas_fractional_consume(&g_fractional_clock);
+        if (loading_startup_clock_owns_advances()) InterlockedIncrement(&g_deterministic_clock_frame_advance_count);
     }
     ReleaseSRWLockExclusive(&g_clock_lock);
 }
 
 #include "full_run_frame_gate.h"
+#include "loading_startup_clock_probe.h"
 #include "startup_frame_hook.h"
+
+static BOOL loading_startup_clock_is_frozen(void)
+{
+    return g_loading_startup_clock_enabled && g_loading_startup_clock_frozen_frame;
+}
+
+static BOOL loading_startup_clock_owns_advances(void)
+{
+    return g_loading_startup_clock_enabled;
+}
 
 static BOOL configure_save_guard_intent(void)
 {
@@ -883,6 +899,13 @@ HktasClockBridge_AdvanceDeterministicFrameClock(LONG sequence)
         ReleaseSRWLockExclusive(&g_clock_lock);
         return -5;
     }
+    if (g_loading_startup_clock_enabled) {
+        /* New policy: acknowledge the legacy managed observer, while the
+         * controlled PlayerLoop remains the single QPC/fractional owner. */
+        g_deterministic_clock_last_advance_sequence = sequence;
+        ReleaseSRWLockExclusive(&g_clock_lock);
+        return 1;
+    }
     if (g_deterministic_clock_anchor.QuadPart
         > LLONG_MAX - g_deterministic_clock_step_ticks)
     {
@@ -1188,6 +1211,11 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
              * DLL on a frame-profile mismatch. Suppress the legacy QPC gate
              * so the controller receives no false frame acknowledgement. */
             g_boot_frame_hook_enabled = TRUE;
+            return TRUE;
+        }
+        if (!configure_loading_startup_clock_probe()) {
+            InterlockedExchange(&g_status, -16);
+            TerminateProcess(GetCurrentProcess(), ERROR_INVALID_FUNCTION);
             return TRUE;
         }
         HANDLE worker = CreateThread(

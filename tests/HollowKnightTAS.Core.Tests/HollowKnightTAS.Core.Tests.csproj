@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\src\HollowKnightTAS.Runtime\FullRun\CinematicPlaybackClock.cs" Link="FullRun\CinematicPlaybackClock.cs" />
     <Compile Include="..\..\src\HollowKnightTAS.Runtime\Manifest\VerificationPreflight.cs" Link="Manifest\VerificationPreflight.cs" />
     <Compile Include="..\..\src\HollowKnightTAS.Runtime\FullRun\FrameObservationQueue.cs" Link="FullRun\FrameObservationQueue.cs" />
     <Compile Include="..\..\src\HollowKnightTAS.Runtime\FullRun\FullRunVideoExportRange.cs" Link="FullRun\FullRunVideoExportRange.cs" />

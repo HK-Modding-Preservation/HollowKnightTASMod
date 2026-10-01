@@ -3,7 +3,7 @@
     <TargetFramework>net472</TargetFramework>
     <AssemblyName>HollowKnightTAS</AssemblyName>
     <RootNamespace>HollowKnightTAS.Runtime</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>0.1.3</Version>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <InstallDir>$(HKModsDir)\HollowKnightTAS</InstallDir>
@@ -60,6 +60,10 @@
     </Reference>
     <Reference Include="UnityEngine.AudioModule">
       <HintPath>$(HKManagedDir)\UnityEngine.AudioModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.VideoModule">
+      <HintPath>$(HKManagedDir)\UnityEngine.VideoModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="MMHOOK_Assembly-CSharp">

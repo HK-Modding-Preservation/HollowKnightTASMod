@@ -21,13 +21,31 @@ namespace HollowKnightTAS.Core.Tests.Movie
         }
 
         [TestMethod]
+        public void CanonicalFirstLevelPolicy_AllowsLegacyInputsWithWarning()
+        {
+            var oldHeader = new MovieV2Header("game1", "api1", "mod1",
+                "hktas-unity-input-playerloop-load-elision-scene-rng-2026-v3",
+                MovieProtocolV2.ActionSchemaId, true, EnvironmentHash, 800, 450);
+            var current = Runtime(profile: MovieProtocolV2.NativeProfileId);
+            var legacyReport = new MovieV2Compatibility().Evaluate(oldHeader, current);
+            Assert.IsTrue(legacyReport.Allowed);
+            Assert.AreEqual(0, legacyReport.Errors.Count);
+            Assert.IsTrue(legacyReport.Warnings.Any(w => w.Message.Contains("Execution rules differ")));
+            var currentHeader = new MovieV2Header("game1", "api1", "mod1",
+                MovieProtocolV2.NativeProfileId, MovieProtocolV2.ActionSchemaId,
+                true, EnvironmentHash, 800, 450);
+            Assert.IsTrue(new MovieV2Compatibility().Evaluate(currentHeader, current).Allowed);
+        }
+
+        [TestMethod]
         public void MissingNativeGateSaveGuardOrMouseBridge_BlockReplay()
         {
             var runtime = Runtime(nativeGate: false, saveGuard: false, mouseBridge: false,
                 profile: "other-profile");
             var report = new MovieV2Compatibility().Evaluate(Header(mouse: true), runtime);
             Assert.IsFalse(report.Allowed);
-            Assert.IsTrue(report.Errors.Count >= 4);
+            Assert.IsTrue(report.Errors.Count >= 3);
+            Assert.IsTrue(report.Warnings.Any(w => w.Message.Contains("Execution rules differ")));
             Assert.IsTrue(report.Errors.Any(value => value.Message.Contains("save write guard")));
             Assert.IsTrue(report.Errors.Any(value => value.Message.Contains("frame gate")));
         }

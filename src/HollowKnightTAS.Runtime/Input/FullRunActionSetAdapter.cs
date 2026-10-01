@@ -35,6 +35,7 @@ namespace HollowKnightTAS.Runtime.Input
         private bool nativeFrameActive;
         private Func<bool>? nativeFrameRunning;
         private bool disposed;
+        private FullRunCutsceneInput? cutsceneInput;
         private string fault = string.Empty;
 
         public event Action<long, GameInputSample, ulong>? Sampled;
@@ -216,6 +217,9 @@ namespace HollowKnightTAS.Runtime.Input
 
         private void Hook()
         {
+            cutsceneInput = new FullRunCutsceneInput(() => IsNativeFrameActive && IsFrameInputEnabled
+                && InputHandler.Instance?.inputActions is HeroActions actions
+                && GetActions(actions, GameInputChannel.Hero).Any(action => action.WasPressed));
             On.InControl.PlayerActionSet.Update += OnPlayerActionSetUpdate;
             hooked = true;
         }
@@ -451,6 +455,7 @@ namespace HollowKnightTAS.Runtime.Input
 
         public void Dispose()
         {
+            cutsceneInput?.Dispose();
             if (disposed) return;
             disposed = true;
             if (hooked) On.InControl.PlayerActionSet.Update -= OnPlayerActionSetUpdate;

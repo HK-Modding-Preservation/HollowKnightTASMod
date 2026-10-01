@@ -25,6 +25,7 @@ public class CustomKeyUiTests
         var thread = new Thread(() =>
         {
             MainWindow? window = null;
+            Application? ownedApplication = null;
             try
             {
                 using var sessions = new SessionRegistry("custom-key-ui");
@@ -37,7 +38,7 @@ public class CustomKeyUiTests
                 var theme = XDocument.Load(Path.Combine(AppContext.BaseDirectory,"fixtures","studio-theme.xaml"));
                 XNamespace wpf = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
                 var resources = new XElement(wpf + "ResourceDictionary", new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"), theme.Root!.Element(wpf + "Application.Resources")!.Elements());
-                var app = Application.Current ?? new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+                var app = Application.Current ?? (ownedApplication = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown });
                 app.Resources = (ResourceDictionary)XamlReader.Parse(resources.ToString());
                 window = new MainWindow { DataContext = vm };
                 var grid = (DataGrid)window.FindName("InputGrid");
@@ -72,7 +73,7 @@ public class CustomKeyUiTests
                 Assert.AreEqual(0,sessions.ConnectedCount);
             }
             catch(Exception ex) { failure=ex; }
-            finally { if (window != null) { window.DataContext = null; window.Close(); } }
+            finally { if (window != null) { window.DataContext = null; window.Close(); } if (ownedApplication != null) { ownedApplication.Shutdown(); Dispatcher.CurrentDispatcher.BeginInvokeShutdown(DispatcherPriority.Background); Dispatcher.Run(); } }
         });
         thread.SetApartmentState(ApartmentState.STA); thread.Start();
         Assert.IsTrue(thread.Join(TimeSpan.FromSeconds(30)),"UI test timed out.");
