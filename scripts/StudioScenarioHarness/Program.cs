@@ -23,6 +23,7 @@ internal static partial class StudioScenarioHarness
     static bool battleVideoScenarios;
     static bool worldlineFaultScenarios;
     static bool fsmScenarios;
+    static bool customKeyScenarios;
     static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name,
         BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(owner)!;
     static void Log(string text) { File.AppendAllText(Path.Combine(output, "scenario.log"), DateTime.Now.ToString("O") + " " + text + "\n"); }
@@ -47,13 +48,14 @@ internal static partial class StudioScenarioHarness
     {
         output = args.Single(a => a.StartsWith("--scenario-output=")).Split('=', 2)[1];
         Directory.CreateDirectory(output);
-        if (args.Contains("--info-overlay") || args.Contains("--overlay-stacking"))
+        if (args.Contains("--info-overlay") || args.Contains("--overlay-stacking") || args.Contains("--custom-keys"))
             typeof(MainViewModel).GetProperty("InfoOverlaySettingPathOverride", BindingFlags.Static | BindingFlags.NonPublic)!
                 .SetValue(null, Path.Combine(output, "info-settings.json"));
         videoExportScenarios = args.Contains("--video-export");
         battleVideoScenarios = videoExportScenarios && args.Any(a => a.StartsWith("--video-movie=", StringComparison.Ordinal));
         worldlineFaultScenarios = args.Contains("--worldline-fault");
         fsmScenarios = args.Contains("--boss-fsm");
+        customKeyScenarios = args.Contains("--custom-keys");
         if (!args.Contains("--headless") || Process.GetProcessesByName("hollow_knight").Length != 0
             || Process.GetProcessesByName("HollowKnightTAS.Companion").Length != 0) return 12;
         app = new App(); app.InitializeComponent();
@@ -63,7 +65,8 @@ internal static partial class StudioScenarioHarness
             try
             {
                 await Until(() => app.MainWindow?.DataContext is MainViewModel, "app ready");
-                if (args.Contains("--overlay-stacking")) await RunOverlayStackingAsync();
+                if (customKeyScenarios) await RunCustomKeysAsync(args);
+                else if (args.Contains("--overlay-stacking")) await RunOverlayStackingAsync();
                 else if (args.Contains("--automation-sync")) await RunAutomationSyncAsync();
                 else if (args.Contains("--fractional-fps")) await RunFractionalFpsAsync(args);
                 else if (args.Contains("--keyboard-input")) await RunKeyboardInputAsync();
@@ -191,7 +194,7 @@ internal static partial class StudioScenarioHarness
     [DllImport("kernel32.dll")] static extern bool GlobalMemoryStatusEx(ref Memory memory);
     static void Guard()
     {
-        var deadline = DateTime.UtcNow.AddMinutes(battleVideoScenarios || worldlineFaultScenarios ? 20 : videoExportScenarios || fsmScenarios ? 8 : 4);
+        var deadline = DateTime.UtcNow.AddMinutes(battleVideoScenarios || worldlineFaultScenarios || customKeyScenarios ? 20 : videoExportScenarios || fsmScenarios ? 8 : 4);
         while (Volatile.Read(ref finished) == 0)
         {
             try
