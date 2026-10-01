@@ -531,7 +531,7 @@ namespace HollowKnightTAS.Runtime.FullRun
                 }
                 clock.SetFrameRate(ready ? activeFrameRate : 50);
                 DeterministicCinematics.FrameDuration = 1d / (double)(ready ? activeFrameRate : 50m);
-                infoTiming.BeginFrame();
+                infoTiming.BeginFrame(movieFrame, completed, ready, boundary);
                 if (ready) TraceMovieRng("before", replayMovie?.Runs[timingRunIndex].RngSeed);
                 frameInputEnabled = ready;
                 // Resume drawing before the target so temporal presentation can
@@ -658,6 +658,7 @@ namespace HollowKnightTAS.Runtime.FullRun
                 clock.ReportMovieFrameCompleted();
                 if (movieFrame == pauseAtMovieFrame)
                 {
+                    infoTiming.FlushTrace(sessionDirectory);
                     // The hidden-launch environment survives after the window is
                     // revealed. Retire these hooks so later visible seeks never
                     // inherit restore-only drawing suppression.
@@ -900,6 +901,7 @@ namespace HollowKnightTAS.Runtime.FullRun
 
         public void Dispose()
         {
+            infoTiming.FlushTrace(sessionDirectory);
             if (disposed) return;
             disposed = true;
             replayStateTrace?.Dispose();

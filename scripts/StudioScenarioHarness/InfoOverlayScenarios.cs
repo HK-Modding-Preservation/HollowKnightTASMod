@@ -27,6 +27,10 @@ internal static partial class StudioScenarioHarness
         var vm = (MainViewModel)app.MainWindow.DataContext;
         var boot = Field<StartupBootController>(app, "startupBoot");
         var movies = Field<FullRunMovieCoordinator>(app, "fullRunMovies");
+        typeof(MainViewModel).GetField("worldlines", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(vm, new StudioTimelineStore(Path.Combine(output, "timelines.json")));
+        typeof(MainViewModel).GetField("initialSaveCacheRoot", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(vm, Path.Combine(output, "initial-saves"));
         typeof(MainViewModel).GetField("activeSequenceDirectory", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(vm, output);
         var controller = Field<InfoOverlayController>(vm, "infoController");
         async Task<IReadOnlyDictionary<string, JsonElement>> Snapshot(string label)
@@ -52,12 +56,35 @@ internal static partial class StudioScenarioHarness
         Require(!title.ContainsKey("x"), "title has no stale hero coordinates");
         var baselinePath = args.Single(a => a.StartsWith("--info-baseline=", StringComparison.Ordinal)).Split('=', 2)[1];
         var baseline = SequencePackage.Read(baselinePath);
+        var saveRoot = args.SingleOrDefault(a => a.StartsWith("--info-initial-saves="))?.Split('=', 2)[1];
+        if (saveRoot != null)
+            baseline = baseline with { InitialSaves = new InitialSaveSnapshot(Directory.GetFiles(saveRoot, "user*")
+                .Select(path => new KeyValuePair<string, byte[]>(Path.GetFileName(path), File.ReadAllBytes(path)))) };
         var source = TimelineTree.Parse(baseline.Movie);
         var candidate = new MovieV2Document("info-display-candidate", TimelineTree.Parse(observed.Movie).Header,
             source.Runs.Select(r => new NativeFrameRun(r.RepeatCount, r.Samples, r.Span, r.FramesPerSecond, true, r.RngSeed)));
         var candidatePath = Path.Combine(output, "info-candidate.hktaspack");
         await SequencePackage.WriteAsync(candidatePath, new MovieV2Codec().WriteCanonical(candidate), baseline.InitialSaves!);
         await vm.OpenMovieFileAsync(candidatePath);
+        if (args.Contains("--info-timing-trace-only"))
+        {
+            for (var attempt = 0; attempt < 3; attempt++)
+            {
+                var game = Field<System.Diagnostics.Process>(app, "startupGame"); game.Refresh();
+                if (InfoIsIconic(game.MainWindowHandle)) { InfoShowWindow(game.MainWindowHandle, 4); await Task.Delay(200); }
+                await vm.FrameMenuAsync("rebuild", 1500);
+                AtFrame(vm, boot, 1500, "timing trace replay " + attempt);
+                await Snapshot("timing-replay-" + attempt);
+                if (args.Contains("--info-timing-resume-between"))
+                {
+                    await Command(vm.StepCommand);
+                    await vm.FrameMenuAsync("seek", 1520);
+                    AtFrame(vm, boot, 1520, "timing replay resumes before next cold rebuild");
+                }
+            }
+            movies.VerifyOriginalSavesUnchanged();
+            return;
+        }
         await vm.FrameMenuAsync("rebuild", 1500);
         AtFrame(vm, boot, 1500, "gameplay reached under new Runtime identity");
         var values = await Snapshot("gameplay-1500");
@@ -212,4 +239,6 @@ internal static partial class StudioScenarioHarness
     [DllImport("user32.dll", EntryPoint = "SetWindowPos")] static extern bool SetInfoWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll", EntryPoint = "GetClientRect")] static extern bool GetInfoClientRect(IntPtr window, out InfoRect bounds);
     [DllImport("user32.dll", EntryPoint = "ClientToScreen")] static extern bool InfoClientToScreen(IntPtr window, ref InfoPoint point);
+    [DllImport("user32.dll", EntryPoint = "IsIconic")] static extern bool InfoIsIconic(IntPtr window);
+    [DllImport("user32.dll", EntryPoint = "ShowWindow")] static extern bool InfoShowWindow(IntPtr window, int command);
 }
