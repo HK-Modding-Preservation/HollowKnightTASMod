@@ -9,6 +9,15 @@ namespace HollowKnightTAS.Companion.ViewModels;
 public sealed partial class MainViewModel
 {
     private InitialSaveSnapshot? sequenceInitialSaves;
+    public InitialSaveSnapshot? SequenceInitialSaves => sequenceInitialSaves;
+
+    public System.Threading.Tasks.Task ApplyEditedInitialSavesAsync(InitialSaveSnapshot original, InitialSaveSnapshot edited)
+    {
+        if (sequenceInitialSaves?.Id != original.Id)
+            throw new InvalidOperationException("序列已切换，请重新打开存档编辑器。");
+        // Reuse document switching: preserve the old timeline and require a fresh shadow.
+        return ApplySequenceAsync(new SequenceFile(MovieText, edited), null);
+    }
     private string initialSaveCacheRoot = Path.Combine(FrameSaveRoot, "initial-saves");
     public string SequenceBindingStatus => sequenceInitialSaves == null
         ? "未绑定初始存档（旧序列）"

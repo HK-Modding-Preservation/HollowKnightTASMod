@@ -95,13 +95,17 @@ Invoke-Tas @('automation','call','fullRunStep','control.step',
 
 `beginFullRunReplay` 接收 canonical v2 Movie 的 UTF-8 字节 Base64，不接收 `.hktaspack` 容器本身。序列包应通过 Studio 加载以应用绑定的初始存档。完整 Movie 应通过 Core 的 `MovieV2Codec` 解析并规范化，保持真实环境头及输入通道顺序；较长文档可用 SDK 避免命令行长度限制，但仍受协议的 900000 字符字段上限及 1 MiB 消息上限约束；SDK 不会自动把全流程回放请求分块。超出请求大小时，通过 Studio 打开文件。
 
-全流程输入通道包含 `hero`、`preMenu`、`binder`、`mouseInControl` 和 `mouseHollowKnight`。菜单和角色通道分别记录，不能只修改角色方向就假定菜单也会移动。连续帧保持相同按键表示持续按住，需要新按下边沿时先安排松开帧。输入结构及动作顺序以 `src/HollowKnightTAS.Core/Movie/MovieProtocolV2.cs` 和 `src/HollowKnightTAS.Core/Movie/MovieV2Codec.cs` 为准。
+全流程输入通道包含 `hero`、`preMenu`、`binder`、`mouseInControl`、`mouseHollowKnight` 和 `customKey`。菜单和角色通道分别记录，不能只修改角色方向就假定菜单也会移动。连续帧保持相同按键表示持续按住，需要新按下边沿时先安排松开帧。输入结构及动作顺序以 `src/HollowKnightTAS.Core/Movie/MovieProtocolV2.cs` 和 `src/HollowKnightTAS.Core/Movie/MovieV2Codec.cs` 为准。
 
 `fullRunSnapshot` 返回的 `path` 指向当前影子目录中的 Movie 快照，可读取并在同目录另存候选。修改未来输入后提交 `fullRunUpdateMovie`，保持已执行前缀一致。`fullRunSeek` 设置目标后，还需调用 `fullRunPlay` 开始向前运行。回到过去需要从绑定起点重启重放，Studio 的重算和时间线负责该流程；`fullRunSeek` 不能代替向过去回档。共享文件必须是当前会话的影子目录内文件，不修改真实用户存档。
 
 录制参数 `fps` 接受 1–1000，最多 6 位小数（例如 `fps=99.999`）。Movie v2 的小数帧率保存为约分后的 `fps / fpsDenominator`，例如 `{"repeatCount":1,"fps":99999,"fpsDenominator":1000,"samples":[]}`。整数省略分母，默认 50 仍省略 `fps`，旧整数文件的 canonical 内容保持不变。分母需配合 `fps` 使用，结果须落在范围内且能以最多 6 位小数精确表示。旧版解析器不支持新增分母字段。
 
 Movie v2 帧记录可带可选整数 `rngSeed`，范围为 -2147483648 至 2147483647；省略表示不干预。包含它的记录必须为 `repeatCount: 1`，例如 `{"repeatCount":1,"authored":true,"rngSeed":12345,"samples":[]}`。种子在该 Movie 帧开始前、场景 RNG 同步完成后应用一次；加载帧不执行。它属于 canonical 内容及世界线前缀身份，编辑已执行帧需要重放；旧版解析器会拒绝该字段。
+
+自定义按键使用 `customKey` 通道，Movie v2 头的 `customKeys` 数组声明 Unity KeyCode，例如 F1 为 282。样本 `values` 为 `[键码, 状态]`，状态仅允许 0 或 32767，`pressedMask`、`releasedMask` 均为 0。未出现的已配置键视为松开，边沿由相邻帧计算；每帧每键最多一个样本。使用 `CustomKeyInput.Names` 查询支持的键，用 `MovieV2Codec` 生成规范文本，编辑时保留 `customKeys`。配置变化后通过 Studio 重新应用／回放。
+
+在输入编辑器点击「编辑存档」，选择文件后修改 JSON。「保存修改到序列」建立新起点并保留原时间线，再用「保存序列」另存新包。「导出存档…」将所有存档及 Mod 附属文件写入新文件夹，不覆盖原存档。现有 `fullRunUpdateMovie` 更新输入文档，不是存档写入接口。初始存档变化后从新起点重放。
 
 ## 非视觉世界观察
 

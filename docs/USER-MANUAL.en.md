@@ -85,6 +85,12 @@ Enter a positive Insert count, then insert empty frames to add that many rows at
 
 Double-click an `RNG seed` cell or choose “Edit this frame RNG seed…” from the context menu. Enter an integer from -2147483648 to 2147483647; `0` is valid and a blank value clears the setting. The seed resets RNG once before that Movie frame, after any scene synchronization. Random values then evolve normally, and scene changes retain their existing RNG reset behavior. Seeds follow their frames through copy, insertion and deletion, support Undo/Redo, and changing an executed frame branches the worldline and requires replay just like an input edit.
 
+## Custom keys
+
+Choose a key to the right of Delete frames and click Add custom key, then check or drag across frames in the new column. Consecutive checked frames hold it; insert a released frame before another press. Add combination keys separately and check them on the same frame. Configuration and input are saved with the sequence and support undo/redo. Remove custom key removes that key and its input throughout the sequence. Reapply or replay after adding or removing keys.
+
+Custom keys control other Mods separately from Studio playback shortcuts. They support Unity GetKey, GetKeyDown and GetKeyUp; other input paths require compatibility checks. Adjust or disable conflicting Studio global hotkeys in Settings.
+
 ## Save sequences and starting saves
 
 Ctrl+S or Save sequence chooses a path on the first save, then overwrites that file. Save sequence to... chooses another path. New sequences use `.hktaspack`, containing all input and the four-slot starting-save snapshot fixed at startup frame 0, including empty slots and slot-associated Mod files. Sharing the package carries these starting conditions with it.
@@ -94,6 +100,9 @@ Manual saves, saving to another path and autosave retain the same starting snaps
 A text `.hktas` sequence is marked as having no bound initial saves and depends on local starting saves. It remains in that format when saved. A damaged package or missing starting-save data is rejected.
 
 The default sequence directory is `HollowKnightTAS/Sequences` inside the Windows Documents folder. By default, autosave checks every 300 seconds (5 minutes) of wall-clock time and writes changed drafts into its `Autosave` subdirectory. It does not overwrite manually saved files or advance the game. Change the folder and interval in Setting; 0 disables autosave and the maximum is 86400 seconds. Existing saved settings take precedence.
+
+
+Click Edit saves in the Input Editor to select a file and edit its JSON. Apply changes to sequence creates a new starting point and preserves the old timeline; save a new package afterwards. Export saves writes all saves and Mod companion files to a new folder, preserving originals.
 
 ## Timeline and restore
 
@@ -106,6 +115,8 @@ The context menu can play forward to a future frame and pause, or restore a past
 Timelines, checkpoints and F1–F10 bindings exist only in memory for the current Studio session. Reopening Studio clears them; restarting the game for restore does not. Save a sequence file to retain input across sessions. Sequence files and `Autosave` copies remain on disk. Deleting a node and its subtree requires confirmation.
 
 Opening another file validates it first, then pauses and records the current branch before replacing the draft. Failed validation keeps the current sequence. After switching, playback starts from the new sequence's beginning; you can also replay to a selected row. Before closing Studio, save the sequence with Ctrl+S. Normal closing ends an active video export, processes the current branch and exits the controlled game it owns. This does not replace saving a sequence file. If closing fails, the window remains open and reports the error. Closing discards session timeline and slot bindings; edits not written to a sequence file or Autosave may be lost.
+
+Older sequences can be opened, edited and replayed. Different execution rules produce compatibility warnings, and some input frames may need adjustment. Manual saving updates the execution profile while retaining inputs, key configuration and initial saves; autosave retains the original profile.
 
 ## Export MP4
 
@@ -124,6 +135,6 @@ Setting includes language, FPS, mouse mode, sequence directory, autosave interva
 - Companion verification fails: reinstall the complete matching release and preserve its directory structure.
 - A sequence reports an environment mismatch: restore the game, Mods and display settings used for recording. Do not edit environment fingerprints to bypass validation.
 - Restore or export fails: retain the error and check the current operation status before issuing another request.
-- To report a problem, click **Export diagnostic logs** at the bottom of Settings, choose a folder, and send the ZIP with reproduction steps and the affected frame. The ZIP includes retained logs from previous runs. Studio log copies and timing history are retained for 7 days, up to 256 MiB combined.
+- To report a problem, click **Export diagnostic logs** at the bottom of Settings, choose a folder, and send the ZIP with reproduction steps and the affected frame. The ZIP includes Studio application logs and retained logs from previous runs. Studio log copies and timing history are retained for 7 days, up to 256 MiB combined.
 
 See the [AI control guide](AI-CONTROL.en.md) for automation.

@@ -62,9 +62,9 @@ public sealed class SequenceBindingTests
     {
         using var f = new Fixture();
         var values = new short[26]; values[1] = 32767; values[10] = 32767;
-        var expected = new MovieV2Codec().WriteCanonical(new MovieV2Document("test", TimelineTree.Parse(Movie()).Header,
+        var expected = new MovieV2Codec().WriteCanonical(new MovieV2Document("test", TimelineTree.Parse(Movie()).Header.WithCustomKeys(new short[] { 282 }),
             new[] { new NativeFrameRun(1, new[] { new GameInputSample(GameInputChannel.Hero, values, null,
-                    pressedMask: (1UL << 1) | (1UL << 10)) }, new MovieSourceSpan("test", 2, 1, 1), 59.94m, true, 12345),
+                    pressedMask: (1UL << 1) | (1UL << 10)), CustomKeyInput.Sample(282, true) }, new MovieSourceSpan("test", 2, 1, 1), 59.94m, true, 12345),
                 new NativeFrameRun(499, Array.Empty<GameInputSample>(), new MovieSourceSpan("test", 3, 1, 1), 50, true) }));
         var legacy = expected.Replace(MovieProtocolV2.NativeProfileId,
             "hktas-unity-input-playerloop-load-elision-scene-rng-2026-v3");
@@ -161,6 +161,75 @@ public sealed class SequenceBindingTests
         Assert.IsTrue(f.Vm.TogglePauseCommand.CanExecute(null));
         Assert.IsTrue(f.Vm.StepCommand.CanExecute(null));
         Assert.AreEqual("Play 从起点开始", f.Vm.PlayPauseLabel);
+    }
+
+    [TestMethod] public async Task EditedSaveStartsSeparateTimelineAndPreservesOriginalPackage()
+    {
+        using var f = new Fixture();
+        var path = Path.Combine(f.Root, "original.hktaspack");
+        var original = Snapshot(1);
+        await SequencePackage.WriteAsync(path, Movie(), original);
+        var originalBytes = File.ReadAllBytes(path);
+        await f.Vm.OpenMovieFileAsync(path);
+        var oldTree = f.Vm.SelectedTimelineTree!;
+        await f.Vm.ApplyEditedInitialSavesAsync(original, Snapshot(2));
+        Assert.AreNotEqual(oldTree.Id, f.Vm.SelectedTimelineTree!.Id);
+        Assert.AreEqual(original.Id, oldTree.InitialSavesId);
+        Assert.AreEqual(Snapshot(2).Id, f.Vm.SelectedTimelineTree.InitialSavesId);
+        Assert.IsTrue(Get<bool>(f.Vm, "draftRequiresRestart"));
+        Assert.IsNull(Get<string?>(f.Vm, "sequenceSavePath"));
+        Assert.AreEqual(Movie(), f.Vm.MovieText);
+        var editedPath = Path.Combine(f.Root, "edited.hktaspack");
+        await Save(f.Vm, editedPath);
+        CollectionAssert.AreEqual(originalBytes, File.ReadAllBytes(path));
+        Assert.AreEqual(Snapshot(2).Id, SequencePackage.Read(editedPath).InitialSaves!.Id);
+        Assert.Throws<InvalidOperationException>(() => f.Vm.ApplyEditedInitialSavesAsync(original, Snapshot(3)));
+    }
+
+    [TestMethod] public void SaveJsonWindowRendersEditableTextAndRejectsInvalidJson()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                using var f = new Fixture();
+                f.Vm.MovieText = Movie();
+                Set(f.Vm, "sequenceInitialSaves", new InitialSaveSnapshot(new Dictionary<string, byte[]> {
+                    ["user1.dat"] = System.Text.Encoding.UTF8.GetBytes("{\"playerData\":{\"geo\":123},\"sceneData\":{}}") }));
+                var window = new SequenceSavesWindow(f.Vm);
+                var panel = (System.Windows.Controls.DockPanel)window.Content;
+                var editor = panel.Children.OfType<System.Windows.Controls.TextBox>().Single();
+                var status = panel.Children.OfType<System.Windows.Controls.TextBlock>().Last();
+                var save = panel.Children.OfType<System.Windows.Controls.StackPanel>().Single().Children
+                    .OfType<System.Windows.Controls.Button>().Single(b => System.Windows.Automation.AutomationProperties.GetAutomationId(b) == "HktasStudio.ApplySaveJson");
+                window.Show(); window.UpdateLayout();
+                Assert.IsFalse(editor.IsReadOnly);
+                Assert.IsTrue(editor.ActualHeight > 400);
+                StringAssert.Contains(editor.Text, "123");
+                var originalText = editor.Text;
+                editor.Text = "{";
+                save.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                StringAssert.Contains(status.Text, "JSON 保存失败");
+                Assert.IsTrue(window.IsVisible);
+                editor.Text = originalText;
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight,
+                    96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                bitmap.Render(window);
+                var png = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                png.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                using (var output = File.Create(Path.Combine(Path.GetTempPath(), "hktas-save-json-window.png"))) png.Save(output);
+                editor.Text = originalText.Replace("123", "456");
+                save.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.Controls.Button.ClickEvent));
+                Assert.IsFalse(window.IsVisible);
+                var exported = SaveJsonDocument.Export(f.Vm.SequenceInitialSaves!, f.Root);
+                StringAssert.Contains(new SaveJsonDocument(File.ReadAllBytes(Path.Combine(exported, "user1.dat"))).Json, "456");
+            }
+            catch (Exception ex) { failure = ex; }
+        });
+        thread.SetApartmentState(ApartmentState.STA); thread.Start();
+        Assert.IsTrue(thread.Join(TimeSpan.FromSeconds(15)));
+        if (failure != null) throw new AssertFailedException("Save editor UI failed: " + failure, failure);
     }
 
     private sealed class Fixture : IDisposable

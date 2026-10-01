@@ -320,8 +320,8 @@
   {
     "Key": "t53",
     "Source": "每行是一帧，Frame N 表示已执行 [0,N)，下一步执行第 N 行。单击或上下拖动按键格编辑；Shift 连选，Ctrl 多选。填写「插入帧数」后插入空帧，一次撤销整批插入；右键可编辑选区和帧率。未来输入在播放前同步；修改过去输入后，选中目标行并点击「回放到当前帧」。播放时跟随默认开启。",
-    "Zh": "每行是一帧，Frame N 表示已执行 [0,N)，下一步执行第 N 行。单击或上下拖动按键格编辑；Shift 连选，Ctrl 多选。填写「插入帧数」后插入空帧，一次撤销整批插入；右键可编辑选区和帧率。未来输入在播放前同步；修改过去输入后，选中目标行并点击「回放到当前帧」。播放时跟随默认开启。",
-    "En": "Each row is one input frame. At Frame N, [0,N) has executed and row N is next. Click cells or drag vertically; Shift selects a range and Ctrl selects separate rows. Set Insert count before inserting empty frames; one Undo removes the whole insertion. The context menu edits rows and FPS. Future edits sync before playback. After editing past input, select the target row and click Replay to current frame. Follow playback is enabled by default."
+    "Zh": "每行是一帧，Frame N 表示已执行 [0,N)，下一步执行第 N 行。单击或上下拖动按键格编辑；Shift 连选，Ctrl 多选。填写「插入帧数」后插入空帧，一次撤销整批插入；右键可编辑选区和帧率。未来输入在播放前同步；修改过去输入后，选中目标行并点击「回放到当前帧」。播放时跟随默认开启。\n\n在输入编辑器第一排「删除帧」右侧选择按键，再点击「添加自定义键」，然后在新增列中逐帧勾选或拖动编辑。连续勾选表示按住，先留一帧松开才能再次触发按下；组合键分别添加并同帧勾选。配置和输入随序列保存，支持撤销重做。「移除自定义键」删除整个序列中的该键及其输入。添加或移除后需重新应用／回放。\n\n自定义键用于其它 Mod 的键盘快捷键，与 Studio 播放、步进快捷键分开配置。支持通过 Unity GetKey、GetKeyDown、GetKeyUp 读取的按键，其它输入方式需确认兼容性。若与 Studio 全局热键冲突，可在设置中调整或关闭全局热键。",
+    "En": "Each row is one input frame. At Frame N, [0,N) has executed and row N is next. Click cells or drag vertically; Shift selects a range and Ctrl selects separate rows. Set Insert count before inserting empty frames; one Undo removes the whole insertion. The context menu edits rows and FPS. Future edits sync before playback. After editing past input, select the target row and click Replay to current frame. Follow playback is enabled by default.\n\nChoose a key to the right of Delete frames and click Add custom key, then check or drag across frames in the new column. Consecutive checked frames hold it; insert a released frame before another press. Add combination keys separately and check them on the same frame. Configuration and input are saved with the sequence and support undo/redo. Remove custom key removes that key and its input throughout the sequence. Reapply or replay after adding or removing keys.\n\nCustom keys control other Mods separately from Studio playback shortcuts. They support Unity GetKey, GetKeyDown and GetKeyUp; other input paths require compatibility checks. Adjust or disable conflicting Studio global hotkeys in Settings."
   },
   {
     "Key": "t54",
@@ -344,8 +344,8 @@
   {
     "Key": "t57",
     "Source": "Ctrl+S 首次选择路径，之后保存到当前文件；「保存序列到...」选择新路径。.hktaspack 携带完整输入及启动第 0 帧固定的四槽初始存档，重播使用独立影子副本；未绑定的 .hktas 依赖本机起始存档。默认每 5 分钟将有变化的草稿写入序列目录的 Autosave，不覆盖手动文件、不推进游戏。关闭 Studio 前请保存序列；会话时间线不能代替序列文件。",
-    "Zh": "Ctrl+S 首次选择路径，之后保存到当前文件；「保存序列到...」选择新路径。.hktaspack 携带完整输入及启动第 0 帧固定的四槽初始存档，重播使用独立影子副本；未绑定的 .hktas 依赖本机起始存档。默认每 5 分钟将有变化的草稿写入序列目录的 Autosave，不覆盖手动文件、不推进游戏。关闭 Studio 前请保存序列；会话时间线不能代替序列文件。",
-    "En": "Ctrl+S chooses a path on first save, then saves to that file. Save sequence to... chooses another path. A .hktaspack contains all input and the four-slot snapshot fixed at startup frame 0; replay uses an independent shadow copy. Unbound .hktas files depend on local starting saves. By default, changed drafts are saved every 5 minutes to Autosave without overwriting manual files or advancing the game. Save the sequence before closing Studio; the session timeline does not replace a sequence file."
+    "Zh": "Ctrl+S 首次选择路径，之后保存到当前文件；「保存序列到...」选择新路径。.hktaspack 携带完整输入及启动第 0 帧固定的四槽初始存档，重播使用独立影子副本；未绑定的 .hktas 依赖本机起始存档。默认每 5 分钟将有变化的草稿写入序列目录的 Autosave，不覆盖手动文件、不推进游戏。关闭 Studio 前请保存序列；会话时间线不能代替序列文件。\n\n在输入编辑器点击「编辑存档」，选择文件后修改 JSON。「保存修改到序列」建立新起点并保留原时间线，再用「保存序列」另存新包。「导出存档…」将所有存档及 Mod 附属文件写入新文件夹，不覆盖原存档。\n\n旧序列可打开、编辑和回放。执行规则与当前版本不同会提示兼容性差异，部分输入帧可能需要调整。手动保存更新文件中的执行规则标识，保留输入、按键配置和初始存档；自动保存保留原标识。",
+    "En": "Ctrl+S chooses a path on first save, then saves to that file. Save sequence to... chooses another path. A .hktaspack contains all input and the four-slot snapshot fixed at startup frame 0; replay uses an independent shadow copy. Unbound .hktas files depend on local starting saves. By default, changed drafts are saved every 5 minutes to Autosave without overwriting manual files or advancing the game. Save the sequence before closing Studio; the session timeline does not replace a sequence file.\n\nClick Edit saves in the Input Editor to select a file and edit its JSON. Apply changes to sequence creates a new starting point and preserves the old timeline; save a new package afterwards. Export saves writes all saves and Mod companion files to a new folder, preserving originals.\n\nOlder sequences can be opened, edited and replayed. Different execution rules produce compatibility warnings, and some input frames may need adjustment. Manual saving updates the execution profile while retaining inputs, key configuration and initial saves; autosave retains the original profile."
   },
   {
     "Key": "t58",
@@ -368,8 +368,8 @@
   {
     "Key": "t61",
     "Source": "输入编辑器导出当前完整序列；时间线可选择同一祖先路径上的起点和终点，导出 (起点帧,终点帧]，兄弟分支不可直接导出。使用内置视频编码器；请选择一个不存在的 .mp4 路径。准备重放不录入视频，正式采集包含加载画面。暂停后可继续同一次采集；取消不发布最终 MP4。等待导出状态完成后再使用文件。",
-    "Zh": "输入编辑器导出当前完整序列；时间线可选择同一祖先路径上的起点和终点，导出 (起点帧,终点帧]，兄弟分支不可直接导出。使用内置视频编码器；请选择一个不存在的 .mp4 路径。准备重放不录入视频，正式采集包含加载画面。暂停后可继续同一次采集；取消不发布最终 MP4。等待导出状态完成后再使用文件。",
-    "En": "Export the full sequence from Input Editor, or select start and end nodes on one ancestor path in Timeline to export (start,end]. Sibling branches cannot form a range. Uses the bundled video encoder. Choose a new .mp4 path. Preparation is excluded; capture includes loading frames. Pause and resume continue the same capture. Cancellation does not publish a final MP4. Wait for export completion before using the file."
+    "Zh": "输入编辑器导出当前完整序列；时间线可选择同一祖先路径上的起点和终点，导出 (起点帧,终点帧]，兄弟分支不可直接导出。使用内置视频编码器；请选择一个不存在的 .mp4 路径。准备重放不录入视频，正式采集包含加载画面。暂停后可继续同一次采集；取消不发布最终 MP4。等待导出状态完成后再使用文件。\n\n失败时在设置页「导出诊断日志」，ZIP 包含 Studio 应用日志；反馈时附上错误和复现帧号。",
+    "En": "Export the full sequence from Input Editor, or select start and end nodes on one ancestor path in Timeline to export (start,end]. Sibling branches cannot form a range. Uses the bundled video encoder. Choose a new .mp4 path. Preparation is excluded; capture includes loading frames. Pause and resume continue the same capture. Cancellation does not publish a final MP4. Wait for export completion before using the file.\n\nIf export fails, use Export diagnostic logs in Settings. The ZIP includes Studio application logs; include the error and reproduction frame when reporting it."
   },
   {
     "Key": "t62",
@@ -2973,5 +2973,19 @@
 {"Key": "customKey", "Source": "自定义按键", "Zh": "自定义按键", "En": "Custom key"},
 {"Key": "addCustomKey", "Source": "添加自定义键", "Zh": "添加自定义键", "En": "Add custom key"},
 {"Key": "removeCustomKey", "Source": "移除自定义键", "Zh": "移除自定义键", "En": "Remove custom key"},
-{"Key": "removeCustomKeyHint", "Source": "从整个序列移除此键；可撤销", "Zh": "从整个序列移除此键；可撤销", "En": "Remove this key from the sequence; undo is available"}
+{"Key": "removeCustomKeyHint", "Source": "从整个序列移除此键；可撤销", "Zh": "从整个序列移除此键；可撤销", "En": "Remove this key from the sequence; undo is available"},
+{"Key": "sequenceSaves", "Source": "编辑存档", "Zh": "编辑存档", "En": "Edit saves"},
+{"Key": "saveJson1", "Source": "当前序列没有关联存档。", "Zh": "当前序列没有关联存档。", "En": "This sequence has no associated saves."},
+{"Key": "saveJson2", "Source": "编辑存档 · JSON", "Zh": "编辑存档 · JSON", "En": "Edit saves · JSON"},
+{"Key": "saveJson3", "Source": "保存修改到序列", "Zh": "保存修改到序列", "En": "Apply changes to sequence"},
+{"Key": "saveJson4", "Source": "导出存档…", "Zh": "导出存档…", "En": "Export saves…"},
+{"Key": "saveJson5", "Source": "编辑初始存档 JSON；保存修改后，请在主窗口保存为新的序列包。导出包含所有存档文件。", "Zh": "编辑初始存档 JSON；保存修改后，请在主窗口保存为新的序列包。导出包含所有存档文件。", "En": "Edit initial save JSON, apply changes, then save a new sequence package in the main window. Export includes all save files."},
+{"Key": "saveJson6", "Source": "修改仅作用于序列副本；播放将从起点重新开始。", "Zh": "修改仅作用于序列副本；播放将从起点重新开始。", "En": "Changes affect the sequence copy. Playback will restart from the beginning."},
+{"Key": "saveJson7", "Source": "选择导出位置（将创建新文件夹）", "Zh": "选择导出位置（将创建新文件夹）", "En": "Choose export location (creates a new folder)"},
+{"Key": "saveJson8", "Source": "放弃尚未保存到序列的修改？", "Zh": "放弃尚未保存到序列的修改？", "En": "Discard changes not yet applied to the sequence?"},
+{"Key": "saveJson9", "Source": "JSON 保存失败：", "Zh": "JSON 保存失败：", "En": "Could not save JSON: "},
+{"Key": "saveJson10", "Source": "此文件无法作为 JSON 编辑，仍可原样导出：", "Zh": "此文件无法作为 JSON 编辑，仍可原样导出：", "En": "This file cannot be edited as JSON but can still be exported unchanged: "},
+{"Key": "saveJson11", "Source": "修改失败：", "Zh": "修改失败：", "En": "Could not apply changes: "},
+{"Key": "saveJson12", "Source": "存档已导出：", "Zh": "存档已导出：", "En": "Saves exported to: "},
+{"Key": "saveJson13", "Source": "导出失败：", "Zh": "导出失败：", "En": "Export failed: "}
 ]

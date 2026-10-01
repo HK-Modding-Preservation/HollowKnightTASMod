@@ -4,7 +4,7 @@ namespace HollowKnightTAS.Core.Ipc
     {
         public const string Product =
             "HollowKnightTAS.Companion";
-        public const string Version = "0.1.3";
+        public const string Version = "0.1.4";
         public const int ProtocolMinimum = 1;
         public const int ProtocolMaximum = 1;
 
